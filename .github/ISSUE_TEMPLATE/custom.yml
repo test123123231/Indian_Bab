@@ -1,0 +1,61 @@
+name: "✨ 작업 템플릿"
+description: "새로운 기능, 버그 수정 등 작업을 생성할 때 사용합니다."
+body:
+  - type: checkboxes
+    id: issue-type
+    attributes:
+      label: 🎯 이슈 유형
+      description: 이 이슈가 어떤 성격의 작업인가요? 해당하는 모든 항목을 선택해주세요.
+      options:
+        - label: "🚀 Feat: 새로운 기능 추가"
+        - label: "🐛 Fix: 버그 수정"
+        - label: "🛠 Refactor: 코드 구조 개선 (기능 변경 없이)"
+        - label: "📄 Docs: 문서 관련 작업"
+        - label: "🧹 Chore: 기타 관리 작업"
+    validations:
+      required: true
+      
+  - type: textarea
+    id: feat-description
+    attributes:
+      label: "🚀 Feat: 추가한 기능에 대한 설명"
+      description: "새로운 기능에 대한 내용을 자세히 작성해주세요."
+      placeholder: "사용자가 OO을 할 수 있도록 OO 기능을 추가합니다."
+    validations:
+      required: false
+
+  - type: textarea
+    id: fix-description
+    attributes:
+      label: "🐛 Fix: 버그 수정에 대한 설명"
+      description: "어떤 버그가 발생했고, 어떻게 수정할 계획인지 작성해주세요."
+      placeholder: "기존 로그인 로직에서 발생하는 오류를 수정합니다."
+    validations:
+      required: false
+
+  - type: textarea
+    id: refactor-description
+    attributes:
+      label: "🛠 Refactor: 개선한 내용"
+      description: "어떤 부분을 리팩토링하고, 개선된 점은 무엇인지 작성해주세요."
+      placeholder: "중복 코드를 제거하고, 모듈화를 통해 가독성을 높입니다."
+    validations:
+      required: false
+
+  - type: textarea
+    id: docs-description
+    attributes:
+      label: "📄 Docs: 문서화 내용"
+      description: "어떤 문서를 추가하거나 수정할 것인지 작성해주세요."
+      placeholder: "README.md 파일에 설치 및 사용법을 추가합니다."
+    validations:
+      required: false
+      
+  - type: textarea
+    id: chore-description
+    attributes:
+      label: "🧹 Chore: 기타 관리 작업 내용"
+      description: "빌드 스크립트, 의존성 업데이트 등 기타 내용을 작성해주세요."
+      placeholder: "패키지 의존성(dependency)을 업데이트합니다."
+    validations:
+      required: false
