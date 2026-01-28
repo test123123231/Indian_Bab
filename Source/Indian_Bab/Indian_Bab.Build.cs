@@ -19,10 +19,10 @@ public class Indian_Bab : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
-            "SlateCore",
-            "ApplicationCore",
+			"SlateCore",
+			"ApplicationCore",
 			"RHI"
-        });
+		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 

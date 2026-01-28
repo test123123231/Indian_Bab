@@ -11,9 +11,13 @@ void UMainMenuWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	// C++ 함수와 BP 버튼의 OnClicked 이벤트를 바인딩
-	if (Button_Start)
+	if (Button_Room_Creation)
 	{
-		Button_Start->OnClicked.AddDynamic(this, &UMainMenuWidget::OnStartClicked);
+		Button_Room_Creation->OnClicked.AddDynamic(this, &UMainMenuWidget::OnRoomCreationClicked);
+	}
+	if (Button_Room_Join)
+	{
+		Button_Room_Join->OnClicked.AddDynamic(this, &UMainMenuWidget::OnRoomJoinClicked);
 	}
 	if (Button_Option)
 	{
@@ -28,8 +32,24 @@ void UMainMenuWidget::NativeConstruct()
 }
 
 
-// '시작하기' 버튼 로직
-void UMainMenuWidget::OnStartClicked()
+// '룸 생성' 버튼 로직
+void UMainMenuWidget::OnRoomCreationClicked()
+{
+	APlayerController* PC = GetOwningPlayer();
+	if (PC)
+	{
+		// 레벨을 전환하기 전에 입력 모드를 게임 전용으로 되돌립니다.
+		PC->SetInputMode(FInputModeGameOnly());
+		PC->bShowMouseCursor = false;
+	}
+
+	// 게임 레벨을 엽니다.
+	UGameplayStatics::OpenLevel(this, GameLevelName);
+}
+
+
+// '룸 참가' 버튼 로직
+void UMainMenuWidget::OnRoomJoinClicked()
 {
 	APlayerController* PC = GetOwningPlayer();
 	if (PC)

@@ -29,27 +29,16 @@ private:
 	//--- BP 위젯 변수 바인딩 ---
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UButton> Button_Start;
+	TObjectPtr<UButton> Button_Room_Creation;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_Room_Join;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Option;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Exit;
-
-	//--- C++ 이벤트 핸들러 ---
-
-	// '시작하기' 버튼 클릭 시
-	UFUNCTION()
-	void OnStartClicked();
-
-	// '설정' 버튼 클릭 시
-	UFUNCTION()
-	void OnOptionClicked();
-
-	// '종료' 버튼 클릭 시
-	UFUNCTION()
-	void OnExitClicked();
 
 	//--- 위젯 설정 프로퍼티 ---
 
@@ -68,4 +57,24 @@ private:
 	// --- 기타 캐시된 참조 ---
 	UPROPERTY()
 	TObjectPtr<APlayerController> PlayerControllerRef;
+
+	//--- C++ 이벤트 핸들러 ---
+
+	// '룸 생성' 버튼 클릭 시
+	UFUNCTION()
+	void OnRoomCreationClicked();
+
+	// '룸 참가' 버튼 클릭 시
+	UFUNCTION()
+	void OnRoomJoinClicked();
+
+	// '설정' 버튼 클릭 시
+	UFUNCTION()
+	void OnOptionClicked();
+
+	// '종료' 버튼 클릭 시
+	UFUNCTION()
+	void OnExitClicked();
+
+	
 };
