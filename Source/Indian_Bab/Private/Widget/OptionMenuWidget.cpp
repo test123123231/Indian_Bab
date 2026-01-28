@@ -297,10 +297,7 @@ void UOptionMenuWidget::CloseMenu(bool bSaveChanges)
 	// 부모 메뉴가 있다면 다시 보이게 함
 	if (ParentMenu)
 	{
-		ParentMenu->SetVisibility(ESlateVisibility::Visible);
-
-		// 팝업에서 UIOnly 모드를 사용했으므로,
-		// 부모 위젯(PauseMenu)으로 돌아가기 위해 GameAndUI 모드로 '복원'
+		// 부모 위젯(PauseMenu)으로 돌아가기 위해 GameAndUI 모드로 '복원' 및 포커싱 재설정
 		if (PlayerControllerRef)
 		{
 			FInputModeGameAndUI InputModeData;
