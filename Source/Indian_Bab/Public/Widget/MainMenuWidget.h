@@ -7,6 +7,8 @@
 
 class UButton;
 class UOptionMenuWidget;
+class URoomCreateWidget;
+class URoomJoinWidget;
 
 
 /**
@@ -42,13 +44,29 @@ private:
 
 	//--- 위젯 설정 프로퍼티 ---
 
-	// '시작하기' 버튼 클릭 시 열릴 레벨 이름 (BP의 클래스 기본값에서 설정)
-	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
-	FName GameLevelName = FName(TEXT("AreaKeeper"));
+	// // '시작하기' 버튼 클릭 시 열릴 레벨 이름 (BP의 클래스 기본값에서 설정)
+	// UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
+	// FName GameLevelName = FName(TEXT("AreaKeeper"));
 
 	// '설정' 버튼 클릭 시 열릴 옵션 메뉴 위젯 클래스 (BP에서 설정)
 	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UOptionMenuWidget> OptionMenuWidgetClass;
+
+	// '룸 생성' 버튼 클릭 시 열릴 레벨 이름 (BP의 클래스 기본값에서 설정)
+	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<URoomCreateWidget> RoomCreateWidgetClass;
+
+	// '룸 참가' 버튼 클릭 시 열릴 레벨 이름 (BP의 클래스 기본값에서 설정)
+	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<URoomJoinWidget> RoomJoinWidgetClass;
+
+	// '룸 생성' 메뉴 인스턴스 캐시
+	UPROPERTY()
+	TObjectPtr<URoomCreateWidget> RooomCreateInstance;
+
+	// '룸 참가' 메뉴 인스턴스 캐시
+	UPROPERTY()
+	TObjectPtr<URoomJoinWidget> RooomJoinInstance;
 
 	// '설정' 메뉴 인스턴스 캐시
 	UPROPERTY()

@@ -4,6 +4,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Blueprint/UserWidget.h"
 #include "Widget/OptionMenuWidget.h"
+#include "Widget/RoomCreateWidget.h"
+#include "Widget/RoomJoinWidget.h"
 
 
 void UMainMenuWidget::NativeConstruct()
@@ -35,32 +37,70 @@ void UMainMenuWidget::NativeConstruct()
 // '룸 생성' 버튼 로직
 void UMainMenuWidget::OnRoomCreationClicked()
 {
-	APlayerController* PC = GetOwningPlayer();
-	if (PC)
+	if (!RoomCreateWidgetClass)
 	{
-		// 레벨을 전환하기 전에 입력 모드를 게임 전용으로 되돌립니다.
-		PC->SetInputMode(FInputModeGameOnly());
-		PC->bShowMouseCursor = false;
+		UE_LOG(LogTemp, Warning, TEXT("PauseRoomCreateWidget: RoomCreateWidgetClass 설정되지 않았습니다!"));
+		return;
+	}
+	// 생성 메뉴 '인스턴스' 생성
+	if (!RooomCreateInstance)
+	{
+		RooomCreateInstance = CreateWidget<URoomCreateWidget>(this, RoomCreateWidgetClass);
+		if (!RooomCreateInstance) return; // 생성 실패 시 중단
+
+		// 옵션 메뉴에 부모(자신)를 알려줌
+		// RooomCreateInstance->SetParentMenu(this);
 	}
 
-	// 게임 레벨을 엽니다.
-	UGameplayStatics::OpenLevel(this, GameLevelName);
+	// 뷰포트에 추가 및 포커스 설정
+	if (RooomCreateInstance && !RooomCreateInstance->IsInViewport())
+	{
+		RooomCreateInstance->AddToViewport();
+
+		if (PlayerControllerRef)
+		{
+			// (GameAndUI) 옵션 메뉴는 ESC 키를 사용하므로 포커스 설정
+			FInputModeGameAndUI InputModeData;
+			InputModeData.SetWidgetToFocus(RooomCreateInstance->TakeWidget());
+			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::LockInFullscreen);
+			PlayerControllerRef->SetInputMode(InputModeData);
+		}
+	}
 }
 
 
 // '룸 참가' 버튼 로직
 void UMainMenuWidget::OnRoomJoinClicked()
 {
-	APlayerController* PC = GetOwningPlayer();
-	if (PC)
+	if (!RoomJoinWidgetClass)
 	{
-		// 레벨을 전환하기 전에 입력 모드를 게임 전용으로 되돌립니다.
-		PC->SetInputMode(FInputModeGameOnly());
-		PC->bShowMouseCursor = false;
+		UE_LOG(LogTemp, Warning, TEXT("PauseRoomJoinWidget: RoomJoinWidgetClass 설정되지 않았습니다!"));
+		return;
+	}
+	// 참가 메뉴 '인스턴스' 생성
+	if (!RooomJoinInstance)
+	{
+		RooomJoinInstance = CreateWidget<URoomJoinWidget>(this, RoomJoinWidgetClass);
+		if (!RooomJoinInstance) return; // 생성 실패 시 중단
+
+		// 옵션 메뉴에 부모(자신)를 알려줌
+		//RooomJoinInstance->SetParentMenu(this);
 	}
 
-	// 게임 레벨을 엽니다.
-	UGameplayStatics::OpenLevel(this, GameLevelName);
+	// 뷰포트에 추가 및 포커스 설정
+	if (RooomJoinInstance && !RooomJoinInstance->IsInViewport())
+	{
+		RooomJoinInstance->AddToViewport();
+
+		if (PlayerControllerRef)
+		{
+			// (GameAndUI) 옵션 메뉴는 ESC 키를 사용하므로 포커스 설정
+			FInputModeGameAndUI InputModeData;
+			InputModeData.SetWidgetToFocus(RooomJoinInstance->TakeWidget());
+			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::LockInFullscreen);
+			PlayerControllerRef->SetInputMode(InputModeData);
+		}
+	}
 }
 
 
