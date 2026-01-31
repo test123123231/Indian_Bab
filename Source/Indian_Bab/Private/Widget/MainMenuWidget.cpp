@@ -48,7 +48,7 @@ void UMainMenuWidget::OnRoomCreationClicked()
 		RooomCreateInstance = CreateWidget<URoomCreateWidget>(this, RoomCreateWidgetClass);
 		if (!RooomCreateInstance) return; // 생성 실패 시 중단
 
-		// 옵션 메뉴에 부모(자신)를 알려줌
+		// 룸 생성에 부모(자신)를 알려줌
 		// RooomCreateInstance->SetParentMenu(this);
 	}
 
@@ -83,8 +83,8 @@ void UMainMenuWidget::OnRoomJoinClicked()
 		RooomJoinInstance = CreateWidget<URoomJoinWidget>(this, RoomJoinWidgetClass);
 		if (!RooomJoinInstance) return; // 생성 실패 시 중단
 
-		// 옵션 메뉴에 부모(자신)를 알려줌
-		//RooomJoinInstance->SetParentMenu(this);
+		// 룸 참가에 부모(자신)를 알려줌
+		RooomJoinInstance->SetParentMenu(this);
 	}
 
 	// 뷰포트에 추가 및 포커스 설정
