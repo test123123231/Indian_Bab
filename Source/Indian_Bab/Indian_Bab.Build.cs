@@ -21,8 +21,11 @@ public class Indian_Bab : ModuleRules
 			"Slate",
 			"SlateCore",
 			"ApplicationCore",
-			"RHI"
-		});
+			"RHI",
+			"OnlineSubsystemUtils",
+			"OnlineSubsystem",
+			"OnlineSubsystemSteam",
+        });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
