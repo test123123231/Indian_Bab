@@ -49,7 +49,7 @@ void UMainMenuWidget::OnRoomCreationClicked()
 		if (!RooomCreateInstance) return; // 생성 실패 시 중단
 
 		// 룸 생성에 부모(자신)를 알려줌
-		// RooomCreateInstance->SetParentMenu(this);
+		RooomCreateInstance->SetParentMenu(this);
 	}
 
 	// 뷰포트에 추가 및 포커스 설정
