@@ -4,9 +4,12 @@
 #include "Blueprint/UserWidget.h"
 #include "RoomJoinWidget.generated.h"
 
+
 class UButton;
 class UTextBlock;
 class UEditableTextBox;
+class USessionSubsystem;
+
 
 UCLASS()
 class INDIAN_BAB_API URoomJoinWidget : public UUserWidget
@@ -20,6 +23,9 @@ protected:
 	// 위젯 생성 시 (EventConstruct) 호출
 	virtual void NativeConstruct() override;
 
+	// 위젯 소멸 시 (EventDestruct) 호출
+	virtual void NativeDestruct() override;
+
 	/**
 	 * 이 위젯이 포커스를 가지고 있을 때 키 입력을 받음 (ESC 키 처리용)
 	 */
@@ -32,14 +38,28 @@ protected:
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:
-	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_Yes;
-	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_No;
-	UPROPERTY(meta = (BindWidget)) TObjectPtr<UTextBlock> TitleText;
-	UPROPERTY(meta = (BindWidget)) TObjectPtr<UEditableTextBox> InviteCodeTextBox;
-	//--- 상태 변수 ---
-	UPROPERTY() TObjectPtr<APlayerController> PlayerControllerRef;
-	UPROPERTY() TObjectPtr<UUserWidget> ParentMenu;
+	UPROPERTY() 
+	TObjectPtr<USessionSubsystem> SessionSubsystem;
 
-	UFUNCTION() void OnYesClicked();
-	UFUNCTION() void OnNoClicked();
+	UPROPERTY(meta = (BindWidget)) 
+	TObjectPtr<UButton> Button_Yes;
+	UPROPERTY(meta = (BindWidget)) 
+	TObjectPtr<UButton> Button_No;
+	UPROPERTY(meta = (BindWidget)) 
+	TObjectPtr<UTextBlock> TitleText;
+	UPROPERTY(meta = (BindWidget)) 
+	TObjectPtr<UEditableTextBox> Text_InviteCode;
+	//--- 상태 변수 ---
+	UPROPERTY() 
+	TObjectPtr<APlayerController> PlayerControllerRef;
+	UPROPERTY() 
+	TObjectPtr<UUserWidget> ParentMenu;
+
+	UFUNCTION() 
+	void OnYesClicked();
+	UFUNCTION() 
+	void OnNoClicked();
+
+	// 서브시스템 결과 콜백
+	UFUNCTION() void OnJoinSessionComplete(bool bWasSuccessful);
 };
