@@ -55,7 +55,7 @@ private:
 
 	// 로비 레벨 이름
 	UPROPERTY(EditAnywhere) 
-	FName LobbyLevelName = FName("");
+	FName LobbyLevelName;
 
 	UFUNCTION() 
 	void OnYesClicked();

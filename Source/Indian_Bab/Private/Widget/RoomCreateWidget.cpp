@@ -3,6 +3,7 @@
 #include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
+#include "Net/UnrealNetwork.h"
 
 
 void URoomCreateWidget::SetParentMenu(UUserWidget* InParentMenu)
@@ -171,10 +172,20 @@ void URoomCreateWidget::OnCreateSessionComplete(bool bWasSuccessful)
 
 		// ★ 리슨 서버 시작 (레벨 이동)
 		// "?listen" 옵션이 있어야 호스트가 됩니다.
-		UGameplayStatics::OpenLevel(GetWorld(), LobbyLevelName, true, "listen");
+		UGameplayStatics::OpenLevel(GetWorld(), LobbyLevelName, true, FString(L"listen"));
+		/*UWorld* World = GetWorld();
+		if (World)
+		{
+			FString Options = FString(TEXT("listen"));
+			World->ServerTravel(FString("/Game/Maps/Test_Map/Test_Map_Noh?listen"));
+		}*/
 
-		// 참고: 서브시스템 내부에서 OpenLevel을 호출하므로, 
-		// 잠시 후 화면이 멈추고 레벨 이동이 시작됩니다.
+		if (PlayerControllerRef->HasAuthority()) {
+			UE_LOG(LogTemp, Warning, TEXT("You are the Host!"));
+		}
+		else {
+			UE_LOG(LogTemp, Warning, TEXT("You are a Client!"));
+		}
 	}
 	else
 	{

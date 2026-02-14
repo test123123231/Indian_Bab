@@ -6,7 +6,10 @@ void AMainMenuPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	OpenMainMenu();
+	if(IsLocalPlayerController())
+	{
+		OpenMainMenu();
+	}
 }
 
 void AMainMenuPlayerController::OpenMainMenu()

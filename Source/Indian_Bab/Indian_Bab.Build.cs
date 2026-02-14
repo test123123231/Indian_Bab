@@ -23,13 +23,14 @@ public class Indian_Bab : ModuleRules
 			"ApplicationCore",
 			"RHI",
 			"OnlineSubsystemUtils",
-			"OnlineSubsystem",
-			"OnlineSubsystemSteam",
+			"OnlineSubsystem"
         });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
-		PublicIncludePaths.AddRange(new string[] {
+        DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
+
+        PublicIncludePaths.AddRange(new string[] {
 			"Indian_Bab",
 			"Indian_Bab/Variant_Platforming",
 			"Indian_Bab/Variant_Platforming/Animation",
