@@ -51,26 +51,28 @@ void USessionSubsystem::CreateRoom(int32 MaxPlayers)
         SessionInterface->DestroySession(NAME_GameSession);
     }
 
-    // 1. 델리게이트 바인딩
+    // 델리게이트 바인딩
     CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
         FOnCreateSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnCreateSessionComplete));
 
-    // 2. 초대 코드 생성 (4자리 랜덤)
+    // 초대 코드 생성 (4자리 랜덤)
     CurrentInviteCode = GenerateRandomCode(4);
 
-    // 3. 세션 설정 구성
+    // 세션 설정 구성
     FOnlineSessionSettings SessionSettings;
 
-    // ★ 스팀 설정 핵심 ★
+    // 스팀 설정 핵심
     SessionSettings.bIsLANMatch = false;        // 스팀은 LAN이 아님
-    SessionSettings.bUsesPresence = true;       // 스팀 로비 기능 사용 (필수)
-    SessionSettings.bShouldAdvertise = true;    // 다른 사람이 검색 가능하게 함
-    SessionSettings.bAllowJoinInProgress = true;
+    SessionSettings.bUsesPresence = true;       // Steam 등의 플레이어 존재 여부 기능 사용 (플레이어 상태 표시)
+	SessionSettings.bAllowJoinInProgress = true; // 진행 중인 세션 입장 허용
+	SessionSettings.bAllowJoinViaPresence = true; // 스팀 친구 목록 통해 입장할 수 있도록 허용
+	SessionSettings.bShouldAdvertise = true;    // 세션 광고 허용
+	SessionSettings.bUseLobbiesIfAvailable = true; // 스팀 로비 사용
     SessionSettings.NumPublicConnections = MaxPlayers; // 최대 인원
 
-    // ★ 초대 코드를 세션 데이터에 심기 (검색 시 필터링용)
+    // 초대 코드를 세션 데이터에 심기 (검색 시 필터링용)
     // ViaOnlineService : 스팀 서버를 통해 이 데이터를 전파함
-    SessionSettings.Set(Key_InviteCode, CurrentInviteCode, EOnlineDataAdvertisementType::ViaOnlineService);
+    SessionSettings.Set(Key_InviteCode, CurrentInviteCode, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
 
     // 4. 세션 생성 요청 (로컬 유저 ID 필요)
     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
@@ -118,24 +120,24 @@ void USessionSubsystem::JoinRoomByCode(FString InputCode)
     // 입력된 코드 대문자 변환 및 저장
     TargetCodeToJoin = InputCode.ToUpper();
 
-    // 1. 검색 델리게이트 바인딩
+    // 검색 델리게이트 바인딩
     FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(
         FOnFindSessionsCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnFindSessionsComplete));
 
-    // 2. 검색 설정 (Search Settings)
+    // 검색 설정 (Search Settings)
     SessionSearch = MakeShareable(new FOnlineSessionSearch());
     SessionSearch->bIsLanQuery = false;     // 스팀 사용 시 false
     SessionSearch->MaxSearchResults = 10000; // 최대한 많이 검색해서 코드를 찾아야 함
 
-    // ★ 스팀 로비(Presence) 검색 활성화
+    // 스팀 로비(Presence) 검색 활성화
     SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
 
-    // 3. 검색 시작
+    // 검색 시작
     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
     if (LocalPlayer)
     {
         UE_LOG(LogTemp, Warning, TEXT("Searching for Room Code: %s ..."), *TargetCodeToJoin);
-        SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
     }
 }
 
@@ -149,39 +151,58 @@ void USessionSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
 
     if (bWasSuccessful && SessionSearch.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("Found %d Sessions."), SessionSearch->SearchResults.Num());
+        UE_LOG(LogTemp, Warning, TEXT("=== 검색 시작 ==="));
+        UE_LOG(LogTemp, Warning, TEXT("총 검색된 세션 수: %d"), SessionSearch->SearchResults.Num());
+        UE_LOG(LogTemp, Warning, TEXT("찾으려는 코드: %s"), *TargetCodeToJoin);
 
-        // 검색된 방들 중에서 코드가 일치하는 방 찾기
-        for (const FOnlineSessionSearchResult& SearchResult : SessionSearch->SearchResults)
+        bool bFound = false;
+
+        // 검색된 모든 방을 순회하며 로그를 찍어봅니다.
+        for (FOnlineSessionSearchResult& SearchResult : SessionSearch->SearchResults)
         {
             FString ServerCode;
-            // 세션 설정에서 우리가 저장했던 키(RoomCode)의 값을 읽어옴
+            FString HostName = SearchResult.Session.OwningUserName; // 방장 이름
+
+            // 우리가 심어둔 초대 코드(Key_InviteCode)가 있는지 확인
             if (SearchResult.Session.SessionSettings.Get(Key_InviteCode, ServerCode))
             {
+                UE_LOG(LogTemp, Log, TEXT("[방 발견] 방장: %s | 코드: %s"), *HostName, *ServerCode);
+
                 if (ServerCode == TargetCodeToJoin)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("Match Found! Joining..."));
+                    UE_LOG(LogTemp, Warning, TEXT("★★★ 코드 일치! 입장 시도... ★★★"));
 
-                    // 입장 시도
                     JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
                         FOnJoinSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnJoinSessionComplete));
 
+					SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable = true; // 스팀 로비 사용
+					SearchResult.Session.SessionSettings.bUsesPresence = true; // 스팀 친구 목록 통해 입장할 수 있도록 허용
+
                     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
                     SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SearchResult);
-                    return; // 찾았으니 루프 종료
+
+                    bFound = true;
+                    break; // 찾았으니 종료
                 }
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("[방 발견] 방장: %s | 초대 코드 없음 (다른 게임 방일 수 있음)"), *HostName);
             }
         }
 
-        UE_LOG(LogTemp, Warning, TEXT("No room found with code: %s"), *TargetCodeToJoin);
+        if (!bFound)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("일치하는 코드를 가진 방을 찾지 못했습니다."));
+            // UI에 실패 알림
+            OnJoinSessionCompleteEvent.Broadcast(false);
+        }
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("Session Search Failed."));
+        UE_LOG(LogTemp, Error, TEXT("Session Search Failed (Network Error or Timeout)."));
+        OnJoinSessionCompleteEvent.Broadcast(false);
     }
-
-    // 여기까지 왔으면 실패한 것임
-    OnJoinSessionCompleteEvent.Broadcast(false);
 }
 
 
@@ -200,6 +221,7 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
         FString ConnectInfo;
         if (SessionInterface->GetResolvedConnectString(NAME_GameSession, ConnectInfo))
         {
+
             // 클라이언트 이동 (Client Travel)
             APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
             if (PlayerController)
