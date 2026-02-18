@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 #include "Indian_BabPlayerController.h"
@@ -13,23 +13,15 @@ void AIndian_BabPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UE_LOG(LogIndian_Bab, Warning, TEXT("BeginPlay called on PlayerController!"));
+
 	// only spawn touch controls on local player controllers
-	if (SVirtualJoystick::ShouldDisplayTouchInterface() && IsLocalPlayerController())
+	if (IsLocalPlayerController())
 	{
-		// spawn the mobile controls widget
-		MobileControlsWidget = CreateWidget<UUserWidget>(this, MobileControlsWidgetClass);
-
-		if (MobileControlsWidget)
-		{
-			// add the controls to the player screen
-			MobileControlsWidget->AddToPlayerScreen(0);
-
-		} else {
-
-			UE_LOG(LogIndian_Bab, Error, TEXT("Could not spawn mobile controls widget."));
-
-		}
-
+		// 입력 모드 게임 전용으로 설정
+		FInputModeGameOnly GameInputMode;
+		SetInputMode(GameInputMode);
+		bShowMouseCursor = false;
 	}
 }
 
