@@ -18,12 +18,19 @@ public class Indian_Bab : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
-		});
+			"Slate",
+			"SlateCore",
+			"ApplicationCore",
+			"RHI",
+			"OnlineSubsystemUtils",
+			"OnlineSubsystem"
+        });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 
-		PublicIncludePaths.AddRange(new string[] {
+        DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
+
+        PublicIncludePaths.AddRange(new string[] {
 			"Indian_Bab",
 			"Indian_Bab/Variant_Platforming",
 			"Indian_Bab/Variant_Platforming/Animation",
