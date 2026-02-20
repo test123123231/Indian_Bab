@@ -1,4 +1,5 @@
 #include "Widget/MainGameWidget.h"
+#include "PlayerController/MainGamePlayerController.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/MultiLineEditableText.h" 
@@ -37,22 +38,26 @@ void UMainGameWidget::NativeDestruct()
     if (Button_Fold)      Button_Fold->OnClicked.RemoveAll(this);
 }
 
-void UMainGameWidget::RefreshUI()
-{
-
-}
-
 void UMainGameWidget::OnButtonRaise()
 {
-
+    if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetOwningPlayer()))
+    {
+        PC->RequestRaise();
+    }
 }
 
 void UMainGameWidget::OnButtonCheckFall()
 {
-
+    if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetOwningPlayer()))
+    {
+        PC->RequestCheckCall();
+    }
 }
 
 void UMainGameWidget::OnButtonFold()
 {
-    
+	if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetOwningPlayer()))
+    {
+        PC->RequestFold();
+    }
 }
