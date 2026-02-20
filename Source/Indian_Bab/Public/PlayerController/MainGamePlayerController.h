@@ -2,7 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "InputActionValue.h"   
+#include "InputActionValue.h"  
+#include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "MainGamePlayerController.generated.h"
 
 class UMainGameWidget;
@@ -71,4 +72,7 @@ private:
 
     void EnterUIMode();     // 커서 보이기
     void EnterCameraMode(); // 커서 숨기고 회전
+
+    // 감도
+    float LookSensitivity = 1.0f;
 };

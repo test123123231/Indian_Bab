@@ -2,6 +2,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "EnhancedInputComponent.h"
+#include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "Widget/MainGameWidget.h"
 
 void AMainGamePlayerController::BeginPlay()
@@ -21,6 +22,11 @@ void AMainGamePlayerController::BeginPlay()
     if (DefaultMappingContext)
     {
         Subsys->AddMappingContext(DefaultMappingContext, 0);
+    }
+
+    if (USettingSubsystem* SettingSS = GetGameInstance()->GetSubsystem<USettingSubsystem>())
+    {
+        LookSensitivity = SettingSS->GetMouseSensitivity();
     }
 }
 
@@ -45,10 +51,7 @@ if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent)
 
 void AMainGamePlayerController::CreateMainGameWidget()
 {
-    if (!MainGameWidgetClass)
-    {
-        return;
-    }
+    if (!MainGameWidgetClass) return;
     
     if (!MainGameWidgetInstance)
     {
@@ -94,7 +97,6 @@ void AMainGamePlayerController::EnterCameraMode()
 
     FInputModeGameOnly Mode;
     SetInputMode(Mode);
-
     SetIgnoreLookInput(false);
 }
 
@@ -104,8 +106,8 @@ void AMainGamePlayerController::OnLook(const FInputActionValue& Value)
 
     const FVector2D LookAxis = Value.Get<FVector2D>();
 
-    AddYawInput(LookAxis.X);
-    AddPitchInput(-LookAxis.Y);
+    AddYawInput(LookAxis.X * LookSensitivity);
+    AddPitchInput(-LookAxis.Y * LookSensitivity);
 }
 
 void AMainGamePlayerController::RequestRaise()
