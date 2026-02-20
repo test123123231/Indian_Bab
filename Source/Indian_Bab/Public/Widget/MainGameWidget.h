@@ -7,8 +7,8 @@
 #include "MainGameWidget.generated.h"
 
 class UButton;
-class UMultiLineEditableText;
-class UEditableTextBox;
+// class UMultiLineEditableText;
+// class UEditableTextBox;
 class UTextBlock;
 
 
@@ -54,8 +54,6 @@ private:
 	// 폴드 버튼 클릭 시
 	UFUNCTION()
 	void OnButtonFold();
-
-	void RefreshUI();
 };
 
 

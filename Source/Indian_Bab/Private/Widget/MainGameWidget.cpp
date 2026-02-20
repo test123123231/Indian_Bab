@@ -2,8 +2,18 @@
 #include "PlayerController/MainGamePlayerController.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "Components/EditableTextBox.h"
-#include "Components/MultiLineEditableText.h" 
+//#include "Components/EditableTextBox.h"
+//#include "Components/MultiLineEditableText.h" 
+
+void UMainGameWidget::NativeDestruct()
+{
+	Super::NativeDestruct();
+
+    // 위젯 제거될 때 이벤트 정리
+    if (Button_Raise)     Button_Raise->OnClicked.RemoveAll(this);
+    if (Button_CheckCall) Button_CheckCall->OnClicked.RemoveAll(this);
+    if (Button_Fold)      Button_Fold->OnClicked.RemoveAll(this);
+}
 
 void UMainGameWidget::NativeConstruct()
 {
@@ -25,18 +35,6 @@ void UMainGameWidget::NativeConstruct()
         Button_Fold->OnClicked.RemoveAll(this);
 		Button_Fold->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonFold);
 	}
-    
-    RefreshUI();
-}
-
-void UMainGameWidget::NativeDestruct()
-{
-	Super::NativeDestruct();
-
-    // 위젯 제거될 때 이벤트 정리
-    if (Button_Raise)     Button_Raise->OnClicked.RemoveAll(this);
-    if (Button_CheckCall) Button_CheckCall->OnClicked.RemoveAll(this);
-    if (Button_Fold)      Button_Fold->OnClicked.RemoveAll(this);
 }
 
 void UMainGameWidget::OnButtonRaise()
