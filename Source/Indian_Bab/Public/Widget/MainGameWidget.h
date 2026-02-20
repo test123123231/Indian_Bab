@@ -9,6 +9,7 @@
 class UButton;
 class UMultiLineEditableText;
 class UEditableTextBox;
+class UTextBlock;
 
 
 UCLASS()
@@ -21,17 +22,17 @@ protected:
 	virtual void NativeDestruct() override;
 
 private:
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UEditableTextBox> Text_SubRevolverCount;
+	// UPROPERTY(meta = (BindWidget))
+	// TObjectPtr<UEditableTextBox> Text_SubRevolverCount;
+
+	// UPROPERTY(meta = (BindWidget))
+	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
+	TObjectPtr<UTextBlock> Text_Time;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UMultiLineEditableText> Text_Time;
-
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UEditableTextBox> Text_CheckCall;
+	TObjectPtr<UTextBlock> Text_CheckCall;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Raise;

@@ -1,6 +1,7 @@
 #include "Widget/MainGameWidget.h"
 #include "PlayerController/MainGamePlayerController.h"
 #include "Components/Button.h"
+#include "Components/TextBlock.h"
 #include "Components/EditableTextBox.h"
 #include "Components/MultiLineEditableText.h" 
 
