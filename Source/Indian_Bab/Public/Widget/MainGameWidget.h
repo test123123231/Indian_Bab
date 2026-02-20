@@ -48,7 +48,7 @@ private:
 
 	// 체크/콜 버튼 클릭 시
 	UFUNCTION()
-	void OnButtonCheckFall();
+	void OnButtonCheckCall();
 
 	// 폴드 버튼 클릭 시
 	UFUNCTION()
