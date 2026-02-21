@@ -93,6 +93,4 @@ private:
 	// '종료' 버튼 클릭 시
 	UFUNCTION()
 	void OnExitClicked();
-
-	
 };
