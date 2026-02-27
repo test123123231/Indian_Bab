@@ -32,20 +32,14 @@ public class Indian_Bab : ModuleRules
 
         PublicIncludePaths.AddRange(new string[] {
 			"Indian_Bab",
-			"Indian_Bab/Variant_Platforming",
-			"Indian_Bab/Variant_Platforming/Animation",
-			"Indian_Bab/Variant_Combat",
-			"Indian_Bab/Variant_Combat/AI",
-			"Indian_Bab/Variant_Combat/Animation",
-			"Indian_Bab/Variant_Combat/Gameplay",
-			"Indian_Bab/Variant_Combat/Interfaces",
-			"Indian_Bab/Variant_Combat/UI",
-			"Indian_Bab/Variant_SideScrolling",
-			"Indian_Bab/Variant_SideScrolling/AI",
-			"Indian_Bab/Variant_SideScrolling/Gameplay",
-			"Indian_Bab/Variant_SideScrolling/Interfaces",
-			"Indian_Bab/Variant_SideScrolling/UI"
-		});
+            "Indian_Bab/TP_FirstPerson",
+            "Indian_Bab/TP_FirstPerson/Variant_Horror",
+            "Indian_Bab/TP_FirstPerson/Variant_Horror/UI",
+            "Indian_Bab/TP_FirstPerson/Variant_Shooter",
+            "Indian_Bab/TP_FirstPerson/Variant_Shooter/AI",
+			"Indian_Bab/TP_FirstPerson/Variant_Shooter/UI",
+            "Indian_Bab/TP_FirstPerson/Variant_Shooter/Weapons"
+        });
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
