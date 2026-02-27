@@ -7,6 +7,8 @@
 #include "GameMode/MainGameTypes.h"
 #include "MainGameMode.generated.h"
 
+class AMainGamePlayerController;
+
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
 {
@@ -16,6 +18,8 @@ public:
     AMainGameMode();
 
 	virtual void BeginPlay() override;
+
+    void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action);
 
 private:
     UPROPERTY(VisibleAnywhere, Category="State")

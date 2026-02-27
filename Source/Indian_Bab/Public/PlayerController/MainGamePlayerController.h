@@ -28,10 +28,12 @@ public:
     UFUNCTION(BlueprintCallable)
     void RequestFold();
 
+    int GetPlayerIdSafe();
+
 private:
     // 서버로 보내는 RPC
-    // UFUNCTION(Server, Reliable)
-    // void Server_RequestBetAction(EBetAction Action);
+    UFUNCTION(Server, Reliable)
+    void Server_RequestBetAction(EBetAction Action);
 
     // UI 생성/관리
     void CreateMainGameWidget();

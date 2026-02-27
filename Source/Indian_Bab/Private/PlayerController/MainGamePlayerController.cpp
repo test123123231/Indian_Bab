@@ -4,6 +4,8 @@
 #include "EnhancedInputComponent.h"
 #include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "Widget/MainGameWidget.h"
+#include "GameMode/MainGameMode.h"
+#include "GameFramework/PlayerState.h"
 
 void AMainGamePlayerController::BeginPlay()
 {
@@ -112,15 +114,29 @@ void AMainGamePlayerController::OnLook(const FInputActionValue& Value)
 
 void AMainGamePlayerController::RequestRaise()
 {
-    UE_LOG(LogTemp, Display, TEXT("RequestRaise"));
+    Server_RequestBetAction(EBetAction::Raise);
 }
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    UE_LOG(LogTemp, Display, TEXT("RequestCheckCall"));
+    Server_RequestBetAction(EBetAction::CheckCall);
 }
 
 void AMainGamePlayerController::RequestFold()
 {
-    UE_LOG(LogTemp, Display, TEXT("RequestFold"));
+    Server_RequestBetAction(EBetAction::Fold);
+}
+
+int AMainGamePlayerController::GetPlayerIdSafe()
+{
+    const APlayerState* PS = GetPlayerState<APlayerState>();
+    return PS ? PS->GetPlayerId() : -1;
+}
+
+void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
+{
+    AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
+    if(!GM) return;
+
+    GM -> HandleBetAction(this, Action);
 }
