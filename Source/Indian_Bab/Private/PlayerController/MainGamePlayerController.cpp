@@ -5,6 +5,8 @@
 #include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "Widget/MainGameWidget.h"
 #include "Character/LobbyCameraManager.h"
+#include "Character/LobbyCharacter.h"
+#include "Interface/InteractableInterface.h"
 
 
 AMainGamePlayerController::AMainGamePlayerController()
@@ -240,4 +242,12 @@ void AMainGamePlayerController::OnLobbyLook(const FInputActionValue& Value)
     const FVector2D LookAxis = Value.Get<FVector2D>();
     AddYawInput(LookAxis.X * LookSensitivity);
     AddPitchInput(-LookAxis.Y * LookSensitivity);
+}
+
+
+void AMainGamePlayerController::ClientOnSeated_Implementation()
+{
+    // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
+    ApplyMainGameMappingContext();
+    EnterUIMode();
 }

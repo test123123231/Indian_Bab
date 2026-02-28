@@ -35,6 +35,9 @@ public:
     UFUNCTION(BlueprintCallable)
     void RequestFold();
 
+    UFUNCTION(Client, Reliable)
+    void ClientOnSeated();
+
 private:
     // 서버로 보내는 RPC
     // UFUNCTION(Server, Reliable)
@@ -104,4 +107,5 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_LobbyLook;
+
 };
