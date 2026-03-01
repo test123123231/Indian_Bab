@@ -61,15 +61,15 @@ void AMainGamePlayerController::SetupInputComponent()
         }
         if (IA_MainGameCheckCall)
         {
-            EnhancedInput->BindAction(IA_MainGameCheckCall, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameCheckCall);
+            EnhancedInput->BindAction(IA_MainGameCheckCall, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameCheckCall);
         }
         if (IA_MainGameFold)
         {
-            EnhancedInput->BindAction(IA_MainGameFold, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameFold);
+            EnhancedInput->BindAction(IA_MainGameFold, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameFold);
         }
         if (IA_MainGameRaise)
         {
-            EnhancedInput->BindAction(IA_MainGameRaise, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameRaise);
+            EnhancedInput->BindAction(IA_MainGameRaise, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameRaise);
         }
 
         if (IA_LobbyMove)
