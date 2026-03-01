@@ -261,3 +261,9 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
     ApplyMainGameMappingContext();
     EnterUIMode();
 }
+
+int AMainGamePlayerController::GetPlayerIdSafe()
+{
+    const APlayerState* PS = GetPlayerState<APlayerState>();
+    return PS ? PS->GetPlayerId() : -1;
+}
