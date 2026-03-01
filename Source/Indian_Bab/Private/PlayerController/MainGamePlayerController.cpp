@@ -252,7 +252,7 @@ void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetActio
     AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
     if(!GM) return;
 
-    GM -> HandleBetAction(Action);
+    GM -> HandleBetAction(this, Action);
 }
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()
