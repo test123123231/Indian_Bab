@@ -10,6 +10,7 @@ class UButton;
 // class UMultiLineEditableText;
 // class UEditableTextBox;
 class UTextBlock;
+class AMainGamePlayerController;
 
 
 UCLASS()
@@ -42,6 +43,9 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Fold;
+
+	// 플레이어 컨트롤러 참조 변수
+	TObjectPtr<AMainGamePlayerController> MainGamePC;
 
 	// 레이즈 버튼 클릭 시
 	UFUNCTION()

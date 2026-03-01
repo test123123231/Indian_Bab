@@ -1,0 +1,43 @@
+@startuml
+!theme plain
+skinparam maxMessageSize 250
+autonumber
+
+participant "Net Driver" as NetDriver
+participant "UActorChannel" as Channel #LightBlue
+participant "FObjectReplicator" as Replicator
+participant "AActor\n(Already Spawned)" as Actor #LightGreen
+
+== Packet Reception (Continuous Update) ==
+NetDriver -> Channel : Receive Bunch (Update Packet)\nExecute ProcessBunch()
+
+group Step 1: Skip Spawn Logic
+    Channel -> Channel : Check Actor Exists (bSpawn=false)
+    note right of Channel : Actor already exists in the world.\nSkip SpawnActor, PostInit, BeginPlay entirely.
+end
+
+group Step 2: Extract & Apply Data
+    Channel -> Replicator : ReceivedBunch()
+    activate Replicator
+    
+    par Property Updates
+        Replicator -> Actor : Overwrite changed variables
+        opt If value differs from the "Previous Local Value"
+            Actor -> Actor : Trigger OnRep_XXX()
+            note right of Actor : Reacts to state changes\n(e.g., UI health bar updates)
+        end
+    else RPC Executions
+        Replicator -> Actor : Execute RPCs (if any in bunch)
+        note right of Actor : Executes Client RPCs or NetMulticast
+    end
+    
+    Replicator --> Channel : Data application complete
+    deactivate Replicator
+end
+
+group Step 3: End of Update Callback
+    Channel -> Actor : PostNetReceive()
+    note right of Actor : ✅ Update Complete!\nFires EVERY TIME a network bunch is processed.\nGreat for logic that depends on multiple variables updating together.
+end
+
+@enduml

@@ -6,50 +6,124 @@
 #include "Widget/MainGameWidget.h"
 #include "GameMode/MainGameMode.h"
 #include "GameFramework/PlayerState.h"
+#include "Character/LobbyCameraManager.h"
+#include "Character/LobbyCharacter.h"
+#include "Interface/InteractableInterface.h"
+
+
+AMainGamePlayerController::AMainGamePlayerController()
+{
+	PlayerCameraManagerClass = ALobbyCameraManager::StaticClass();
+}
+
 
 void AMainGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    if(!IsLocalController()) return;
-    CreateMainGameWidget();
-    EnterUIMode();
+    if(!IsLocalPlayerController()) 
+        return;
 
+    CreateMainGameWidget();
+    EnterCameraMode();
+
+	ApplyLobbyMappingContext();
+
+    if (USettingSubsystem* SettingSS = GetGameInstance()->GetSubsystem<USettingSubsystem>())
+    {
+        LookSensitivity = SettingSS->GetMouseSensitivity();
+    }
+
+	FInputModeGameOnly Mode;
+	SetInputMode(Mode);
+	bShowMouseCursor = false;
+}
+
+
+void AMainGamePlayerController::SetupInputComponent()
+{
+    Super::SetupInputComponent();
+
+	if (!IsLocalPlayerController()) 
+        return;
+
+    if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent))
+    {
+        if (IA_MainGameLook)
+        {
+            EnhancedInput->BindAction(IA_MainGameLook, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameLook);
+        }
+        if (IA_MainGameRMB)
+        {
+            EnhancedInput->BindAction(IA_MainGameRMB, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameRMBPressed);
+            EnhancedInput->BindAction(IA_MainGameRMB, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnMainGameRMBReleased);
+        }
+        if (IA_MainGameCheckCall)
+        {
+            EnhancedInput->BindAction(IA_MainGameCheckCall, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameCheckCall);
+        }
+        if (IA_MainGameFold)
+        {
+            EnhancedInput->BindAction(IA_MainGameFold, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameFold);
+        }
+        if (IA_MainGameRaise)
+        {
+            EnhancedInput->BindAction(IA_MainGameRaise, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameRaise);
+        }
+
+        if (IA_LobbyMove)
+        {
+            EnhancedInput->BindAction(IA_LobbyMove, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnLobbyMove);
+        }
+
+        if (IA_LobbyLook)
+        {
+            EnhancedInput->BindAction(IA_LobbyLook, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnLobbyLook);
+        }
+    }
+}
+
+
+void AMainGamePlayerController::ApplyLobbyMappingContext()
+{
     ULocalPlayer* LocalPlayer = GetLocalPlayer();
     if (!LocalPlayer) return;
 
     auto* Subsys = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
     if (!Subsys) return;
 
-    if (DefaultMappingContext)
+    // 나중에 게임 모드 별로 바꾸도록 변경 필요
+    if (Subsys->HasMappingContext(MainGameMappingContext))
     {
-        Subsys->AddMappingContext(DefaultMappingContext, 0);
+        Subsys->RemoveMappingContext(MainGameMappingContext);
     }
 
-    if (USettingSubsystem* SettingSS = GetGameInstance()->GetSubsystem<USettingSubsystem>())
+    if (LobbyMappingContext)
     {
-        LookSensitivity = SettingSS->GetMouseSensitivity();
+        Subsys->AddMappingContext(LobbyMappingContext, 0);
     }
 }
 
-void AMainGamePlayerController::SetupInputComponent()
+
+void AMainGamePlayerController::ApplyMainGameMappingContext()
 {
-    Super::SetupInputComponent();
+    ULocalPlayer* LocalPlayer = GetLocalPlayer();
+    if (!LocalPlayer) return;
 
-    if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
+    auto* Subsys = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+    if (!Subsys) return;
+
+    if (Subsys->HasMappingContext(LobbyMappingContext))
     {
-        if (IA_Raise) EIC->BindAction(IA_Raise, ETriggerEvent::Started, this, &AMainGamePlayerController::RequestRaise);
-        if (IA_CheckCall) EIC->BindAction(IA_CheckCall, ETriggerEvent::Started, this, &AMainGamePlayerController::RequestCheckCall);
-        if (IA_Fold) EIC->BindAction(IA_Fold, ETriggerEvent::Started, this, &AMainGamePlayerController::RequestFold);
-        if (IA_Look) EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnLook);
-        if (IA_RMB)
-        {
-            EIC->BindAction(IA_RMB, ETriggerEvent::Started,   this, &AMainGamePlayerController::OnRMBPressed);
-            EIC->BindAction(IA_RMB, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRMBReleased);
-        }
-    }
+        Subsys->RemoveMappingContext(LobbyMappingContext);
+	}
 
+    if (MainGameMappingContext)
+    {
+        Subsys->AddMappingContext(MainGameMappingContext, 0);
+    }
 }
+
 
 void AMainGamePlayerController::CreateMainGameWidget()
 {
@@ -66,17 +140,6 @@ void AMainGamePlayerController::CreateMainGameWidget()
     }
 }
 
-void AMainGamePlayerController::OnRMBPressed(const FInputActionValue& Value)
-{
-    bRMBHeld = true;
-    EnterCameraMode();
-}
-
-void AMainGamePlayerController::OnRMBReleased(const FInputActionValue& Value)
-{
-    bRMBHeld = false;
-    EnterUIMode();
-}
 
 void AMainGamePlayerController::EnterUIMode()
 {
@@ -91,6 +154,7 @@ void AMainGamePlayerController::EnterUIMode()
     SetIgnoreLookInput(true);
 }
 
+
 void AMainGamePlayerController::EnterCameraMode()
 {
     bShowMouseCursor = false;
@@ -102,7 +166,26 @@ void AMainGamePlayerController::EnterCameraMode()
     SetIgnoreLookInput(false);
 }
 
-void AMainGamePlayerController::OnLook(const FInputActionValue& Value)
+
+void AMainGamePlayerController::RequestRaise()
+{
+    UE_LOG(LogTemp, Display, TEXT("RequestRaise"));
+}
+
+
+void AMainGamePlayerController::RequestCheckCall()
+{
+    UE_LOG(LogTemp, Display, TEXT("RequestCheckCall"));
+}
+
+
+void AMainGamePlayerController::RequestFold()
+{
+    UE_LOG(LogTemp, Display, TEXT("RequestFold"));
+}
+
+
+void AMainGamePlayerController::OnMainGameLook(const FInputActionValue& Value)
 {
     if (!bRMBHeld) return;
 
@@ -112,31 +195,61 @@ void AMainGamePlayerController::OnLook(const FInputActionValue& Value)
     AddPitchInput(-LookAxis.Y * LookSensitivity);
 }
 
-void AMainGamePlayerController::RequestRaise()
+
+void AMainGamePlayerController::OnMainGameRMBPressed(const FInputActionValue& Value)
 {
-    Server_RequestBetAction(EBetAction::Raise);
+    bRMBHeld = true;
+    EnterCameraMode();
 }
 
-void AMainGamePlayerController::RequestCheckCall()
+
+void AMainGamePlayerController::OnMainGameRMBReleased(const FInputActionValue& Value)
 {
-    Server_RequestBetAction(EBetAction::CheckCall);
+    bRMBHeld = false;
+    EnterUIMode();
 }
 
-void AMainGamePlayerController::RequestFold()
+
+void AMainGamePlayerController::OnMainGameCheckCall(const FInputActionValue& Value)
 {
-    Server_RequestBetAction(EBetAction::Fold);
+    RequestCheckCall();
 }
 
-int AMainGamePlayerController::GetPlayerIdSafe()
+
+void AMainGamePlayerController::OnMainGameFold(const FInputActionValue& Value)
 {
-    const APlayerState* PS = GetPlayerState<APlayerState>();
-    return PS ? PS->GetPlayerId() : -1;
+    RequestFold();
 }
 
-void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
-{
-    AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
-    if(!GM) return;
 
-    GM -> HandleBetAction(this, Action);
+void AMainGamePlayerController::OnMainGameRaise(const FInputActionValue& Value)
+{
+    RequestRaise();
+}
+
+
+void AMainGamePlayerController::OnLobbyMove(const FInputActionValue& Value)
+{
+    const FVector2D MoveAxis = Value.Get<FVector2D>();
+    if (APawn* MyPawn = GetPawn())
+    {
+        MyPawn->AddMovementInput(MyPawn->GetActorForwardVector(), MoveAxis.Y);
+        MyPawn->AddMovementInput(MyPawn->GetActorRightVector(), MoveAxis.X);
+    }
+}
+
+
+void AMainGamePlayerController::OnLobbyLook(const FInputActionValue& Value)
+{
+    const FVector2D LookAxis = Value.Get<FVector2D>();
+    AddYawInput(LookAxis.X * LookSensitivity);
+    AddPitchInput(-LookAxis.Y * LookSensitivity);
+}
+
+
+void AMainGamePlayerController::ClientOnSeated_Implementation()
+{
+    // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
+    ApplyMainGameMappingContext();
+    EnterUIMode();
 }
