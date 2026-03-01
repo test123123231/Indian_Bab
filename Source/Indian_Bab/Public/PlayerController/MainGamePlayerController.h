@@ -35,9 +35,10 @@ public:
     UFUNCTION(BlueprintCallable)
     void RequestFold();
 
-    int GetPlayerIdSafe();
     UFUNCTION(Client, Reliable)
     void ClientOnSeated();
+
+    int GetPlayerIdSafe();
 
 private:
     // 서버로 보내는 RPC

@@ -4,7 +4,8 @@
 #include "EnhancedInputComponent.h"
 #include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "Widget/MainGameWidget.h"
-#include "GameMode/MainGameMode.h"
+#include "Game/MainGameMode.h"
+#include "Game/MainGameTypes.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
@@ -169,19 +170,19 @@ void AMainGamePlayerController::EnterCameraMode()
 
 void AMainGamePlayerController::RequestRaise()
 {
-    UE_LOG(LogTemp, Display, TEXT("RequestRaise"));
+    Server_RequestBetAction_Implementation(EBetAction::Raise);
 }
 
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    UE_LOG(LogTemp, Display, TEXT("RequestCheckCall"));
+    Server_RequestBetAction_Implementation(EBetAction::CheckCall);
 }
 
 
 void AMainGamePlayerController::RequestFold()
 {
-    UE_LOG(LogTemp, Display, TEXT("RequestFold"));
+    Server_RequestBetAction_Implementation(EBetAction::Fold);
 }
 
 
@@ -246,6 +247,13 @@ void AMainGamePlayerController::OnLobbyLook(const FInputActionValue& Value)
     AddPitchInput(-LookAxis.Y * LookSensitivity);
 }
 
+void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
+{
+    AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
+    if(!GM) return;
+
+    GM -> HandleBetAction(Action);
+}
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()
 {
