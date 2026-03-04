@@ -30,4 +30,20 @@ protected:
 
 	// 게임 루프 시작
 	void StartMainGame();
+
+	// 플레이어 랜덤 선택
+	void PickRandomPlayer();
+
+	// 턴 넘기는 타이머
+	void StartTurnTimer(float Time);
+
+	// 턴 제한시간은 넘겼을 때
+	void OnTurnTimerExpired();
+
+	// 다음 턴
+	void NextTurn();
+
+private:
+	FTimerHandle TimerHandle;
+
 };

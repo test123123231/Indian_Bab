@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameState.h"
+#include "GameFramework/PlayerState.h"
 #include "MainGameState.generated.h"
 
 
@@ -35,11 +36,25 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
 	int32 ReadyPlayerCount;
 
+	// 현재 턴의 플레이어
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
+	int32 CurrentTurnPlayerId;
+
+	// 현재 턴의 플레이어의 인덱스
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
+	int32 CurrentPlayerIndex;
+
 	// 서버가 GamePhase를 변경할 때 호출
 	void SetGamePhase(EGamePhase NewPhase);
+
+	// 서버에서 턴이 바뀔 때 호출
+	void ChangeGameTurn();
 
 protected:
 	// 클라이언트에서 GamePhase가 변경되었을 때 실행될 로직 (UI 업데이트 등)
 	UFUNCTION()
 	void OnRep_GamePhase();
+
+	UFUNCTION()
+	void OnRep_CurrentTurnPlayerId();
 };
