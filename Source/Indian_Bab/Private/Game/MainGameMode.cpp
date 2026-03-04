@@ -79,13 +79,17 @@ void AMainGameMode::CheckGameStart()
 
 void AMainGameMode::StartMainGame()
 {
-	// TODO: 카드 분배, 앤티(Ante) 지불 등 실제 인게임 로직 호출
+	// TODO: 카드 분배, 앤티(Ante) 지불 등 실제 인게임 로직 호출, 생존자 카운팅
 	AMainGameState* GS = GetGameState<AMainGameState>();
-	GS->SetGamePhase(EGamePhase::Playing);
+
 	if (GS)
 	{
-		//랜덤 플레이어 선택
-		PickRandomPlayer();
+		GS->SetGamePhase(EGamePhase::Playing);
+
+		//처음에만 랜덤으로 플레이어 선택
+		if (GS -> CurrentPlayerIndex == -1)
+			PickRandomPlayer();
+		
 		// 타이머 시작
 		StartTurnTimer(5.0f);
 	}
@@ -96,7 +100,9 @@ void AMainGameMode::PickRandomPlayer()
 	if (!HasAuthority()) return;
 
 	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
 
+	// 테스트 용이하게 0으로 했지만 추후 1로 수정
 	if (GS -> ReadyPlayerCount <= 0) return;
 	GS -> CurrentPlayerIndex = FMath::RandRange(0, GS -> ReadyPlayerCount - 1);
 
@@ -119,6 +125,7 @@ void AMainGameMode::OnTurnTimerExpired()
 {
 	if (!HasAuthority()) return;
 
+	UE_LOG(LogTemp, Warning, TEXT("[GM] TimeOut NextTurn"));
 	NextTurn();
 }
 
@@ -130,6 +137,7 @@ void AMainGameMode::NextTurn()
     if (!GS) return;
 	if (GS -> ReadyPlayerCount <= 0) return;
 
+	//현재 플레이어 인덱스에 따라 순환, 추후 수정
 	GS -> CurrentPlayerIndex = (GS -> CurrentPlayerIndex + 1) % GS -> ReadyPlayerCount;
 	
     if (APlayerState* NextPS = GS->PlayerArray[GS -> CurrentPlayerIndex])

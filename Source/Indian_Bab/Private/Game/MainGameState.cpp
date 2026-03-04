@@ -40,6 +40,7 @@ void AMainGameState::ChangeGameTurn()
 
 void AMainGameState::OnRep_CurrentTurnPlayerId()
 {
+	// 현재 턴의 플레이어 아이디 표시
     UE_LOG(LogTemp, Warning, TEXT("[GS]CurrentTurnPlayerId = %d"), CurrentTurnPlayerId);
 }
 
