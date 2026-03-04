@@ -77,8 +77,9 @@ void AMainGameMode::CheckGameStart()
 
 void AMainGameMode::StartMainGame()
 {
-	// TODO: 카드 분배, 첫 번째 턴 플레이어 선정, 앤티(Ante) 지불 등 실제 인게임 로직 호출
+	// TODO: 카드 분배, 앤티(Ante) 지불 등 실제 인게임 로직 호출
 	AMainGameState* GS = GetGameState<AMainGameState>();
+	GS->SetGamePhase(EGamePhase::Playing);
 	if (GS)
 	{
 		//랜덤 플레이어 선택
