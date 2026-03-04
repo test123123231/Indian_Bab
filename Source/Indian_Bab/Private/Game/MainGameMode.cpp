@@ -62,8 +62,10 @@ void AMainGameMode::CheckGameStart()
 
 	// 기획 상 3~4인 플레이. 테스트를 위해 1인 이상으로 할 수도 있음.
 	// 여기서는 현재 접속한 인원이 모두 앉았는지(Ready) 검사
-	//if (GS->ReadyPlayerCount >= 1 && GS->ReadyPlayerCount == NumPlayers)
-	if (GS->ReadyPlayerCount >= 3 && GS->ReadyPlayerCount == NumPlayers)
+
+	//*********** 테스트 편할려고 2로 일단 해놨어요 **********************/
+
+	if (GS->ReadyPlayerCount >= 2 && GS->ReadyPlayerCount == NumPlayers)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("모든 플레이어가 착석했습니다. 3초 후 게임을 시작합니다."));
 

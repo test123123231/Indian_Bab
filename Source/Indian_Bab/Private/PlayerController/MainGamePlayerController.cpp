@@ -170,19 +170,19 @@ void AMainGamePlayerController::EnterCameraMode()
 
 void AMainGamePlayerController::RequestRaise()
 {
-    Server_RequestBetAction_Implementation(EBetAction::Raise);
+    Server_RequestBetAction(EBetAction::Raise);
 }
 
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    Server_RequestBetAction_Implementation(EBetAction::CheckCall);
+    Server_RequestBetAction(EBetAction::CheckCall);
 }
 
 
 void AMainGamePlayerController::RequestFold()
 {
-    Server_RequestBetAction_Implementation(EBetAction::Fold);
+    Server_RequestBetAction(EBetAction::Fold);
 }
 
 
