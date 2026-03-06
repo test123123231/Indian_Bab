@@ -41,7 +41,7 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentTurnPlayerId;
 
-	// 현재 턴의 플레이어의 인덱스
+	// 현재 턴의 플레이어의 인덱스(SeatChairArray 인덱스)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentPlayerIndex;
 

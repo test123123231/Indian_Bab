@@ -34,6 +34,11 @@ void ASeatActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(ASeatActor, Occupant);
 }
 
+TObjectPtr<AActor> ASeatActor::GetOccupant()
+{
+	return Occupant;
+}
+
 
 void ASeatActor::BeginPlay()
 {

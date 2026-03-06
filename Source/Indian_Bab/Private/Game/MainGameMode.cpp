@@ -1,6 +1,7 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
 #include "Actor/SeatActor.h"
+#include "Character/LobbyCharacter.h"
 #include "PlayerController/MainGamePlayerController.h"
 
 
@@ -74,10 +75,7 @@ void AMainGameMode::CheckGameStart()
 
 	// 기획 상 3~4인 플레이. 테스트를 위해 1인 이상으로 할 수도 있음.
 	// 여기서는 현재 접속한 인원이 모두 앉았는지(Ready) 검사
-
-	//*********** 테스트 편할려고 2로 일단 해놨어요 **********************/
-
-	if (GS->ReadyPlayerCount >= 2 && GS->ReadyPlayerCount == NumPlayers)
+	if (GS->ReadyPlayerCount >= 3 && GS->ReadyPlayerCount == NumPlayers)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("모든 플레이어가 착석했습니다. 3초 후 게임을 시작합니다."));
 
@@ -114,15 +112,18 @@ void AMainGameMode::PickRandomPlayer()
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 
-	// 테스트 용이하게 0으로 했지만 추후 1로 수정
-	if (GS -> ReadyPlayerCount <= 0) return;
-	GS -> CurrentPlayerIndex = FMath::RandRange(0, GS -> ReadyPlayerCount - 1);
+	const int32 SeatedPlayerNum = GS-> SeatChairArray.Num();
+	if (SeatedPlayerNum <= 1) return;
 
-	if (APlayerState* PS = GS->PlayerArray[GS -> CurrentPlayerIndex])
-	{
-		GS->CurrentTurnPlayerId = PS->GetPlayerId();
-		GS->ChangeGameTurn();
-	}
+	GS -> CurrentPlayerIndex = FMath::RandRange(0, SeatedPlayerNum - 1);
+	ASeatActor* CurrentChair = GS -> SeatChairArray[GS -> CurrentPlayerIndex];
+	if(!CurrentChair || !CurrentChair -> GetOccupant()) return;
+
+	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(CurrentChair->GetOccupant());
+	if (!OccupantCharacter) return;
+	APlayerState* PS = OccupantCharacter -> GetPlayerState();
+	GS -> CurrentTurnPlayerId  = PS -> GetPlayerId();
+	GS -> ChangeGameTurn();
 }
 
 // 턴 넘기는 타이머
@@ -147,16 +148,20 @@ void AMainGameMode::NextTurn()
 
 	AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
-	if (GS -> ReadyPlayerCount <= 0) return;
 
-	//현재 플레이어 인덱스에 따라 순환, 추후 수정
-	GS -> CurrentPlayerIndex = (GS -> CurrentPlayerIndex + 1) % GS -> ReadyPlayerCount;
-	
-    if (APlayerState* NextPS = GS->PlayerArray[GS -> CurrentPlayerIndex])
-    {
-        GS->CurrentTurnPlayerId = NextPS->GetPlayerId();
-        GS->ChangeGameTurn();
-    }
+	const int32 NumSeats = GS->SeatChairArray.Num();
+    if (NumSeats <= 0) return;
 
+	//의자에 따라 순환
+	GS -> CurrentPlayerIndex = (GS -> CurrentPlayerIndex + 1) % NumSeats;
+	ASeatActor* NextChair = GS -> SeatChairArray[GS -> CurrentPlayerIndex];
+	if(!NextChair || !NextChair -> GetOccupant()) return;
+
+	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(NextChair->GetOccupant());
+	if (!OccupantCharacter) return;
+	APlayerState* NextPS = OccupantCharacter -> GetPlayerState();
+
+	GS->CurrentTurnPlayerId = NextPS->GetPlayerId();
+	GS->ChangeGameTurn();
 	StartTurnTimer(5.0f);
 }

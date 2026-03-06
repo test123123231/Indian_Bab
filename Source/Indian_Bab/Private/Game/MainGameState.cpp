@@ -1,4 +1,5 @@
 #include "Game/MainGameState.h"
+#include "Actor/SeatActor.h"
 #include "Net/UnrealNetwork.h"
 
 AMainGameState::AMainGameState()
@@ -40,8 +41,9 @@ void AMainGameState::ChangeGameTurn()
 
 void AMainGameState::OnRep_CurrentTurnPlayerId()
 {
+	ASeatActor* SA = SeatChairArray[CurrentPlayerIndex];
 	// 현재 턴의 플레이어 아이디 표시
-    UE_LOG(LogTemp, Warning, TEXT("[GS]CurrentTurnPlayerId = %d"), CurrentTurnPlayerId);
+    UE_LOG(LogTemp, Warning, TEXT("[GS]CurrentTurnPlayerId = %d SeatOrder = %d"), CurrentTurnPlayerId, SA -> SeatOrder);
 }
 
 void AMainGameState::OnRep_GamePhase()

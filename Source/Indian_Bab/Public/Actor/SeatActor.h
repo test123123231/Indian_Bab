@@ -33,6 +33,8 @@ public:
 	UPROPERTY(EditAnywhere, Category="Seat")
 	int32 SeatOrder = -1;
 
+	TObjectPtr<AActor> GetOccupant();
+
 protected:
 	virtual void BeginPlay() override;
 
