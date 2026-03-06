@@ -6,6 +6,7 @@
 #include "MainGameMode.generated.h"
 
 class AMainGamePlayerController;
+class ASeatActor;
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
@@ -19,7 +20,7 @@ public:
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
 	// 플레이어가 의자에 앉았을 때 (Controller나 Character에서) 호출됨
-	void PlayerSeated(APlayerController* SeatedPlayer);
+	void PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* SeatedChair);
 
 	// 베팅 액션 관리
 	void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action);

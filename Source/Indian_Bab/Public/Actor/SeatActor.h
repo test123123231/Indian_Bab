@@ -29,6 +29,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USceneComponent> StandTarget;
 
+	// 의자 별 인덱스, 에디터에서 변경
+	UPROPERTY(EditAnywhere, Category="Seat")
+	int32 SeatOrder = -1;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -48,8 +52,4 @@ private:
 	// 의자 주인이 누구인지 저장
 	UPROPERTY(Replicated)
 	TObjectPtr<AActor> Occupant;
-
-	// 의자 별 인덱스, 에디터에서 변경
-	UPROPERTY(EditAnywhere, Category="Seat")
-	int32 SeatOrder = -1;
 };

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameState.h"
 #include "GameFramework/PlayerState.h"
+#include "Actor/SeatActor.h"
 #include "MainGameState.generated.h"
 
 
@@ -43,6 +44,10 @@ public:
 	// 현재 턴의 플레이어의 인덱스
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentPlayerIndex;
+
+	// 의자 배열
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
+	TArray<ASeatActor*> SeatChairArray;
 
 	// 서버가 GamePhase를 변경할 때 호출
 	void SetGamePhase(EGamePhase NewPhase);

@@ -1,5 +1,6 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
+#include "Actor/SeatActor.h"
 #include "PlayerController/MainGamePlayerController.h"
 
 
@@ -18,12 +19,23 @@ void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 }
 
 
-void AMainGameMode::PlayerSeated(APlayerController* SeatedPlayer)
+void AMainGameMode::PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* SeatedChair)
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
-	if (GS)
+	if (GS && SeatedPlayer && SeatedChair)
 	{
-		GS->ReadyPlayerCount++;
+		// 중복 방지
+		if(GS -> SeatChairArray.Contains(SeatedChair)) return;
+
+		GS -> SeatChairArray.Add(SeatedChair);
+	
+		// SeatOrder 기준 정렬
+        GS->SeatChairArray.Sort([](const ASeatActor& A, const ASeatActor& B)
+        {
+            return A.SeatOrder < B.SeatOrder;
+        });
+
+		GS->ReadyPlayerCount = GS -> SeatChairArray.Num();
 		UE_LOG(LogTemp, Warning, TEXT("플레이어 착석! 준비 인원: %d / %d"), GS->ReadyPlayerCount, NumPlayers);
 
 		CheckGameStart();
