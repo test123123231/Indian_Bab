@@ -64,6 +64,7 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	if (GS -> CurrentTurnPlayerId == PlayerId)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM][Input] PC = %d, Action = %s"),PlayerId, ActionStr);
+		GS -> ShowCurrentBulletCount(Action);
 		NextTurn();
 	}
 }

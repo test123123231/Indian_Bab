@@ -4,6 +4,7 @@
 #include "GameFramework/GameState.h"
 #include "GameFramework/PlayerState.h"
 #include "Actor/SeatActor.h"
+#include "Game/MainGameTypes.h"
 #include "MainGameState.generated.h"
 
 
@@ -38,7 +39,7 @@ public:
 	int32 ReadyPlayerCount;
 
 	// 현재 턴의 플레이어
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentTurnPlayerId, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentTurnPlayerId;
 
 	// 현재 턴의 플레이어의 인덱스(SeatChairArray 인덱스)
@@ -49,17 +50,31 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
 	TArray<ASeatActor*> SeatChairArray;
 
+	// 현재 리볼버에 장전된 탄환의 개수
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentBulletCount, BlueprintReadOnly, Category = "Game State")
+	int32 CurrentBulletCount;
+
+
 	// 서버가 GamePhase를 변경할 때 호출
 	void SetGamePhase(EGamePhase NewPhase);
 
 	// 서버에서 턴이 바뀔 때 호출
 	void ChangeGameTurn();
 
+	// 서버에서 탄환 개수 호출
+	void ShowCurrentBulletCount(EBetAction Action);
+
+
 protected:
 	// 클라이언트에서 GamePhase가 변경되었을 때 실행될 로직 (UI 업데이트 등)
 	UFUNCTION()
 	void OnRep_GamePhase();
 
+	// 클라이언트에서 플레이어 ID가 변경되었을 때 실행
 	UFUNCTION()
 	void OnRep_CurrentTurnPlayerId();
+
+	// 클라이언트에서 탄환의 개수가 변경되었을 때 실행
+	UFUNCTION()
+	void OnRep_CurrentBulletCount();
 };

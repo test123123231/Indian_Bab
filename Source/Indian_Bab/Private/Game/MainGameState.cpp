@@ -8,6 +8,7 @@ AMainGameState::AMainGameState()
 	ReadyPlayerCount = 0;
 	CurrentTurnPlayerId = -1;
 	CurrentPlayerIndex = -1;
+	CurrentBulletCount = 1;
 }
 
 
@@ -19,6 +20,7 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, CurrentGamePhase);
 	DOREPLIFETIME(AMainGameState, ReadyPlayerCount);
 	DOREPLIFETIME(AMainGameState, CurrentTurnPlayerId);
+	DOREPLIFETIME(AMainGameState, CurrentBulletCount);
 }
 
 
@@ -39,6 +41,15 @@ void AMainGameState::ChangeGameTurn()
 	OnRep_CurrentTurnPlayerId();
 }
 
+void AMainGameState::ShowCurrentBulletCount(EBetAction Action)
+{
+	if(Action == EBetAction::Raise && CurrentBulletCount < 8)
+	{
+		CurrentBulletCount++;
+		OnRep_CurrentBulletCount();
+	}
+}
+
 void AMainGameState::OnRep_CurrentTurnPlayerId()
 {
 	ASeatActor* SA = SeatChairArray[CurrentPlayerIndex];
@@ -51,6 +62,11 @@ void AMainGameState::OnRep_GamePhase()
 	// TODO: 페이즈 변경 시 연출 (예: Playing이 되면 로비 UI 숨기고 메인 게임 UI 띄우기, 조명 어둡게 하기 등)
 	if (CurrentGamePhase == EGamePhase::Playing)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 게임이 시작되었습니다! ==="));
+		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 게임이 시작되었습니다! 장전된 총알 : %d==="), CurrentBulletCount);
 	}
+}
+
+void AMainGameState::OnRep_CurrentBulletCount()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[GS]BulletCount = %d"), CurrentBulletCount);
 }
