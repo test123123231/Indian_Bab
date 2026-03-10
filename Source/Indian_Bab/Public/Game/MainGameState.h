@@ -35,7 +35,7 @@ public:
 	EGamePhase CurrentGamePhase;
 
 	// 현재 의자에 앉아 준비를 마친 플레이어 수
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
+	UPROPERTY(ReplicatedUsing = OnRep_ReadyPlayerCount, BlueprintReadOnly, Category = "Game State")
 	int32 ReadyPlayerCount;
 
 	// 현재 턴의 플레이어
@@ -64,6 +64,9 @@ public:
 	// 서버에서 탄환 개수 호출
 	void ShowCurrentBulletCount(EBetAction Action);
 
+	// 서버에서 준비 인원 호출
+	void ChangeReadyPlayerCount(int NewReadyCount);
+
 
 protected:
 	// 클라이언트에서 GamePhase가 변경되었을 때 실행될 로직 (UI 업데이트 등)
@@ -77,4 +80,8 @@ protected:
 	// 클라이언트에서 탄환의 개수가 변경되었을 때 실행
 	UFUNCTION()
 	void OnRep_CurrentBulletCount();
+
+	// 클라이언트에서 준비 인원(앉은 인원)이 변경되었을 때 실행
+	UFUNCTION()
+	void OnRep_ReadyPlayerCount();
 };

@@ -62,6 +62,17 @@ void AMainGameState::ShowCurrentBulletCount(EBetAction Action)
 	}
 }
 
+void AMainGameState::ChangeReadyPlayerCount(int NewReadyCount)
+{
+	if (HasAuthority())
+	{
+		ReadyPlayerCount = NewReadyCount;
+
+		// 서버 자신도 UI나 연출 업데이트를 위해 OnRep 함수 수동 호출
+		OnRep_ReadyPlayerCount();
+	}
+}
+
 void AMainGameState::OnRep_CurrentTurnPlayerId()
 {
 	// 현재 턴의 플레이어 아이디 표시
@@ -80,4 +91,9 @@ void AMainGameState::OnRep_GamePhase()
 void AMainGameState::OnRep_CurrentBulletCount()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[GS]BulletCount = %d"), CurrentBulletCount);
+}
+
+void AMainGameState::OnRep_ReadyPlayerCount()
+{
+	UE_LOG(LogTemp, Warning, TEXT("플레이어 착석! 준비 인원: %d / %d"), ReadyPlayerCount, PlayerArray.Num());
 }

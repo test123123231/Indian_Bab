@@ -31,14 +31,13 @@ void AMainGameMode::PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* Se
 		GS -> SeatChairArray.Add(SeatedChair);
 	
 		// SeatOrder 기준 정렬
-        GS->SeatChairArray.Sort([](const ASeatActor* A, const ASeatActor* B)
+        GS->SeatChairArray.Sort([](const ASeatActor& A, const ASeatActor& B)
         {
-			if (!A || !B) return false;
-            return A->SeatOrder < B->SeatOrder;
+            return A.SeatOrder < B.SeatOrder;
         });
 
-		GS->ReadyPlayerCount = GS -> SeatChairArray.Num();
-		UE_LOG(LogTemp, Warning, TEXT("플레이어 착석! 준비 인원: %d / %d"), GS->ReadyPlayerCount, NumPlayers);
+		int32 NewPlayerCount = GS -> SeatChairArray.Num();
+		GS -> ChangeReadyPlayerCount(NewPlayerCount);
 
 		CheckGameStart();
 	}
