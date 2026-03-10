@@ -46,8 +46,8 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentPlayerIndex;
 
-	// 의자 배열
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
+	// 의자 배열(서버 전용 replicated 현재로선 불필요)
+	UPROPERTY(BlueprintReadOnly, Category = "Game State")
 	TArray<ASeatActor*> SeatChairArray;
 
 	// 현재 리볼버에 장전된 탄환의 개수
@@ -59,7 +59,7 @@ public:
 	void SetGamePhase(EGamePhase NewPhase);
 
 	// 서버에서 턴이 바뀔 때 호출
-	void ChangeGameTurn();
+	void ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex);
 
 	// 서버에서 탄환 개수 호출
 	void ShowCurrentBulletCount(EBetAction Action);

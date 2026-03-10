@@ -20,6 +20,7 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, CurrentGamePhase);
 	DOREPLIFETIME(AMainGameState, ReadyPlayerCount);
 	DOREPLIFETIME(AMainGameState, CurrentTurnPlayerId);
+	DOREPLIFETIME(AMainGameState, CurrentPlayerIndex);
 	DOREPLIFETIME(AMainGameState, CurrentBulletCount);
 }
 
@@ -36,25 +37,35 @@ void AMainGameState::SetGamePhase(EGamePhase NewPhase)
 	}
 }
 
-void AMainGameState::ChangeGameTurn()
+void AMainGameState::ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex)
 {
-	OnRep_CurrentTurnPlayerId();
+	if (HasAuthority())
+	{
+		CurrentTurnPlayerId = NewTurnPlayerId;
+		CurrentPlayerIndex = NewPlayerIndex;
+
+		// 서버 자신도 UI나 연출 업데이트를 위해 OnRep 함수 수동 호출
+		OnRep_CurrentTurnPlayerId();
+	}
 }
 
 void AMainGameState::ShowCurrentBulletCount(EBetAction Action)
 {
+	if(!HasAuthority()) return;
+
 	if(Action == EBetAction::Raise && CurrentBulletCount < 8)
 	{
 		CurrentBulletCount++;
+
+		// 서버 자신도 UI나 연출 업데이트를 위해 OnRep 함수 수동 호출
 		OnRep_CurrentBulletCount();
 	}
 }
 
 void AMainGameState::OnRep_CurrentTurnPlayerId()
 {
-	ASeatActor* SA = SeatChairArray[CurrentPlayerIndex];
 	// 현재 턴의 플레이어 아이디 표시
-    UE_LOG(LogTemp, Warning, TEXT("[GS]CurrentTurnPlayerId = %d SeatOrder = %d"), CurrentTurnPlayerId, SA -> SeatOrder);
+    UE_LOG(LogTemp, Warning, TEXT("[GS]CurrentTurnPlayerId = %d"), CurrentTurnPlayerId);
 }
 
 void AMainGameState::OnRep_GamePhase()

@@ -31,9 +31,10 @@ void AMainGameMode::PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* Se
 		GS -> SeatChairArray.Add(SeatedChair);
 	
 		// SeatOrder 기준 정렬
-        GS->SeatChairArray.Sort([](const ASeatActor& A, const ASeatActor& B)
+        GS->SeatChairArray.Sort([](const ASeatActor* A, const ASeatActor* B)
         {
-            return A.SeatOrder < B.SeatOrder;
+			if (!A || !B) return false;
+            return A->SeatOrder < B->SeatOrder;
         });
 
 		GS->ReadyPlayerCount = GS -> SeatChairArray.Num();
@@ -102,7 +103,8 @@ void AMainGameMode::StartMainGame()
 			PickRandomPlayer();
 		
 		// 타이머 시작
-		StartTurnTimer(5.0f);
+		if(GS -> CurrentTurnPlayerId != -1)
+			StartTurnTimer(5.0f);
 	}
 }
 
@@ -116,15 +118,14 @@ void AMainGameMode::PickRandomPlayer()
 	const int32 SeatedPlayerNum = GS-> SeatChairArray.Num();
 	if (SeatedPlayerNum <= 1) return;
 
-	GS -> CurrentPlayerIndex = FMath::RandRange(0, SeatedPlayerNum - 1);
-	ASeatActor* CurrentChair = GS -> SeatChairArray[GS -> CurrentPlayerIndex];
+	int32 CurrentPlayerIndex = FMath::RandRange(0, SeatedPlayerNum - 1);
+	ASeatActor* CurrentChair = GS -> SeatChairArray[CurrentPlayerIndex];
 	if(!CurrentChair || !CurrentChair -> GetOccupant()) return;
 
 	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(CurrentChair->GetOccupant());
 	if (!OccupantCharacter) return;
 	APlayerState* PS = OccupantCharacter -> GetPlayerState();
-	GS -> CurrentTurnPlayerId  = PS -> GetPlayerId();
-	GS -> ChangeGameTurn();
+	GS -> ChangeGameTurn(PS -> GetPlayerId(), CurrentPlayerIndex);
 }
 
 // 턴 넘기는 타이머
@@ -154,15 +155,14 @@ void AMainGameMode::NextTurn()
     if (NumSeats <= 0) return;
 
 	//의자에 따라 순환
-	GS -> CurrentPlayerIndex = (GS -> CurrentPlayerIndex + 1) % NumSeats;
-	ASeatActor* NextChair = GS -> SeatChairArray[GS -> CurrentPlayerIndex];
+	int32 NextPlayerIndex = (GS -> CurrentPlayerIndex + 1) % NumSeats;
+	ASeatActor* NextChair = GS -> SeatChairArray[NextPlayerIndex];
 	if(!NextChair || !NextChair -> GetOccupant()) return;
 
 	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(NextChair->GetOccupant());
 	if (!OccupantCharacter) return;
 	APlayerState* NextPS = OccupantCharacter -> GetPlayerState();
 
-	GS->CurrentTurnPlayerId = NextPS->GetPlayerId();
-	GS->ChangeGameTurn();
+	GS->ChangeGameTurn(NextPS->GetPlayerId(), NextPlayerIndex);
 	StartTurnTimer(5.0f);
 }
