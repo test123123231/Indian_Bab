@@ -18,6 +18,17 @@ enum class EGamePhase : uint8
 	Result UMETA(DisplayName = "결과창")
 };
 
+USTRUCT(BlueprintType)
+struct FBetActionInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	EBetAction CurrentBetAction;
+
+	UPROPERTY()
+	int32 BetActionTotal;
+};
 
 UCLASS()
 class INDIAN_BAB_API AMainGameState : public AGameState
@@ -50,9 +61,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Game State")
 	TArray<ASeatActor*> SeatChairArray;
 
-	// 현재 리볼버에 장전된 탄환의 개수
+	// 현재 누적된 메인 리볼버 당김 횟수
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBulletCount, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentBulletCount;
+
+	// 현재 플레이어 액션
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentBetInfo, BlueprintReadOnly, Category = "Game State")
+	FBetActionInfo CurrentBetInfo;
 
 
 	// 서버가 GamePhase를 변경할 때 호출
@@ -61,8 +76,8 @@ public:
 	// 서버에서 턴이 바뀔 때 호출
 	void ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex);
 
-	// 서버에서 탄환 개수 호출
-	void ShowCurrentBulletCount(EBetAction Action);
+	// 서버에서 최근 베팅 액션 호출
+	void ChangeCurrentBetInfo(EBetAction NewAction);
 
 	// 서버에서 준비 인원 호출
 	void ChangeReadyPlayerCount(int NewReadyCount);
@@ -77,11 +92,14 @@ protected:
 	UFUNCTION()
 	void OnRep_CurrentTurnPlayerId();
 
-	// 클라이언트에서 탄환의 개수가 변경되었을 때 실행
+	// 클라이언트에서 베팅 액션이 변경 or 시퀀스가 바뀌었을 때
 	UFUNCTION()
-	void OnRep_CurrentBulletCount();
+	void OnRep_CurrentBetInfo();
 
 	// 클라이언트에서 준비 인원(앉은 인원)이 변경되었을 때 실행
 	UFUNCTION()
 	void OnRep_ReadyPlayerCount();
+
+	UFUNCTION()
+	void OnRep_CurrentBulletCount();
 };

@@ -53,18 +53,9 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 
     int32 PlayerId = RequestPC->GetPlayerIdSafe();
 
-    const TCHAR* ActionStr = TEXT("UnKnown");
-    if (Action == EBetAction::Raise)
-        ActionStr = TEXT("Raise");
-    else if (Action == EBetAction::CheckCall)
-        ActionStr = TEXT("CheckCall");
-    else if (Action == EBetAction::Fold)
-        ActionStr = TEXT("Fold");
-
 	if (GS -> CurrentTurnPlayerId == PlayerId)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM][Input] PC = %d, Action = %s"),PlayerId, ActionStr);
-		GS -> ShowCurrentBulletCount(Action);
+		GS -> ChangeCurrentBetInfo(Action);
 		NextTurn();
 	}
 }

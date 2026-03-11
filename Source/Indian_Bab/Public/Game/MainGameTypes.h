@@ -6,6 +6,7 @@
 UENUM(BlueprintType)
 enum class EBetAction : uint8
 {
+    None,
     CheckCall,
     Raise,
     Fold

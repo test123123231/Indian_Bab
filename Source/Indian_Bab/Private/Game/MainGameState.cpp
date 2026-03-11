@@ -9,6 +9,8 @@ AMainGameState::AMainGameState()
 	CurrentTurnPlayerId = -1;
 	CurrentPlayerIndex = -1;
 	CurrentBulletCount = 1;
+	CurrentBetInfo.CurrentBetAction = EBetAction::None;
+	CurrentBetInfo.BetActionTotal = 0;
 }
 
 
@@ -22,6 +24,7 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, CurrentTurnPlayerId);
 	DOREPLIFETIME(AMainGameState, CurrentPlayerIndex);
 	DOREPLIFETIME(AMainGameState, CurrentBulletCount);
+	DOREPLIFETIME(AMainGameState, CurrentBetInfo);
 }
 
 
@@ -31,6 +34,11 @@ void AMainGameState::SetGamePhase(EGamePhase NewPhase)
 	if (HasAuthority())
 	{
 		CurrentGamePhase = NewPhase;
+		if (CurrentGamePhase == EGamePhase::Starting)
+		{
+			CurrentBulletCount = 1;
+			OnRep_CurrentBulletCount();
+		}
 
 		// 서버 자신도 UI나 연출 업데이트를 위해 OnRep 함수 수동 호출
 		OnRep_GamePhase();
@@ -49,20 +57,25 @@ void AMainGameState::ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex)
 	}
 }
 
-void AMainGameState::ShowCurrentBulletCount(EBetAction Action)
+void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction)
 {
 	if(!HasAuthority()) return;
 
-	if(Action == EBetAction::Raise && CurrentBulletCount < 8)
+	if(NewAction == EBetAction::Raise)
 	{
+		if(CurrentBulletCount >= 8) return;
 		CurrentBulletCount++;
 
-		// 서버 자신도 UI나 연출 업데이트를 위해 OnRep 함수 수동 호출
 		OnRep_CurrentBulletCount();
 	}
+
+	CurrentBetInfo.CurrentBetAction = NewAction;
+	CurrentBetInfo.BetActionTotal++;
+
+	OnRep_CurrentBetInfo();
 }
 
-void AMainGameState::ChangeReadyPlayerCount(int NewReadyCount)
+void AMainGameState::ChangeReadyPlayerCount(int32 NewReadyCount)
 {
 	if (HasAuthority())
 	{
@@ -88,12 +101,26 @@ void AMainGameState::OnRep_GamePhase()
 	}
 }
 
-void AMainGameState::OnRep_CurrentBulletCount()
+void AMainGameState::OnRep_CurrentBetInfo()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GS]BulletCount = %d"), CurrentBulletCount);
+	const TCHAR* ActionStr = TEXT("UnKnown");
+    if (CurrentBetInfo.CurrentBetAction == EBetAction::Raise)
+        ActionStr = TEXT("Raise");
+    else if (CurrentBetInfo.CurrentBetAction == EBetAction::CheckCall)
+        ActionStr = TEXT("CheckCall");
+    else if (CurrentBetInfo.CurrentBetAction == EBetAction::Fold)
+        ActionStr = TEXT("Fold");
+	
+	UE_LOG(LogTemp, Warning, TEXT("[GS]BetAction = %s ActionTotal = %d CurrentBulletCount = %d"), 
+		ActionStr,CurrentBetInfo.BetActionTotal, CurrentBulletCount);
 }
 
 void AMainGameState::OnRep_ReadyPlayerCount()
 {
 	UE_LOG(LogTemp, Warning, TEXT("플레이어 착석! 준비 인원: %d / %d"), ReadyPlayerCount, PlayerArray.Num());
+}
+
+void AMainGameState::OnRep_CurrentBulletCount()
+{
+	//UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
 }
