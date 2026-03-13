@@ -34,6 +34,11 @@ void ASeatActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(ASeatActor, Occupant);
 }
 
+TObjectPtr<AActor> ASeatActor::GetOccupant()
+{
+	return Occupant;
+}
+
 
 void ASeatActor::BeginPlay()
 {
@@ -86,7 +91,7 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 			// 게임 모드에 해당 플레이어가 앉았음(준비 완료)을 알림
 			if (AMainGameMode* GM = Cast<AMainGameMode>(GetWorld()->GetAuthGameMode()))
 			{
-				GM->PlayerSeated(PC);
+				GM->PlayerSeated(PC, this);
 			}
 
 			// 클라이언트에게 입력 모드를 변경하라고 RPC 호출 필요 (아래에 추가 설명)

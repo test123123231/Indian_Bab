@@ -6,16 +6,17 @@
 UENUM(BlueprintType)
 enum class EBetAction : uint8
 {
+    None,
     CheckCall,
     Raise,
     Fold
 };
 
-UENUM(BlueprintType)
-enum class EMainGamePhase : uint8
-{
-    WaitingPlayers,
-    Betting,
-    Resolve,
-    EndRound
-};
+// UENUM(BlueprintType)
+// enum class EMainGamePhase : uint8
+// {
+//     WaitingPlayers,
+//     Betting,
+//     Resolve,
+//     EndRound
+// };
