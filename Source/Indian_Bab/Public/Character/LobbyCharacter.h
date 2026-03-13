@@ -38,11 +38,23 @@ public:
 	// 의자 상호작용 시 호출되어 몽타주 종료를 기다립니다.
 	void StartSitTransition(ASeatActor* TargetSeat);
 
+	// 서버/클라이언트 모두에서 앉기 상태가 변할 때 시각적, 조작적 처리를 할 함수
+	UFUNCTION()
+	void OnRep_IsSitting();
+
+	// 서버가 몽타주 종료 후 클라이언트에게 최종 카메라 세팅을 지시하는 함수
+	UFUNCTION(Client, Reliable)
+	void Client_LockCameraAfterSit(FRotator FinalSitRotation);
+
+	// ★ [새로 추가] 서버가 클라이언트에게 앉을 준비(시선 강제 회전)를 하라고 지시하는 함수
+	UFUNCTION(Client, Unreliable)
+	void Client_PrepareSit(FVector TargetLocation, FRotator TargetRotation);
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* FirstPersonMetaHumanBody;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	USkeletalMeshComponent* FirstPersonMetaHumanFace;
+	USkeletalMeshComponent* FirstPersonMetaHumanTorso;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	USkeletalMeshComponent* ThirdPersonMetaHumanBody;
@@ -79,7 +91,7 @@ public:
 	TObjectPtr<UAnimMontage> SitMontage;
 
 	// ★ 추가: 현재 캐릭터가 앉아있는지 여부 (동기화 됨)
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "State")
+	UPROPERTY(ReplicatedUsing = OnRep_IsSitting, BlueprintReadOnly, Category = "State")
 	bool bIsSitting;
 
 	// 상호작용 거리
