@@ -4,9 +4,6 @@
 #include "EnhancedInputComponent.h"
 #include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "Widget/MainGameWidget.h"
-#include "Game/MainGameMode.h"
-#include "Game/MainGameTypes.h"
-#include "GameFramework/PlayerState.h"
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
 #include "Interface/InteractableInterface.h"
@@ -61,15 +58,15 @@ void AMainGamePlayerController::SetupInputComponent()
         }
         if (IA_MainGameCheckCall)
         {
-            EnhancedInput->BindAction(IA_MainGameCheckCall, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameCheckCall);
+            EnhancedInput->BindAction(IA_MainGameCheckCall, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameCheckCall);
         }
         if (IA_MainGameFold)
         {
-            EnhancedInput->BindAction(IA_MainGameFold, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameFold);
+            EnhancedInput->BindAction(IA_MainGameFold, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameFold);
         }
         if (IA_MainGameRaise)
         {
-            EnhancedInput->BindAction(IA_MainGameRaise, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameRaise);
+            EnhancedInput->BindAction(IA_MainGameRaise, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameRaise);
         }
 
         if (IA_LobbyMove)
@@ -170,19 +167,19 @@ void AMainGamePlayerController::EnterCameraMode()
 
 void AMainGamePlayerController::RequestRaise()
 {
-    Server_RequestBetAction(EBetAction::Raise);
+    UE_LOG(LogTemp, Display, TEXT("RequestRaise"));
 }
 
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    Server_RequestBetAction(EBetAction::CheckCall);
+    UE_LOG(LogTemp, Display, TEXT("RequestCheckCall"));
 }
 
 
 void AMainGamePlayerController::RequestFold()
 {
-    Server_RequestBetAction(EBetAction::Fold);
+    UE_LOG(LogTemp, Display, TEXT("RequestFold"));
 }
 
 
@@ -247,23 +244,10 @@ void AMainGamePlayerController::OnLobbyLook(const FInputActionValue& Value)
     AddPitchInput(-LookAxis.Y * LookSensitivity);
 }
 
-void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
-{
-    AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
-    if(!GM) return;
-
-    GM -> HandleBetAction(this, Action);
-}
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()
 {
     // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
     ApplyMainGameMappingContext();
     EnterUIMode();
-}
-
-int AMainGamePlayerController::GetPlayerIdSafe()
-{
-    const APlayerState* PS = GetPlayerState<APlayerState>();
-    return PS ? PS->GetPlayerId() : -1;
 }

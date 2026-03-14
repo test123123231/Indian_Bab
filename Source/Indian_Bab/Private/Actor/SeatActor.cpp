@@ -34,11 +34,6 @@ void ASeatActor::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifeti
 	DOREPLIFETIME(ASeatActor, Occupant);
 }
 
-TObjectPtr<AActor> ASeatActor::GetOccupant()
-{
-	return Occupant;
-}
-
 
 void ASeatActor::BeginPlay()
 {
@@ -73,10 +68,9 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 
 		// 캐릭터 위치를 의자(SitTarget)로 이동 및 회전 동기화
 		PlayerCharacter->SetActorLocationAndRotation(StandTarget->GetComponentLocation(), StandTarget->GetComponentRotation());
-		// 클라이언트 복제 딜레이 없도록 RPC 호출로 즉시 위치 이동
-		PlayerCharacter->Client_PrepareSit(StandTarget->GetComponentLocation(), StandTarget->GetComponentRotation());
 
-		PlayerCharacter->SetSittingState(true);
+		// 캐릭터 조작 제어 (걷기 비활성화)
+		//PlayerCharacter->GetCharacterMovement()->DisableMovement();
 
 		// 몽타주가 끝나는 시점을 서버가 체크하여 상태를 확정짓도록 호출합니다.
 		PlayerCharacter->StartSitTransition(this);
@@ -91,7 +85,7 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 			// 게임 모드에 해당 플레이어가 앉았음(준비 완료)을 알림
 			if (AMainGameMode* GM = Cast<AMainGameMode>(GetWorld()->GetAuthGameMode()))
 			{
-				GM->PlayerSeated(PC, this);
+				GM->PlayerSeated(PC);
 			}
 
 			// 클라이언트에게 입력 모드를 변경하라고 RPC 호출 필요 (아래에 추가 설명)

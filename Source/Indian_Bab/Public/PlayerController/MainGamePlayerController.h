@@ -38,12 +38,10 @@ public:
     UFUNCTION(Client, Reliable)
     void ClientOnSeated();
 
-    int GetPlayerIdSafe();
-
 private:
     // 서버로 보내는 RPC
-    UFUNCTION(Server, Reliable)
-    void Server_RequestBetAction(EBetAction Action);
+    // UFUNCTION(Server, Reliable)
+    // void Server_RequestBetAction(EBetAction Action);
 
 	// 입력 모드 전환 함수
     void EnterUIMode();     // 커서 보이기
