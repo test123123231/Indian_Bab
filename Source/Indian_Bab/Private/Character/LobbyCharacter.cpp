@@ -231,6 +231,8 @@ void ALobbyCharacter::OnSitMontageEnded(UAnimMontage* Montage, bool bInterrupted
 		{
 			MainAnimInstance->OnMontageEnded.RemoveDynamic(this, &ALobbyCharacter::OnSitMontageEnded);
 		}
+
+		bIsSittingEnded = true; // 앉기 애니메이션이 완전히 끝났음을 표시하는 플래그
 	}
 }
 
@@ -245,7 +247,7 @@ void ALobbyCharacter::OnRep_IsSitting()
 		if (bIsSitting)
 		{
 			// 앉는 애니메이션이 재생되는 동안 카메라는 마우스를 무시하고 머리 뼈(head)를 따라가며 돌아앉는 연출을 보여줍니다.
-			CameraComponent->SetRelativeRotation(FRotator(0.0f, 90.0f, -90.0f));
+			CameraComponent->SetRelativeLocationAndRotation(FVector(-2.8f, 8.5, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
 			CameraComponent->bUsePawnControlRotation = false;
 		}
 		else
