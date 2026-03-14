@@ -94,6 +94,10 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_IsSitting, BlueprintReadOnly, Category = "State")
 	bool bIsSitting;
 
+	// 앉기 몽타주가 끝났는지 여부 (서버에서만 관리)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "State")
+	bool bIsSittingEnded;
+
 	// 상호작용 거리
 	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
 	float InteractRange = 250.0f;
