@@ -27,11 +27,11 @@ ALobbyCharacter::ALobbyCharacter()
 	FirstPersonMetaHumanBody->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 
 	// 1인칭 메타휴먼 얼굴 생성 및 설정
-	FirstPersonMetaHumanTorso = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person MetaHuman Torso"));
-	FirstPersonMetaHumanTorso->SetupAttachment(FirstPersonMetaHumanBody);
+	FirstPersonMetaHumanFace = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person MetaHuman Face"));
+	FirstPersonMetaHumanFace->SetupAttachment(FirstPersonMetaHumanBody);
 	
-	FirstPersonMetaHumanTorso->SetCollisionProfileName(FName("NoCollision"));
-	FirstPersonMetaHumanTorso->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+	FirstPersonMetaHumanFace->SetCollisionProfileName(FName("NoCollision"));
+	FirstPersonMetaHumanFace->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 
 	// 3인칭 메타휴먼 바디 생성 및 설정
 	ThirdPersonMetaHumanBody = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Third Person MetaHuman Body"));
@@ -58,7 +58,7 @@ ALobbyCharacter::ALobbyCharacter()
 
 	// Create the Camera Component	
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
-	CameraComponent->SetupAttachment(FirstPersonMetaHumanBody, FName("head"));
+	CameraComponent->SetupAttachment(FirstPersonMetaHumanFace, FName("head"));
 	CameraComponent->SetRelativeLocationAndRotation(FVector(-2.8f, 8.5, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
 	CameraComponent->bUsePawnControlRotation = true;
 	CameraComponent->bEnableFirstPersonFieldOfView = true;
@@ -81,7 +81,7 @@ void ALobbyCharacter::BeginPlay()
 	MainGamePC = Cast<AMainGamePlayerController>(GetController());
 
 	FirstPersonMetaHumanBody->SetOnlyOwnerSee(true);
-	FirstPersonMetaHumanTorso->SetOnlyOwnerSee(true);
+	FirstPersonMetaHumanFace->SetOnlyOwnerSee(true);
 
 	ThirdPersonMetaHumanBody->SetOwnerNoSee(true);
 	ThirdPersonMetaHumanTorso->SetOwnerNoSee(true);
@@ -175,7 +175,6 @@ void ALobbyCharacter::SetSittingState(bool bSitting)
 	if (HasAuthority())
 	{
 		bIsSitting = bSitting;
-		OnRep_IsSitting(); // 서버 자신도 시야/회전 제한이 즉각 적용되도록 수동 호출
 	}
 }
 
@@ -215,96 +214,23 @@ void ALobbyCharacter::OnSitMontageEnded(UAnimMontage* Montage, bool bInterrupted
 	// 앉기 몽타주가 끝났다면 (서버에서만 실행됨)
 	if (Montage == SitMontage && HasAuthority())
 	{
-		// 루트 모션으로 인해 네트워크 오차가 발생했을 수 있으므로 최종 SitTarget 위치로 캡슐을 강제 보정(Snap)
-		if (CurrentSeat && CurrentSeat->SitTarget)
-		{
-			//SetActorLocationAndRotation(CurrentSeat->SitTarget->GetComponentLocation(), CurrentSeat->SitTarget->GetComponentRotation());
-			Client_LockCameraAfterSit(CurrentSeat->SitTarget->GetComponentRotation());
-		}
+		// 상태를 Sitting으로 변경 (Replicate 되어 클라이언트의 ABP가 Sitting 상태로 넘어감)
+		SetSittingState(true);
 
-		// 완벽하게 안착했으므로 무브먼트 컴포넌트를 비활성화
+		//// 2. 루트 모션으로 인해 네트워크 오차가 발생했을 수 있으므로 최종 SitTarget 위치로 캡슐을 강제 보정(Snap)
+		//if (CurrentSeat && CurrentSeat->SitTarget)
+		//{
+		//	SetActorLocationAndRotation(CurrentSeat->SitTarget->GetComponentLocation(), CurrentSeat->SitTarget->GetComponentRotation());
+		//}
+
+		// 3. 완벽하게 안착했으므로 무브먼트 컴포넌트를 비활성화
 		GetCharacterMovement()->DisableMovement();
 
-		// 델리게이트 해제 (메모리 릭 방지)
+		// 4. 델리게이트 해제 (메모리 릭 방지)
 		UAnimInstance* MainAnimInstance = GetMesh()->GetAnimInstance();
 		if (MainAnimInstance)
 		{
 			MainAnimInstance->OnMontageEnded.RemoveDynamic(this, &ALobbyCharacter::OnSitMontageEnded);
 		}
 	}
-}
-
-
-void ALobbyCharacter::OnRep_IsSitting()
-{
-	// 캡슐(몸통) 전체가 마우스를 따라 도는 것을 막습니다.
-	bUseControllerRotationYaw = !bIsSitting;
-
-	if (IsLocallyControlled())
-	{
-		if (bIsSitting)
-		{
-			// 앉는 애니메이션이 재생되는 동안 카메라는 마우스를 무시하고 머리 뼈(head)를 따라가며 돌아앉는 연출을 보여줍니다.
-			CameraComponent->SetRelativeRotation(FRotator(0.0f, 90.0f, -90.0f));
-			CameraComponent->bUsePawnControlRotation = false;
-		}
-		else
-		{
-			// 일어섰을 때 초기화 (제한 완벽 해제)
-			CameraComponent->bUsePawnControlRotation = true;
-
-			if (APlayerController* PC = Cast<APlayerController>(GetController()))
-			{
-				if (APlayerCameraManager* CamManager = PC->PlayerCameraManager)
-				{
-					CamManager->ViewYawMin = 0.0f;
-					CamManager->ViewYawMax = 359.999f;
-					CamManager->ViewPitchMin = -70.0f;
-					CamManager->ViewPitchMax = 80.0f;
-				}
-			}
-		}
-	}
-}
-
-
-void ALobbyCharacter::Client_LockCameraAfterSit_Implementation(FRotator FinalSitRotation)
-{
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
-	{
-		// 애니메이션이 끝난 바로 그 순간의 '실제 카메라가 바라보는 앞방향(Forward Vector)'을 추출하여 회전값으로 변환합니다.
-		// GetComponentRotation()을 그대로 쓰면 카메라에 적용된 상대 회전값(Roll -90, Yaw 90) 때문에 ControlRotation 적용 시 축이 90도 꼬여버립니다.
-		FRotator CurrentCameraRot = CameraComponent->GetForwardVector().Rotation();
-
-		// 마우스 컨트롤(ControlRotation)을 현재 카메라가 보고 있는 방향으로 완벽하게 덮어씌웁니다.
-		// 이렇게 하면 애니메이션에서 마우스로 조작 권한이 넘어갈 때 화면이 단 1픽셀도 튀지 않습니다!
-		PC->SetControlRotation(CurrentCameraRot);
-
-		// 다시 마우스로 카메라를 움직일 수 있도록 활성화
-		CameraComponent->bUsePawnControlRotation = true;
-
-		// 시야각 제한 (최종 안착 방향 기준 좌/우 60도)
-		// 주의: 시야 제한의 기준점(CenterYaw)은 카메라 방향이 아니라, '의자의 정면(FinalSitRotation)'으로 잡아야
-		// 유저가 책상을 기준으로 좌우 동일한 각도로 둘러볼 수 있습니다.
-		if (APlayerCameraManager* CamManager = PC->PlayerCameraManager)
-		{
-			float CenterYaw = FinalSitRotation.Yaw;
-
-			// 언리얼 카메라 매니저 버그 방지 (0~360 사이 값으로 정규화)
-			float MinYaw = FMath::Fmod(CenterYaw - 60.0f + 360.0f, 360.0f);
-			float MaxYaw = FMath::Fmod(CenterYaw + 60.0f + 360.0f, 360.0f);
-
-			CamManager->ViewYawMin = MinYaw;
-			CamManager->ViewYawMax = MaxYaw;
-			CamManager->ViewPitchMin = -45.0f;
-			CamManager->ViewPitchMax = 45.0f;
-		}
-	}
-}
-
-
-void ALobbyCharacter::Client_PrepareSit_Implementation(FVector TargetLocation, FRotator TargetRotation)
-{
-	// 서버의 복제 딜레이를 기다리지 않고, 클라이언트 스스로 즉시 의자 앞으로 캡슐을 강제 회전 및 이동시킵니다!
-	SetActorLocationAndRotation(TargetLocation, TargetRotation);
 }

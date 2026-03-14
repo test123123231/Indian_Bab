@@ -2,9 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameState.h"
-#include "GameFramework/PlayerState.h"
-#include "Actor/SeatActor.h"
-#include "Game/MainGameTypes.h"
 #include "MainGameState.generated.h"
 
 
@@ -18,17 +15,6 @@ enum class EGamePhase : uint8
 	Result UMETA(DisplayName = "결과창")
 };
 
-USTRUCT(BlueprintType)
-struct FBetActionInfo
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	EBetAction CurrentBetAction;
-
-	UPROPERTY()
-	int32 BetActionTotal;
-};
 
 UCLASS()
 class INDIAN_BAB_API AMainGameState : public AGameState
@@ -46,60 +32,14 @@ public:
 	EGamePhase CurrentGamePhase;
 
 	// 현재 의자에 앉아 준비를 마친 플레이어 수
-	UPROPERTY(ReplicatedUsing = OnRep_ReadyPlayerCount, BlueprintReadOnly, Category = "Game State")
-	int32 ReadyPlayerCount;
-
-	// 현재 턴의 플레이어
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentTurnPlayerId, BlueprintReadOnly, Category = "Game State")
-	int32 CurrentTurnPlayerId;
-
-	// 현재 턴의 플레이어의 인덱스(SeatChairArray 인덱스)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
-	int32 CurrentPlayerIndex;
-
-	// 의자 배열(서버 전용 replicated 현재로선 불필요)
-	UPROPERTY(BlueprintReadOnly, Category = "Game State")
-	TArray<ASeatActor*> SeatChairArray;
-
-	// 현재 누적된 메인 리볼버 당김 횟수
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentBulletCount, BlueprintReadOnly, Category = "Game State")
-	int32 CurrentBulletCount;
-
-	// 현재 플레이어 액션
-	UPROPERTY(ReplicatedUsing = OnRep_CurrentBetInfo, BlueprintReadOnly, Category = "Game State")
-	FBetActionInfo CurrentBetInfo;
-
+	int32 ReadyPlayerCount;
 
 	// 서버가 GamePhase를 변경할 때 호출
 	void SetGamePhase(EGamePhase NewPhase);
-
-	// 서버에서 턴이 바뀔 때 호출
-	void ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex);
-
-	// 서버에서 최근 베팅 액션 호출
-	void ChangeCurrentBetInfo(EBetAction NewAction);
-
-	// 서버에서 준비 인원 호출
-	void ChangeReadyPlayerCount(int NewReadyCount);
-
 
 protected:
 	// 클라이언트에서 GamePhase가 변경되었을 때 실행될 로직 (UI 업데이트 등)
 	UFUNCTION()
 	void OnRep_GamePhase();
-
-	// 클라이언트에서 플레이어 ID가 변경되었을 때 실행
-	UFUNCTION()
-	void OnRep_CurrentTurnPlayerId();
-
-	// 클라이언트에서 베팅 액션이 변경 or 시퀀스가 바뀌었을 때
-	UFUNCTION()
-	void OnRep_CurrentBetInfo();
-
-	// 클라이언트에서 준비 인원(앉은 인원)이 변경되었을 때 실행
-	UFUNCTION()
-	void OnRep_ReadyPlayerCount();
-
-	UFUNCTION()
-	void OnRep_CurrentBulletCount();
 };
