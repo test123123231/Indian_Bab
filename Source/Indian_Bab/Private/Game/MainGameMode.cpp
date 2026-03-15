@@ -94,7 +94,11 @@ void AMainGameMode::StartMainGame()
 		
 		// 타이머 시작
 		if(GS -> CurrentTurnPlayerId != -1)
+		{
+			//StartTurnTimer(20.0f);
 			StartTurnTimer(5.0f);
+		}
+
 	}
 }
 
@@ -130,7 +134,11 @@ void AMainGameMode::OnTurnTimerExpired()
 {
 	if (!HasAuthority()) return;
 
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
+
 	UE_LOG(LogTemp, Warning, TEXT("[GM] TimeOut NextTurn"));
+	GS -> ChangeCurrentBetInfo(EBetAction::CheckCall);
 	NextTurn();
 }
 
@@ -154,5 +162,6 @@ void AMainGameMode::NextTurn()
 	APlayerState* NextPS = OccupantCharacter -> GetPlayerState();
 
 	GS->ChangeGameTurn(NextPS->GetPlayerId(), NextPlayerIndex);
+	// StartTurnTimer(20.0f);
 	StartTurnTimer(5.0f);
 }
