@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Game/MainGameTypes.h"
 #include "LobbyCharacter.generated.h"
 
 
@@ -89,6 +90,25 @@ public:
 	// 의자에 앉을 때 재생할 애니메이션 몽타주 (BP에서 할당)
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<UAnimMontage> SitMontage;
+
+	// Fold 시 자기 머리를 겨냥하는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> AimMyselfMontage;
+
+	// 승리 시 총을 겨냥하는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> WinAimMontage;
+
+	// 총을 집어든 이유 - ABP 스테이트 머신 트랜지션 판별용 (Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_GunHoldReason, BlueprintReadOnly, Category = "State")
+	EGunHoldReason GunHoldReason;
+
+	UFUNCTION()
+	void OnRep_GunHoldReason();
+
+	// 총 집어들기 몽타주 재생 (Fold/Win 공통)
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayGrabGunMontage(EGunHoldReason Reason);
 
 	// ★ 추가: 현재 캐릭터가 앉아있는지 여부 (동기화 됨)
 	UPROPERTY(ReplicatedUsing = OnRep_IsSitting, BlueprintReadOnly, Category = "State")

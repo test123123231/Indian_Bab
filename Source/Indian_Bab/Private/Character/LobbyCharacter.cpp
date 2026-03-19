@@ -133,6 +133,7 @@ void ALobbyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 
 	// bIsSitting 변수를 멀티플레이 환경에서 동기화
 	DOREPLIFETIME(ALobbyCharacter, bIsSitting);
+	DOREPLIFETIME(ALobbyCharacter, GunHoldReason);
 }
 
 
@@ -189,6 +190,34 @@ void ALobbyCharacter::MulticastPlaySitAnimation_Implementation()
 		// 몽타주 재생 (애니메이션 BP에 'DefaultSlot' 등의 슬롯 설정이 되어 있어야 함)
 		AnimInstance->Montage_Play(SitMontage, 1.0f);
 	}
+}
+
+void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason Reason)
+{
+	GunHoldReason = Reason;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (!AnimInstance) return;
+
+	UAnimMontage* MontageToPlay = nullptr;
+	if (Reason == EGunHoldReason::Fold)
+	{
+		MontageToPlay = AimMyselfMontage;
+	}
+	else if (Reason == EGunHoldReason::Win)
+	{
+		MontageToPlay = WinAimMontage;
+	}
+
+	if (MontageToPlay)
+	{
+		AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+	}
+}
+
+void ALobbyCharacter::OnRep_GunHoldReason()
+{
+	// GunHoldReason이 변경되면 ABP가 자동으로 감지해서 스테이트 트랜지션에 활용
 }
 
 
