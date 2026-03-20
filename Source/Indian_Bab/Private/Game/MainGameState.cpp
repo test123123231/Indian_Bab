@@ -6,6 +6,7 @@ AMainGameState::AMainGameState()
 {
 	CurrentGamePhase = EGamePhase::Lobby;
 	ReadyPlayerCount = 0;
+	AlivePlayerCount = 0;
 	CurrentTurnPlayerId = -1;
 	CurrentPlayerIndex = -1;
 	CurrentBulletCount = 1;
@@ -20,6 +21,7 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
 	// 변수들을 클라이언트에게 복제(Replicate)하도록 등록
 	DOREPLIFETIME(AMainGameState, CurrentGamePhase);
+	DOREPLIFETIME(AMainGameState, AlivePlayerCount);
 	DOREPLIFETIME(AMainGameState, ReadyPlayerCount);
 	DOREPLIFETIME(AMainGameState, CurrentTurnPlayerId);
 	DOREPLIFETIME(AMainGameState, CurrentPlayerIndex);
@@ -80,6 +82,7 @@ void AMainGameState::ChangeReadyPlayerCount(int32 NewReadyCount)
 	if (HasAuthority())
 	{
 		ReadyPlayerCount = NewReadyCount;
+		AlivePlayerCount = ReadyPlayerCount;
 
 		// 서버 자신도 UI나 연출 업데이트를 위해 OnRep 함수 수동 호출
 		OnRep_ReadyPlayerCount();
@@ -111,8 +114,12 @@ void AMainGameState::OnRep_CurrentBetInfo()
     else if (CurrentBetInfo.CurrentBetAction == EBetAction::Fold)
         ActionStr = TEXT("Fold");
 	
-	UE_LOG(LogTemp, Warning, TEXT("[GS]BetAction = %s ActionTotal = %d CurrentBulletCount = %d"), 
-		ActionStr,CurrentBetInfo.BetActionTotal, CurrentBulletCount);
+	//UE_LOG(LogTemp, Warning, TEXT("[GS]BetAction = %s ActionTotal = %d CurrentBulletCount = %d"), ActionStr,CurrentBetInfo.BetActionTotal, CurrentBulletCount);
+}
+
+void AMainGameState::OnRep_AlivePlayerCount()
+{
+	UE_LOG(LogTemp, Display, TEXT("현재 생존 인원 : %d"), AlivePlayerCount);
 }
 
 void AMainGameState::OnRep_ReadyPlayerCount()

@@ -25,6 +25,9 @@ public:
 	// 베팅 액션 관리
 	void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action);
 
+	// 폴드 베팅 액션
+	void HandleFoldAction(AMainGamePlayerController* RequestPC);
+
 protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수
 	void CheckGameStart();

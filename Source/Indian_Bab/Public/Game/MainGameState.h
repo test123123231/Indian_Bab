@@ -49,6 +49,10 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_ReadyPlayerCount, BlueprintReadOnly, Category = "Game State")
 	int32 ReadyPlayerCount;
 
+	// 현재 의자에 앉아 준비를 마친 플레이어 수
+	UPROPERTY(ReplicatedUsing = OnRep_AlivePlayerCount, BlueprintReadOnly, Category = "Game State")
+	int32 AlivePlayerCount;
+
 	// 현재 턴의 플레이어
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentTurnPlayerId, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentTurnPlayerId;
@@ -99,6 +103,9 @@ protected:
 	// 클라이언트에서 준비 인원(앉은 인원)이 변경되었을 때 실행
 	UFUNCTION()
 	void OnRep_ReadyPlayerCount();
+
+	UFUNCTION();
+	void OnRep_AlivePlayerCount();
 
 	UFUNCTION()
 	void OnRep_CurrentBulletCount();
