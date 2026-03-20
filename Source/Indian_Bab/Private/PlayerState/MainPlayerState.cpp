@@ -1,6 +1,6 @@
+#include "Game/MainGameState.h"
 #include "PlayerState/MainPlayerState.h"
 #include "Net/UnrealNetwork.h"
-#include "Game/MainGameState.h"
 
 AMainPlayerState::AMainPlayerState()
 {
@@ -55,6 +55,4 @@ void AMainPlayerState::OnRep_TotalTriggerCount()
 void AMainPlayerState::OnRep_isAlive()
 {
     UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : dead!"), GetPlayerId());
-	AMainGameState* GS = GetGameState<AMainGameState>();
-    GS -> AlivePlayerCount--;
 }

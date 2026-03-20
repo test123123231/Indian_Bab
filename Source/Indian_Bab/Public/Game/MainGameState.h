@@ -104,7 +104,7 @@ protected:
 	UFUNCTION()
 	void OnRep_ReadyPlayerCount();
 
-	UFUNCTION();
+	UFUNCTION()
 	void OnRep_AlivePlayerCount();
 
 	UFUNCTION()

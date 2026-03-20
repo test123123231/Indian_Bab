@@ -84,7 +84,9 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d died by sub revolver"), PS ->GetPlayerId());
-		NextTurn();
+		AMainGameState* GS = GetGameState<AMainGameState>();
+		if(--GS -> AlivePlayerCount > 1)
+			NextTurn();
 	}
 }
 
@@ -190,7 +192,7 @@ void AMainGameMode::NextTurn()
     if (NumSeats <= 0) return;
 	if(GS -> AlivePlayerCount == 1)
 	{
-		UE_LOG(LogTemp, Display, TEXT("[GM] Player %d Winner!"));
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Winner!"), GS->CurrentTurnPlayerId);
 		return;
 	}
 
