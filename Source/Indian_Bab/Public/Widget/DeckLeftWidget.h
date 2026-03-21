@@ -10,5 +10,8 @@ UCLASS()
 class INDIAN_BAB_API UDeckLeftWidget : public UUserWidget
 {
 	GENERATED_BODY()
-
+public:
+	void LoadWidget() {
+		
+	}
 };
