@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Game/MainGameTypes.h"
 #include "LobbyCharacter.generated.h"
 
 
@@ -11,6 +12,7 @@ struct FInputActionValue;
 class UCameraComponent;
 class UGroomComponent;
 class ASeatActor;
+class ARevolver;
 
 
 UCLASS()
@@ -89,6 +91,47 @@ public:
 	// 의자에 앉을 때 재생할 애니메이션 몽타주 (BP에서 할당)
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<UAnimMontage> SitMontage;
+
+	// Fold 시 자기 머리를 겨냥하는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> AimMyselfMontage;
+
+	// 승리 시 총을 겨냥하는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> WinAimMontage;
+
+	// 총을 집어든 이유 - ABP 스테이트 머신 트랜지션 판별용 (Replicated)
+	UPROPERTY(ReplicatedUsing = OnRep_GunHoldReason, BlueprintReadOnly, Category = "State")
+	EGunHoldReason GunHoldReason;
+
+	// ABP로 넘겨줄 최종 좌우 목 꺾임 각도 (모든 사람에게 동기화됨)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
+	float ReplicatedAimYaw = 0.0f;
+
+	UFUNCTION(Server, Unreliable)
+	void Server_UpdateAimYaw(float NewYaw);
+
+	UFUNCTION()
+	void OnRep_GunHoldReason();
+
+	// 총 집어들기 몽타주 재생 (Fold/Win 공통)
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayGrabGunMontage(EGunHoldReason Reason);
+
+	// 이 캐릭터 자리에 놓인 리볼버 (SeatActor 착석 시 할당, Replicated)
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<ARevolver> DeskRevolver;
+
+	// 1인칭 리볼버 메시 (FirstPersonMetaHumanBody의 Revolver 소켓에 부착, 본인만 보임)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<USkeletalMeshComponent> FP_RevolverMesh;
+
+	// 3인칭 리볼버 메시 (ThirdPersonMetaHumanBody의 Revolver 소켓에 부착, 타인만 보임)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<USkeletalMeshComponent> TP_RevolverMesh;
+
+	// AnimNotify_GrabRevolver 에서 호출 - 책상 리볼버를 숨기고 FP/TP 메시를 소켓에 부착
+	void AttachRevolverToSocket();
 
 	// ★ 추가: 현재 캐릭터가 앉아있는지 여부 (동기화 됨)
 	UPROPERTY(ReplicatedUsing = OnRep_IsSitting, BlueprintReadOnly, Category = "State")

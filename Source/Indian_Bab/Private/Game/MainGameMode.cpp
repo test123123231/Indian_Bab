@@ -53,9 +53,22 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 
     int32 PlayerId = RequestPC->GetPlayerIdSafe();
 
+	UE_LOG(LogTemp, Warning, TEXT("[GM] HandleBetAction - CurrentTurnPlayerId=%d, RequestPlayerId=%d"), GS->CurrentTurnPlayerId, PlayerId);
+
 	if (GS -> CurrentTurnPlayerId == PlayerId)
 	{
 		GS -> ChangeCurrentBetInfo(Action);
+
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Action: %s"), PlayerId, *UEnum::GetValueAsString(Action));
+		if (Action == EBetAction::Fold)
+		{
+			ALobbyCharacter* Character = Cast<ALobbyCharacter>(RequestPC->GetPawn());
+			if (Character)
+			{
+				Character->Multicast_PlayGrabGunMontage(EGunHoldReason::Fold);
+			}
+		}
+
 		NextTurn();
 	}
 }
@@ -67,7 +80,7 @@ void AMainGameMode::CheckGameStart()
 
 	// 기획 상 3~4인 플레이. 테스트를 위해 1인 이상으로 할 수도 있음.
 	// 여기서는 현재 접속한 인원이 모두 앉았는지(Ready) 검사
-	if (GS->ReadyPlayerCount >= 3 && GS->ReadyPlayerCount == NumPlayers)
+	if (GS->ReadyPlayerCount >= 1 && GS->ReadyPlayerCount == NumPlayers) // TODO: 실제 서비스 시 >= 3으로 변경
 	{
 		UE_LOG(LogTemp, Warning, TEXT("모든 플레이어가 착석했습니다. 3초 후 게임을 시작합니다."));
 
@@ -110,7 +123,7 @@ void AMainGameMode::PickRandomPlayer()
 	if (!GS) return;
 
 	const int32 SeatedPlayerNum = GS-> SeatChairArray.Num();
-	if (SeatedPlayerNum <= 1) return;
+	if (SeatedPlayerNum <= 0) return; // TODO: 테스트 추후 값 수정
 
 	int32 CurrentPlayerIndex = FMath::RandRange(0, SeatedPlayerNum - 1);
 	ASeatActor* CurrentChair = GS -> SeatChairArray[CurrentPlayerIndex];
