@@ -8,6 +8,8 @@
 #include "Animation/AnimInstance.h"
 #include "Net/UnrealNetwork.h"
 #include "Actor/SeatActor.h"
+#include "Actor/Revolver.h"
+#include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 
@@ -56,7 +58,45 @@ ALobbyCharacter::ALobbyCharacter()
 	(ThirdPersonMetaHumanEyelashes = CreateDefaultSubobject< UGroomComponent>(TEXT("Eyelashes")))->SetupAttachment(ThirdPersonMetaHumanFace);
 	(ThirdPersonMetaHumanFuzz = CreateDefaultSubobject< UGroomComponent>(TEXT("Fuzz")))->SetupAttachment(ThirdPersonMetaHumanFace);
 
-	// Create the Camera Component	
+	ThirdPersonMetaHumanHair->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	ThirdPersonMetaHumanEyebrows->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	ThirdPersonMetaHumanBeard->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	ThirdPersonMetaHumanMustache->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	ThirdPersonMetaHumanEyelashes->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	ThirdPersonMetaHumanFuzz->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+
+	// 1인칭 리볼버 메시 (기본 숨김 - 총을 잡는 순간 표시)
+	FP_RevolverMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_RevolverMesh"));
+	FP_RevolverMesh->SetupAttachment(FirstPersonMetaHumanBody);
+	FP_RevolverMesh->SetCollisionProfileName(FName("NoCollision"));
+	FP_RevolverMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
+	FP_RevolverMesh->SetVisibility(false);
+
+	// 3인칭 리볼버 메시 (기본 숨김 - 총을 잡는 순간 표시)
+	TP_RevolverMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("TP_RevolverMesh"));
+	TP_RevolverMesh->SetupAttachment(ThirdPersonMetaHumanBody);
+	TP_RevolverMesh->SetCollisionProfileName(FName("NoCollision"));
+	TP_RevolverMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
+	TP_RevolverMesh->SetVisibility(false);
+
+	FP_RevolverMesh->SetOnlyOwnerSee(true);
+	TP_RevolverMesh->SetOwnerNoSee(true);
+
+	FirstPersonMetaHumanBody->SetOnlyOwnerSee(true);
+	FirstPersonMetaHumanTorso->SetOnlyOwnerSee(true);
+
+	ThirdPersonMetaHumanBody->SetOwnerNoSee(true);
+	ThirdPersonMetaHumanTorso->SetOwnerNoSee(true);
+	ThirdPersonMetaHumanFace->SetOwnerNoSee(true);
+
+	ThirdPersonMetaHumanHair->SetOwnerNoSee(true);
+	ThirdPersonMetaHumanEyebrows->SetOwnerNoSee(true);
+	ThirdPersonMetaHumanBeard->SetOwnerNoSee(true);
+	ThirdPersonMetaHumanMustache->SetOwnerNoSee(true);
+	ThirdPersonMetaHumanEyelashes->SetOwnerNoSee(true);
+	ThirdPersonMetaHumanFuzz->SetOwnerNoSee(true);
+
+	// Create the Camera Component
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
 	CameraComponent->SetupAttachment(FirstPersonMetaHumanBody, FName("head"));
 	CameraComponent->SetRelativeLocationAndRotation(FVector(-2.8f, 8.5, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
@@ -79,28 +119,6 @@ void ALobbyCharacter::BeginPlay()
 	}
 	
 	MainGamePC = Cast<AMainGamePlayerController>(GetController());
-
-	FirstPersonMetaHumanBody->SetOnlyOwnerSee(true);
-	FirstPersonMetaHumanTorso->SetOnlyOwnerSee(true);
-
-	ThirdPersonMetaHumanBody->SetOwnerNoSee(true);
-	ThirdPersonMetaHumanTorso->SetOwnerNoSee(true);
-	ThirdPersonMetaHumanFace->SetOwnerNoSee(true);
-
-	ThirdPersonMetaHumanHair->SetOwnerNoSee(true);
-	ThirdPersonMetaHumanEyebrows->SetOwnerNoSee(true);
-	ThirdPersonMetaHumanBeard->SetOwnerNoSee(true);
-	ThirdPersonMetaHumanMustache->SetOwnerNoSee(true);
-	ThirdPersonMetaHumanEyelashes->SetOwnerNoSee(true);
-	ThirdPersonMetaHumanFuzz->SetOwnerNoSee(true);
-
-	ThirdPersonMetaHumanHair->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
-	ThirdPersonMetaHumanEyebrows->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
-	ThirdPersonMetaHumanBeard->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
-	ThirdPersonMetaHumanMustache->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
-	ThirdPersonMetaHumanEyelashes->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
-	ThirdPersonMetaHumanFuzz->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
-
 }
 
 
@@ -109,6 +127,21 @@ void ALobbyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// 내가 조종하는 캐릭터이고, 앉아있을 때만 작동
+	if (bIsSitting && IsLocallyControlled())
+	{
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
+		{
+			// (현재 마우스 좌우 방향) - (의자에 안착한 캡슐의 고정된 방향) = 순수하게 목이 돌아간 각도
+			float YawDifference = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, PC->GetControlRotation().Yaw);
+			UE_LOG(LogTemp, Log, TEXT("YawDifference: %f"), YawDifference);
+			// 내 화면을 위해 로컬 변수 즉시 업데이트
+			ReplicatedAimYaw = YawDifference;
+
+			// 남들도 내 고개 돌아가는 걸 볼 수 있게 서버로 전송
+			Server_UpdateAimYaw(YawDifference);
+		}
+	}
 }
 
 
@@ -133,6 +166,9 @@ void ALobbyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 
 	// bIsSitting 변수를 멀티플레이 환경에서 동기화
 	DOREPLIFETIME(ALobbyCharacter, bIsSitting);
+	DOREPLIFETIME(ALobbyCharacter, GunHoldReason);
+	DOREPLIFETIME(ALobbyCharacter, DeskRevolver);
+	DOREPLIFETIME(ALobbyCharacter, ReplicatedAimYaw);
 }
 
 
@@ -189,6 +225,64 @@ void ALobbyCharacter::MulticastPlaySitAnimation_Implementation()
 		// 몽타주 재생 (애니메이션 BP에 'DefaultSlot' 등의 슬롯 설정이 되어 있어야 함)
 		AnimInstance->Montage_Play(SitMontage, 1.0f);
 	}
+}
+
+void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason Reason)
+{
+	GunHoldReason = Reason;
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (!AnimInstance) return;
+
+	UAnimMontage* MontageToPlay = nullptr;
+	if (Reason == EGunHoldReason::Fold)
+	{
+		MontageToPlay = AimMyselfMontage;
+	}
+	else if (Reason == EGunHoldReason::Win)
+	{
+		MontageToPlay = WinAimMontage;
+	}
+
+	if (MontageToPlay)
+	{
+		AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+	}
+}
+
+void ALobbyCharacter::OnRep_GunHoldReason()
+{
+	// GunHoldReason이 변경되면 ABP가 자동으로 감지해서 스테이트 트랜지션에 활용
+}
+
+void ALobbyCharacter::AttachRevolverToSocket()
+{
+	if (!DeskRevolver) return;
+
+	// 1) 책상 위 리볼버 Prop 숨기기 + 콜리전 제거
+	DeskRevolver->SetActorHiddenInGame(true);
+	DeskRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// 2) 책상 리볼버와 동일한 스켈레탈 메시 에셋을 FP/TP 컴포넌트에 복사
+	USkeletalMesh* RevolverMeshAsset = DeskRevolver->WeaponMesh->GetSkeletalMeshAsset();
+	FP_RevolverMesh->SetSkeletalMeshAsset(RevolverMeshAsset);
+	TP_RevolverMesh->SetSkeletalMeshAsset(RevolverMeshAsset);
+
+	// 3) 1인칭 리볼버 → FirstPersonMetaHumanBody의 Revolver 소켓에 부착 후 표시
+	FP_RevolverMesh->AttachToComponent(
+		FirstPersonMetaHumanBody,
+		FAttachmentTransformRules::SnapToTargetIncludingScale,
+		FName("Revolver")
+	);
+	FP_RevolverMesh->SetVisibility(true);
+
+	// 4) 3인칭 리볼버 → ThirdPersonMetaHumanBody의 Revolver 소켓에 부착 후 표시
+	TP_RevolverMesh->AttachToComponent(
+		ThirdPersonMetaHumanBody,
+		FAttachmentTransformRules::SnapToTargetIncludingScale,
+		FName("Revolver")
+	);
+	TP_RevolverMesh->SetVisibility(true);
 }
 
 
@@ -249,6 +343,8 @@ void ALobbyCharacter::OnRep_IsSitting()
 			// 앉는 애니메이션이 재생되는 동안 카메라는 마우스를 무시하고 머리 뼈(head)를 따라가며 돌아앉는 연출을 보여줍니다.
 			CameraComponent->SetRelativeLocationAndRotation(FVector(-2.8f, 8.5, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
 			CameraComponent->bUsePawnControlRotation = false;
+			APlayerController* PC = Cast<APlayerController>(GetController());
+			PC->SetControlRotation(GetActorRotation()); // 카메라가 현재 몸통이 바라보는 방향으로 즉시 회전하도록 강제
 		}
 		else
 		{
@@ -286,8 +382,7 @@ void ALobbyCharacter::Client_LockCameraAfterSit_Implementation(FRotator FinalSit
 		CameraComponent->bUsePawnControlRotation = true;
 
 		// 시야각 제한 (최종 안착 방향 기준 좌/우 60도)
-		// 주의: 시야 제한의 기준점(CenterYaw)은 카메라 방향이 아니라, '의자의 정면(FinalSitRotation)'으로 잡아야
-		// 유저가 책상을 기준으로 좌우 동일한 각도로 둘러볼 수 있습니다.
+
 		if (APlayerCameraManager* CamManager = PC->PlayerCameraManager)
 		{
 			float CenterYaw = FinalSitRotation.Yaw;
@@ -309,4 +404,10 @@ void ALobbyCharacter::Client_PrepareSit_Implementation(FVector TargetLocation, F
 {
 	// 서버의 복제 딜레이를 기다리지 않고, 클라이언트 스스로 즉시 의자 앞으로 캡슐을 강제 회전 및 이동시킵니다!
 	SetActorLocationAndRotation(TargetLocation, TargetRotation);
+}
+
+
+void ALobbyCharacter::Server_UpdateAimYaw_Implementation(float NewYaw)
+{
+	ReplicatedAimYaw = NewYaw; // 서버가 값을 받아서 모든 클라이언트에게 자동 전파
 }
