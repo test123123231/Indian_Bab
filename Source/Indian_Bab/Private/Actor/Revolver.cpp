@@ -8,6 +8,9 @@ ARevolver::ARevolver()
 	// 매 프레임마다 Tick()을 호출할 필요가 없다면 false로 꺼두는 것이 게임 성능에 좋습니다.
 	PrimaryActorTick.bCanEverTick = false;
 
+	// 멀티플레이어 동기화 필수 - 이게 없으면 클라이언트에서 DeskRevolver 포인터가 null이 됨
+	bReplicates = true;
+
 	// 스켈레탈 메시 컴포넌트 생성 및 루트(기준점)로 설정
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
 	RootComponent = WeaponMesh; // 스켈레탈 메시를 루트로 설정

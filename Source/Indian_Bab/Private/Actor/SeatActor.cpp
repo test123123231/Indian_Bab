@@ -1,4 +1,5 @@
 #include "Actor/SeatActor.h"
+#include "Actor/Revolver.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -72,9 +73,12 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 		OnRep_IsOccupied(); // 서버 자신도 시각적 업데이트 호출
 
 		// 캐릭터 위치를 의자(SitTarget)로 이동 및 회전 동기화
-		PlayerCharacter->SetActorLocationAndRotation(StandTarget->GetComponentLocation(), StandTarget->GetComponentRotation());
+		PlayerCharacter->SetActorLocationAndRotation(StandTarget->GetComponentLocation(), GetActorRotation());
 		// 클라이언트 복제 딜레이 없도록 RPC 호출로 즉시 위치 이동
 		PlayerCharacter->Client_PrepareSit(StandTarget->GetComponentLocation(), StandTarget->GetComponentRotation());
+
+		// 이 자리의 리볼버 참조를 캐릭터에 전달 (AnimNotify_GrabRevolver에서 사용)
+		PlayerCharacter->DeskRevolver = DeskRevolver;
 
 		PlayerCharacter->SetSittingState(true);
 

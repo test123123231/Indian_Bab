@@ -5,6 +5,8 @@
 #include "Interface/InteractableInterface.h"
 #include "SeatActor.generated.h"
 
+class ARevolver;
+
 
 UCLASS()
 class INDIAN_BAB_API ASeatActor : public AActor, public IInteractableInterface
@@ -32,6 +34,10 @@ public:
 	// 의자 별 인덱스, 에디터에서 변경
 	UPROPERTY(EditAnywhere, Category="Seat")
 	int32 SeatOrder = -1;
+
+	// 이 자리 책상 위에 놓인 리볼버 액터 (레벨 에디터에서 각 좌석마다 할당)
+	UPROPERTY(EditInstanceOnly, Category = "Seat")
+	TObjectPtr<ARevolver> DeskRevolver;
 
 	TObjectPtr<AActor> GetOccupant();
 
