@@ -29,10 +29,12 @@ void AMainPlayerState::SetInitSubRevolver()
     }
     int32 RandomIndex = FMath::RandRange(0, BulletArray.Num() - 1);
     BulletArray[RandomIndex] = 1;
+    
     TotalTriggerCount = 0;
     isAlive = 1;
 }
 
+// 서브 리볼버 당김횟부 변화(+1)
 bool AMainPlayerState::ChangeSubRevolver()
 {
     if(BulletArray[TotalTriggerCount])

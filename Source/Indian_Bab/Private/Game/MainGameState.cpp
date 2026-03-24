@@ -8,6 +8,7 @@ AMainGameState::AMainGameState()
 	ReadyPlayerCount = 0;
 	AlivePlayerCount = 0;
 	CurrentTurnPlayerId = -1;
+	bTurnActionInProgress = false;
 	CurrentPlayerIndex = -1;
 	CurrentBulletCount = 1;
 	CurrentBetInfo.CurrentBetAction = EBetAction::None;
@@ -27,6 +28,7 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, CurrentPlayerIndex);
 	DOREPLIFETIME(AMainGameState, CurrentBulletCount);
 	DOREPLIFETIME(AMainGameState, CurrentBetInfo);
+	DOREPLIFETIME(AMainGameState, bTurnActionInProgress);
 }
 
 
@@ -119,7 +121,7 @@ void AMainGameState::OnRep_CurrentBetInfo()
 
 void AMainGameState::OnRep_AlivePlayerCount()
 {
-	UE_LOG(LogTemp, Display, TEXT("현재 생존 인원 : %d"), AlivePlayerCount);
+	UE_LOG(LogTemp, Warning, TEXT("현재 생존 인원 : %d"), AlivePlayerCount);
 }
 
 void AMainGameState::OnRep_ReadyPlayerCount()

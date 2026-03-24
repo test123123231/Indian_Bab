@@ -57,6 +57,9 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentTurnPlayerId, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentTurnPlayerId;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category ="Game State")
+	bool bTurnActionInProgress;
+
 	// 현재 턴의 플레이어의 인덱스(SeatChairArray 인덱스)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentPlayerIndex;

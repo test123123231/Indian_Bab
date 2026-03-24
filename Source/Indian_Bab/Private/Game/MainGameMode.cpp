@@ -4,7 +4,7 @@
 #include "Character/LobbyCharacter.h"
 #include "PlayerController/MainGamePlayerController.h"
 #include "PlayerState/MainPlayerState.h"
-
+#include "Character/LobbyCharacter.h"
 
 AMainGameMode::AMainGameMode()
 {
@@ -52,9 +52,12 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 
-    int32 PlayerId = RequestPC->GetPlayerIdSafe();
+	if (GS->bTurnActionInProgress) return;
 
+    int32 PlayerId = RequestPC->GetPlayerIdSafe();
 	if (GS -> CurrentTurnPlayerId != PlayerId) return;
+
+	GS->bTurnActionInProgress = true;
 
 	GS -> ChangeCurrentBetInfo(Action);
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Action: %s"), PlayerId, *UEnum::GetValueAsString(Action));
@@ -64,7 +67,11 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 		HandleFoldAction(RequestPC);
 		return;
 	}
-	NextTurn();
+	else
+	{
+		NextTurn();
+		return;
+	}
 }
 
 // 폴드 베팅 액션
@@ -86,14 +93,30 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 	if(PlayerAlive)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d survived by sub revolver"), PS ->GetPlayerId());
-		NextTurn();
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d died by sub revolver"), PS ->GetPlayerId());
 		AMainGameState* GS = GetGameState<AMainGameState>();
-		if(--GS -> AlivePlayerCount > 1)
-			NextTurn();
+		--GS -> AlivePlayerCount;
+	}
+}
+
+void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
+{
+	if (!HasAuthority()) return;
+	if (!Character) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if(!GS) return;
+
+	if (GS->AlivePlayerCount > 1)
+	{
+		NextTurn();
+	}
+	else
+	{
+		
 	}
 }
 
@@ -141,8 +164,7 @@ void AMainGameMode::StartMainGame()
 		// 타이머 시작
 		if(GS -> CurrentTurnPlayerId != -1)
 		{
-			//StartTurnTimer(20.0f);
-			StartTurnTimer(5.0f);
+			StartTurnTimer(20.0f);
 		}
 
 	}
@@ -204,6 +226,7 @@ void AMainGameMode::NextTurn()
 	}
 
 	int32 NextPlayerIndex = GS -> CurrentPlayerIndex;
+	GS->bTurnActionInProgress = false;
 
 	//의자에 따라 순환
 	for(int i = 0; i < NumSeats; i++)
@@ -221,8 +244,7 @@ void AMainGameMode::NextTurn()
 		if(!NextPS -> isAlive) continue;
 
 		GS->ChangeGameTurn(NextPS->GetPlayerId(), NextPlayerIndex);
-		// StartTurnTimer(20.0f);
-		StartTurnTimer(5.0f);
+		StartTurnTimer(20.0f);
 		return;
 	}
 }
