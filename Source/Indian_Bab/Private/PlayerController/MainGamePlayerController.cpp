@@ -139,6 +139,11 @@ void AMainGamePlayerController::CreateMainGameWidget()
     {
         MainGameWidgetInstance->AddToViewport();
     }
+
+    if (MainGameWidgetInstance)
+    {
+        MainGameWidgetInstance->InitWidget();
+    }
 }
 
 
@@ -245,6 +250,16 @@ void AMainGamePlayerController::OnLobbyLook(const FInputActionValue& Value)
     const FVector2D LookAxis = Value.Get<FVector2D>();
     AddYawInput(LookAxis.X * LookSensitivity);
     AddPitchInput(-LookAxis.Y * LookSensitivity);
+}
+
+void AMainGamePlayerController::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    if (MainGameWidgetInstance)
+    {
+        MainGameWidgetInstance->InitWidget();
+    }
 }
 
 void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)

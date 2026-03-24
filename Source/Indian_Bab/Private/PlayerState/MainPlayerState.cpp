@@ -52,6 +52,7 @@ bool AMainPlayerState::ChangeSubRevolver()
 void AMainPlayerState::OnRep_TotalTriggerCount()
 {
     UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : %d / 8"), GetPlayerId(), TotalTriggerCount);
+    OnTriggerCountChanged.Broadcast(TotalTriggerCount);
 }
 
 void AMainPlayerState::OnRep_isAlive()

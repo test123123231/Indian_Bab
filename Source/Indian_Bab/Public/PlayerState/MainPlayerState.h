@@ -6,9 +6,8 @@
 #include "GameFramework/PlayerState.h"
 #include "MainPlayerState.generated.h"
 
-/**
- * 
- */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTriggerCountChanged, int32);
+
 UCLASS()
 class INDIAN_BAB_API AMainPlayerState : public APlayerState
 {
@@ -40,6 +39,8 @@ public:
 
 	// 리볼버 당김 횟수 변경
 	bool ChangeSubRevolver();
+
+	FOnTriggerCountChanged OnTriggerCountChanged;
 protected:
 	// 서브 리볼버의 당김 횟수가 바뀌었을 때 호출
 	UFUNCTION()

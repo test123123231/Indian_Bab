@@ -2,6 +2,7 @@
 #include "PlayerController/MainGamePlayerController.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "PlayerState/MainPlayerState.h"
 //#include "Components/EditableTextBox.h"
 //#include "Components/MultiLineEditableText.h" 
 
@@ -13,6 +14,11 @@ void UMainGameWidget::NativeDestruct()
     if (Button_Raise)     Button_Raise->OnClicked.RemoveAll(this);
     if (Button_CheckCall) Button_CheckCall->OnClicked.RemoveAll(this);
     if (Button_Fold)      Button_Fold->OnClicked.RemoveAll(this);
+
+    if (MainPS)
+    {
+        MainPS->OnTriggerCountChanged.RemoveAll(this);
+    }
 }
 
 void UMainGameWidget::NativeConstruct()
@@ -35,9 +41,6 @@ void UMainGameWidget::NativeConstruct()
         Button_Fold->OnClicked.RemoveAll(this);
 		Button_Fold->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonFold);
 	}
-
-    // 플레이어 컨트롤러 참조 저장
-	MainGamePC = Cast<AMainGamePlayerController>(GetOwningPlayer());
 }
 
 void UMainGameWidget::OnButtonRaise()
@@ -65,4 +68,32 @@ void UMainGameWidget::OnButtonFold()
         UE_LOG(LogTemp, Display, TEXT("Click Fold Button"));
         MainGamePC->RequestFold();
     }
+}
+
+
+void UMainGameWidget::UpdateSubRevolverCount(int32 Count)
+{
+    //UE_LOG(LogTemp, Warning, TEXT("[Widget] UpdateSubRevolverCount called : %d"), Count);
+
+
+	if (!Text_SubRevolverCount) return;
+
+	Text_SubRevolverCount->SetText(
+		FText::FromString(FString::Printf(TEXT("%d"), 8 - Count))
+	);
+}
+
+void UMainGameWidget::InitWidget()
+{    
+    MainGamePC = Cast<AMainGamePlayerController>(GetOwningPlayer());
+    if (!MainGamePC) return;
+
+    MainPS = MainGamePC->GetPlayerState<AMainPlayerState>();
+    if (!MainPS) return;
+
+    MainPS->OnTriggerCountChanged.RemoveAll(this);
+    MainPS->OnTriggerCountChanged.AddUObject(this, &UMainGameWidget::UpdateSubRevolverCount);
+
+    UpdateSubRevolverCount(MainPS->TotalTriggerCount);
+    UE_LOG(LogTemp, Warning, TEXT("[Widget] InitWidget success"));
 }
