@@ -26,6 +26,24 @@ void UMainGameWidget::NativeConstruct()
 	{
 		Plus_Button->OnClicked.AddDynamic(this, &UMainGameWidget::PlusButtonClicked);
 	}
+
+	if (Button_Raise)
+	{
+		Button_Raise->OnClicked.RemoveAll(this);
+		Button_Raise->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonRaise);
+	}
+	if (Button_CheckCall)
+	{
+		Button_CheckCall->OnClicked.RemoveAll(this);
+		Button_CheckCall->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonCheckCall);
+	}
+	if (Button_Fold)
+	{
+		Button_Fold->OnClicked.RemoveAll(this);
+		Button_Fold->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonFold);
+	}
+	MainGamePC = Cast<AMainGamePlayerController>(GetOwningPlayer());
+
 }
 
 void UMainGameWidget::MinusButtonClicked() {
@@ -56,3 +74,29 @@ void UMainGameWidget::PlusButtonClicked() {
 	}
 }
 
+void UMainGameWidget::OnButtonRaise()
+{
+	if (MainGamePC)
+	{
+		UE_LOG(LogTemp, Display, TEXT("Click Raise Button"));
+		MainGamePC->RequestRaise();
+	}
+}
+
+void UMainGameWidget::OnButtonCheckCall()
+{
+	if (MainGamePC)
+	{
+		UE_LOG(LogTemp, Display, TEXT("Click CheckCall Button"));
+		MainGamePC->RequestCheckCall();
+	}
+}
+
+void UMainGameWidget::OnButtonFold()
+{
+	if (MainGamePC)
+	{
+		UE_LOG(LogTemp, Display, TEXT("Click Fold Button"));
+		MainGamePC->RequestFold();
+	}
+}
