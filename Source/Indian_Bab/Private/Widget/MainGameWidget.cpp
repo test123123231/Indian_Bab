@@ -2,7 +2,7 @@
 #include "Widget/DeckLeftWidget.h"
 #include "Components/TextBlock.h"
 #include "PlayerState/MainPlayerState.h"
-//#include "Components/EditableTextBox.h"
+#include "Components/EditableTextBox.h"
 //#include "Components/MultiLineEditableText.h" 
 #include "Components/Button.h"
 #include "Widget/BetProgressWidget.h"

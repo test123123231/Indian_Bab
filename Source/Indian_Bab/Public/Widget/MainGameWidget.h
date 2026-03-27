@@ -8,6 +8,7 @@
 class UButton;
 class UDeckLeftWidget;
 class UTextBlock;
+class UEditableTextBox;
 class UBetProgressWidget;
 class AMainGamePlayerController;
 class AMainPlayerState;
@@ -26,7 +27,7 @@ protected:
 
 private:
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> SubRevolverCount;
+	TObjectPtr<UEditableTextBox> SubRevolverCount;
 
 	// UPROPERTY(meta = (BindWidget))
 	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
