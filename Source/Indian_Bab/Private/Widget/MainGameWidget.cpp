@@ -124,9 +124,9 @@ void UMainGameWidget::UpdateSubRevolverCount(int32 Count)
     //UE_LOG(LogTemp, Warning, TEXT("[Widget] UpdateSubRevolverCount called : %d"), Count);
 
 
-	if (!Text_SubRevolverCount) return;
+	if (!SubRevolverCount) return;
 
-	Text_SubRevolverCount->SetText(
+	SubRevolverCount->SetText(
 		FText::FromString(FString::Printf(TEXT("%d"), 8 - Count))
 	);
 }

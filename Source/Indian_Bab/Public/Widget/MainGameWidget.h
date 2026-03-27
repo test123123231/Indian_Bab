@@ -26,7 +26,7 @@ protected:
 
 private:
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> Text_SubRevolverCount;
+	TObjectPtr<UTextBlock> SubRevolverCount;
 
 	// UPROPERTY(meta = (BindWidget))
 	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
