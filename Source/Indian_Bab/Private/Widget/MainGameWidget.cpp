@@ -6,6 +6,7 @@
 //#include "Components/MultiLineEditableText.h" 
 #include "Components/Button.h"
 #include "Widget/BetProgressWidget.h"
+#include "PlayerController\MainGamePlayerController.h"
 
 
 void UMainGameWidget::NativeDestruct()

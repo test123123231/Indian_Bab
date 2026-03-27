@@ -6,17 +6,11 @@
 #include "MainGameWidget.generated.h"
 
 class UButton;
-// class UMultiLineEditableText;
-// class UEditableTextBox;
-class UTextBlock;
-class AMainGamePlayerController;
-class AMainPlayerState;
-
-class UButton;
 class UDeckLeftWidget;
 class UTextBlock;
 class UBetProgressWidget;
 class AMainGamePlayerController;
+class AMainPlayerState;
 
 UCLASS()
 class INDIAN_BAB_API UMainGameWidget : public UUserWidget
@@ -32,7 +26,7 @@ protected:
 
 private:
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UEditableTextBox> Text_SubRevolverCount;
+	TObjectPtr<UTextBlock> Text_SubRevolverCount;
 
 	// UPROPERTY(meta = (BindWidget))
 	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
