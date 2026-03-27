@@ -7,6 +7,7 @@
 
 class AMainGamePlayerController;
 class ASeatActor;
+class ALobbyCharacter;
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
@@ -24,6 +25,12 @@ public:
 
 	// 베팅 액션 관리
 	void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action);
+
+	// 폴드 베팅 액션
+	void HandleFoldAction(AMainGamePlayerController* RequestPC);
+
+	// 폴드 행동이 끝났을 때
+	void HandleFoldMontageFinished(ALobbyCharacter* Character);
 
 protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수

@@ -163,6 +163,10 @@ protected:
 	UFUNCTION()
 	void OnSitMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+	// 총 쏘는 몽타주가 끝났을 때 서버에서 호출될 콜백 함수
+	UFUNCTION()
+	void OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+
 private:
 	TObjectPtr<AMainGamePlayerController> MainGamePC;
 

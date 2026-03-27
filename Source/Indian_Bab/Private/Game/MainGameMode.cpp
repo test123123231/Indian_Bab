@@ -3,7 +3,8 @@
 #include "Actor/SeatActor.h"
 #include "Character/LobbyCharacter.h"
 #include "PlayerController/MainGamePlayerController.h"
-
+#include "PlayerState/MainPlayerState.h"
+#include "Character/LobbyCharacter.h"
 
 AMainGameMode::AMainGameMode()
 {
@@ -51,25 +52,71 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 
+	if (GS->bTurnActionInProgress) return;
+
     int32 PlayerId = RequestPC->GetPlayerIdSafe();
+	if (GS -> CurrentTurnPlayerId != PlayerId) return;
 
-	UE_LOG(LogTemp, Warning, TEXT("[GM] HandleBetAction - CurrentTurnPlayerId=%d, RequestPlayerId=%d"), GS->CurrentTurnPlayerId, PlayerId);
+	GS->bTurnActionInProgress = true;
 
-	if (GS -> CurrentTurnPlayerId == PlayerId)
+	GS -> ChangeCurrentBetInfo(Action);
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Action: %s"), PlayerId, *UEnum::GetValueAsString(Action));
+
+	if(Action == EBetAction::Fold)
 	{
-		GS -> ChangeCurrentBetInfo(Action);
-
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Action: %s"), PlayerId, *UEnum::GetValueAsString(Action));
-		if (Action == EBetAction::Fold)
-		{
-			ALobbyCharacter* Character = Cast<ALobbyCharacter>(RequestPC->GetPawn());
-			if (Character)
-			{
-				Character->Multicast_PlayGrabGunMontage(EGunHoldReason::Fold);
-			}
-		}
-
+		HandleFoldAction(RequestPC);
+		return;
+	}
+	else
+	{
 		NextTurn();
+		return;
+	}
+}
+
+// 폴드 베팅 액션
+void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
+{
+    if (!HasAuthority()) return;
+    if (!RequestPC) return;
+
+	AMainPlayerState* PS = RequestPC->GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+	ALobbyCharacter* Character = Cast<ALobbyCharacter>(RequestPC->GetPawn());
+	if (Character)
+	{
+		Character->Multicast_PlayGrabGunMontage(EGunHoldReason::Fold);
+	}
+
+	bool PlayerAlive = PS -> ChangeSubRevolver();
+	if(PlayerAlive)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d survived by sub revolver"), PS ->GetPlayerId());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d died by sub revolver"), PS ->GetPlayerId());
+		AMainGameState* GS = GetGameState<AMainGameState>();
+		--GS -> AlivePlayerCount;
+	}
+}
+
+void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
+{
+	if (!HasAuthority()) return;
+	if (!Character) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if(!GS) return;
+
+	if (GS->AlivePlayerCount > 1)
+	{
+		NextTurn();
+	}
+	else
+	{
+		
 	}
 }
 
@@ -85,6 +132,15 @@ void AMainGameMode::CheckGameStart()
 		UE_LOG(LogTemp, Warning, TEXT("모든 플레이어가 착석했습니다. 3초 후 게임을 시작합니다."));
 
 		GS->SetGamePhase(EGamePhase::Starting);
+		// 각 플레이어 서브 리볼버 초기화(제일 처음에만/ 매 라운드x)
+		for(APlayerState* PS : GS -> PlayerArray)
+		{
+			AMainPlayerState* MPS = Cast<AMainPlayerState>(PS);
+			if(MPS)
+			{
+				MPS->SetInitSubRevolver();
+			}
+		}
 
 		// 3초 뒤에 StartMainGame 함수 실행
 		GetWorldTimerManager().ClearTimer(TimerHandle);
@@ -108,8 +164,7 @@ void AMainGameMode::StartMainGame()
 		// 타이머 시작
 		if(GS -> CurrentTurnPlayerId != -1)
 		{
-			//StartTurnTimer(20.0f);
-			StartTurnTimer(5.0f);
+			StartTurnTimer(20.0f);
 		}
 
 	}
@@ -131,7 +186,7 @@ void AMainGameMode::PickRandomPlayer()
 
 	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(CurrentChair->GetOccupant());
 	if (!OccupantCharacter) return;
-	APlayerState* PS = OccupantCharacter -> GetPlayerState();
+	AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
 	GS -> ChangeGameTurn(PS -> GetPlayerId(), CurrentPlayerIndex);
 }
 
@@ -164,17 +219,32 @@ void AMainGameMode::NextTurn()
 
 	const int32 NumSeats = GS->SeatChairArray.Num();
     if (NumSeats <= 0) return;
+	if(GS -> AlivePlayerCount == 1)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Winner!"), GS->CurrentTurnPlayerId);
+		return;
+	}
+
+	int32 NextPlayerIndex = GS -> CurrentPlayerIndex;
+	GS->bTurnActionInProgress = false;
 
 	//의자에 따라 순환
-	int32 NextPlayerIndex = (GS -> CurrentPlayerIndex + 1) % NumSeats;
-	ASeatActor* NextChair = GS -> SeatChairArray[NextPlayerIndex];
-	if(!NextChair || !NextChair -> GetOccupant()) return;
+	for(int i = 0; i < NumSeats; i++)
+	{
+		NextPlayerIndex = (NextPlayerIndex + 1) % NumSeats;
+		
+		ASeatActor* NextChair = GS -> SeatChairArray[NextPlayerIndex];
+		if(!NextChair || !NextChair -> GetOccupant()) continue;
 
-	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(NextChair->GetOccupant());
-	if (!OccupantCharacter) return;
-	APlayerState* NextPS = OccupantCharacter -> GetPlayerState();
+		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(NextChair->GetOccupant());
+		if (!OccupantCharacter) continue;
 
-	GS->ChangeGameTurn(NextPS->GetPlayerId(), NextPlayerIndex);
-	// StartTurnTimer(20.0f);
-	StartTurnTimer(5.0f);
+		AMainPlayerState* NextPS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
+		if(!NextPS) continue;
+		if(!NextPS -> isAlive) continue;
+
+		GS->ChangeGameTurn(NextPS->GetPlayerId(), NextPlayerIndex);
+		StartTurnTimer(20.0f);
+		return;
+	}
 }

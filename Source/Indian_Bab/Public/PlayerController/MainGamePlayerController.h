@@ -69,6 +69,9 @@ private:
 
     void OnLobbyLook(const FInputActionValue& Value);
 
+    // 플레이어 스테이트 변화 발생 시 실행(위젯에서 플레이어 스테이트 등록 실패 시 재등록)
+    virtual void OnRep_PlayerState() override;
+
     // 감도
     float LookSensitivity = 1.0f;
 

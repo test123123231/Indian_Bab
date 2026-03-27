@@ -11,6 +11,7 @@
 #include "Actor/Revolver.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Game/MainGameMode.h"
 
 
 // Sets default values
@@ -247,6 +248,10 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 	if (MontageToPlay)
 	{
 		AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &ALobbyCharacter::OnGrabGunMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
 	}
 }
 
@@ -327,6 +332,19 @@ void ALobbyCharacter::OnSitMontageEnded(UAnimMontage* Montage, bool bInterrupted
 		}
 
 		bIsSittingEnded = true; // 앉기 애니메이션이 완전히 끝났음을 표시하는 플래그
+	}
+}
+
+void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (bInterrupted) return;
+	if (!HasAuthority()) return;
+	if (GunHoldReason == EGunHoldReason::Fold)
+	{
+		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+		if (!GM) return;
+
+		GM->HandleFoldMontageFinished(this);
 	}
 }
 

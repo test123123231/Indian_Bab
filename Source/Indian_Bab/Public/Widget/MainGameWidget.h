@@ -5,6 +5,12 @@
 #include "Widget/BetProgressWidget.h"
 #include "MainGameWidget.generated.h"
 
+class UButton;
+// class UMultiLineEditableText;
+// class UEditableTextBox;
+class UTextBlock;
+class AMainGamePlayerController;
+class AMainPlayerState;
 
 class UButton;
 class UDeckLeftWidget;
@@ -20,6 +26,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float RemainingTime = 20.f;
 
+protected:
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+private:
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UEditableTextBox> Text_SubRevolverCount;
+
+	// UPROPERTY(meta = (BindWidget))
+	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
 	UPROPERTY(EditAnywhere)
 	float BetNum = 0;
 
@@ -53,6 +69,10 @@ public:
 	// 플레이어 컨트롤러 참조 변수
 	TObjectPtr<AMainGamePlayerController> MainGamePC;
 
+	// 플레이어 스테이트 참조 변수
+	UPROPERTY()
+	TObjectPtr<AMainPlayerState> MainPS;
+
 	// 레이즈 버튼 클릭 시
 	UFUNCTION()
 	void OnButtonRaise();
@@ -65,9 +85,12 @@ public:
 	UFUNCTION()
 	void OnButtonFold();
 
-protected:
-	virtual void NativeConstruct() override;
-	virtual void NativeDestruct() override;
+	UFUNCTION()
+	void UpdateSubRevolverCount(int32 Count);
+
+public:
+	// 플레이어 컨트롤러 및 플레이어 스테이트 등록
+	void InitWidget();
 
 private:
 	UFUNCTION()
@@ -75,7 +98,5 @@ private:
 
 	UFUNCTION()
 	void PlusButtonClicked();
-
-
 };
 
