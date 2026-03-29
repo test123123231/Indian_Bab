@@ -26,6 +26,10 @@ public:
 	UPROPERTY(ReplicatedUsing = "OnRep_isAlive", BlueprintReadOnly, Category = "PlayerState")
 	bool isAlive;
 
+	// 플레이어의 폴드 유무
+	UPROPERTY(ReplicatedUsing = "OnRep_isFold", BlueprintReadOnly, Category = "PlayerState")
+	bool isFold;
+
 	// 서브 리볼버의 탄환 위치
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "PlayerState")
 	TArray<bool> BulletArray;
@@ -48,5 +52,8 @@ protected:
 
 	UFUNCTION()
 	void OnRep_isAlive();
+
+	UFUNCTION()
+	void OnRep_isFold();
 	
 };
