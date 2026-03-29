@@ -131,5 +131,5 @@ void AMainGameState::OnRep_ReadyPlayerCount()
 
 void AMainGameState::OnRep_CurrentBulletCount()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
+	//UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
 }

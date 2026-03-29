@@ -14,7 +14,6 @@ void AMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 
 	// 변수들을 클라이언트에게 복제(Replicate)하도록 등록
     DOREPLIFETIME(AMainPlayerState, isAlive);
-    DOREPLIFETIME(AMainPlayerState, isFold);
     DOREPLIFETIME(AMainPlayerState, BulletArray);
     DOREPLIFETIME(AMainPlayerState, TotalTriggerCount);
 }
@@ -38,7 +37,6 @@ void AMainPlayerState::SetInitSubRevolver()
 // 서브 리볼버 당김횟부 변화(+1)
 bool AMainPlayerState::ChangeSubRevolver()
 {
-    isFold = 1;
     if(BulletArray[TotalTriggerCount])
     {
         isAlive = 0;
@@ -60,9 +58,4 @@ void AMainPlayerState::OnRep_TotalTriggerCount()
 void AMainPlayerState::OnRep_isAlive()
 {
     UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : dead!"), GetPlayerId());
-}
-
-void AMainPlayerState::OnRep_isFold()
-{
-    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : Fold!"), GetPlayerId());
 }

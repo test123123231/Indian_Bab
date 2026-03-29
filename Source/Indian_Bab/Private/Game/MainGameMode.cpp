@@ -52,21 +52,13 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 
-	// 중복 입력 방지
 	if (GS->bTurnActionInProgress) return;
 
     int32 PlayerId = RequestPC->GetPlayerIdSafe();
 	if (GS -> CurrentTurnPlayerId != PlayerId) return;
 
-	// Raise 불가능하면 아예 막고 종료
-    if (Action == EBetAction::Raise && GS->CurrentBulletCount >= 8)
-    {
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Raise blocked: CurrentBulletCount is already %d"), GS->CurrentBulletCount);
-        //TODO 추후에 텍스트로 Raise 불가라고 뜨게
-        return;
-    }
-
 	GS->bTurnActionInProgress = true;
+
 	GS -> ChangeCurrentBetInfo(Action);
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Action: %s"), PlayerId, *UEnum::GetValueAsString(Action));
 
@@ -75,21 +67,11 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 		HandleFoldAction(RequestPC);
 		return;
 	}
-	if(Action == EBetAction::Raise)
-	{
-		CheckPlayer = PlayerId;
-		NextTurn();
-		return;
-	}
-	if(Action == EBetAction::CheckCall)
+	else
 	{
 		NextTurn();
 		return;
 	}
-
-	// 예외 상황 복구
-	GS->bTurnActionInProgress = false;
-
 }
 
 // 폴드 베팅 액션
@@ -100,8 +82,6 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 
 	AMainPlayerState* PS = RequestPC->GetPlayerState<AMainPlayerState>();
 	if (!PS) return;
-
-	PS->isFold = true;
 
 	ALobbyCharacter* Character = Cast<ALobbyCharacter>(RequestPC->GetPawn());
 	if (Character)
@@ -118,14 +98,10 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d died by sub revolver"), PS ->GetPlayerId());
 		AMainGameState* GS = GetGameState<AMainGameState>();
-		if(GS)
-		{
-			--GS -> AlivePlayerCount;
-		}
+		--GS -> AlivePlayerCount;
 	}
 }
 
-// 폴드 애니메이션 끝났을 때 호출
 void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 {
 	if (!HasAuthority()) return;
@@ -134,10 +110,16 @@ void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if(!GS) return;
 
-	NextTurn();
+	if (GS->AlivePlayerCount > 1)
+	{
+		NextTurn();
+	}
+	else
+	{
+		
+	}
 }
 
-// 게임 시작 조건이 충족되었을 때 실행
 void AMainGameMode::CheckGameStart()
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
@@ -166,16 +148,13 @@ void AMainGameMode::CheckGameStart()
 	}
 }
 
-
-// MainGame 시작
 void AMainGameMode::StartMainGame()
 {
 	// TODO: 카드 분배, 앤티(Ante) 지불 등 실제 인게임 로직 호출, 생존자 카운팅
 	AMainGameState* GS = GetGameState<AMainGameState>();
-	CheckPlayer = -1;
+
 	if (GS)
 	{
-		ResetFoldState();
 		GS->SetGamePhase(EGamePhase::Playing);
 
 		//처음에만 랜덤으로 플레이어 선택
@@ -187,10 +166,10 @@ void AMainGameMode::StartMainGame()
 		{
 			StartTurnTimer(20.0f);
 		}
+
 	}
 }
 
-// 랜덤한 플레이어 선택
 void AMainGameMode::PickRandomPlayer()
 {
 	if (!HasAuthority()) return;
@@ -208,7 +187,6 @@ void AMainGameMode::PickRandomPlayer()
 	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(CurrentChair->GetOccupant());
 	if (!OccupantCharacter) return;
 	AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
-	CheckPlayer = PS->GetPlayerId();
 	GS -> ChangeGameTurn(PS -> GetPlayerId(), CurrentPlayerIndex);
 }
 
@@ -232,30 +210,6 @@ void AMainGameMode::OnTurnTimerExpired()
 	NextTurn();
 }
 
-// 활성 인원 업데이트
-int32 AMainGameMode::UpdateActivePlayer(AMainGameState* GS)
-{
-    if (!GS) return 0;
-
-	int32 ActivePlayer = 0;
-	for(ASeatActor* Seat : GS->SeatChairArray)
-	{
-		if(!Seat || !Seat->GetOccupant()) continue;
-
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
-		if (!OccupantCharacter) continue;
-
-		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
-		if(!PS) continue;
-		if(!PS -> isAlive) continue;
-		if(PS -> isFold) continue;
-
-		ActivePlayer++;
-	}
-	return ActivePlayer;
-}
-
-// 다음 턴 갈 수 있는지 검사 -> NextTurn/NextRound/EndGame 판별 및 넘김
 void AMainGameMode::NextTurn()
 {
 	if (!HasAuthority()) return;
@@ -265,27 +219,16 @@ void AMainGameMode::NextTurn()
 
 	const int32 NumSeats = GS->SeatChairArray.Num();
     if (NumSeats <= 0) return;
-	
-	// 생존 인원이 1명일 때
 	if(GS -> AlivePlayerCount == 1)
 	{
-		// 게임 종료로 넘어감
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Winner!"), GS->CurrentTurnPlayerId);
 		return;
 	}
+
+	int32 NextPlayerIndex = GS -> CurrentPlayerIndex;
 	GS->bTurnActionInProgress = false;
 
-	// 한 명을 제외한 모든 인원이 폴드한 경우
-	// 활성 인원이 1명 이하면 이번 라운드 종료
-	int32 ActivePlayer = UpdateActivePlayer(GS);
-	if(ActivePlayer <= 1)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Betting round ended: only one active player left"));
-		NextRound();
-		return;
-	}
-
-	// 다음 인원 선택
-	int32 NextPlayerIndex = GS->CurrentPlayerIndex;
+	//의자에 따라 순환
 	for(int i = 0; i < NumSeats; i++)
 	{
 		NextPlayerIndex = (NextPlayerIndex + 1) % NumSeats;
@@ -296,68 +239,12 @@ void AMainGameMode::NextTurn()
 		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(NextChair->GetOccupant());
 		if (!OccupantCharacter) continue;
 
-		AMainPlayerState* NextPS = OccupantCharacter->GetPlayerState<AMainPlayerState>();
-		if (!NextPS) continue;
-		if (!NextPS->isAlive) continue;
-		if (NextPS->isFold) continue;
-
-		// 종료 기준점 플레이어에게 다시 도달하면 한 라운드 종료
-		if (NextPS->GetPlayerId() == CheckPlayer)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Betting round ended. Returned to checkpoint player: %d"), CheckPlayer);
-			//TODO : 결과 확인
-			// 현재는 NextRound만
-			NextRound();
-			return;
-		}
+		AMainPlayerState* NextPS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
+		if(!NextPS) continue;
+		if(!NextPS -> isAlive) continue;
 
 		GS->ChangeGameTurn(NextPS->GetPlayerId(), NextPlayerIndex);
 		StartTurnTimer(20.0f);
 		return;
-	}
-}
-
-// 결과확인
-void AMainGameMode::CheckPlayerCard()
-{
-
-}
-
-// 다음 라운드로 넘기는 함수
-void AMainGameMode::NextRound()
-{
-	if (!HasAuthority()) return;
-
-	AMainGameState* GS = GetGameState<AMainGameState>();
-	if (!GS) return;
-
-	UE_LOG(LogTemp, Warning, TEXT("NextRound 함수 호출!"));
-	
-	//타이머 정리
-	GetWorldTimerManager().ClearTimer(TimerHandle);
-
-	// isFold 초기화
-	ResetFoldState();
-
-	// GateState초기화
-	// 추후 GS로 옮길 예정
-	GS->CurrentBetInfo.CurrentBetAction = EBetAction::None;
-	GS->CurrentBetInfo.BetActionTotal = 0;
-	GS->CurrentBulletCount = 1;
-
-	// 플레이어 선택 코드
-}
-
-void AMainGameMode::ResetFoldState()
-{
-	AMainGameState* GS = GetGameState<AMainGameState>();
-	if (!GS) return;
-
-	for (APlayerState* PS : GS->PlayerArray)
-	{
-		AMainPlayerState* MPS = Cast<AMainPlayerState>(PS);
-		if (!MPS) continue;
-
-		MPS->isFold = false;
 	}
 }
