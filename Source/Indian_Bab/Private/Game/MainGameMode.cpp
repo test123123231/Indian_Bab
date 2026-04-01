@@ -78,12 +78,12 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	if(Action == EBetAction::Raise)
 	{
 		CheckPlayer = PlayerId;
-		NextTurn();
+		CheckNext();
 		return;
 	}
 	if(Action == EBetAction::CheckCall)
 	{
-		NextTurn();
+		CheckNext();
 		return;
 	}
 
@@ -134,7 +134,7 @@ void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if(!GS) return;
 
-	NextTurn();
+	CheckNext();
 }
 
 // 게임 시작 조건이 충족되었을 때 실행
@@ -178,19 +178,35 @@ void AMainGameMode::StartMainGame()
 		ResetFoldState();
 		GS->SetGamePhase(EGamePhase::Playing);
 
-		//처음에만 랜덤으로 플레이어 선택
-		if (GS -> CurrentPlayerIndex == -1)
-			PickRandomPlayer();
-		
-		// 타이머 시작
-		if(GS -> CurrentTurnPlayerId != -1)
-		{
-			StartTurnTimer(20.0f);
-		}
+		//GS의 게임 페이즈 기반 플레이어 선택
+		PickPlayer(GS -> CurrentPlayerIndex);
 	}
 }
 
-// 랜덤한 플레이어 선택
+// 플레이어 선택
+void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
+{
+	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if(!GS) return;
+	if(GS -> CurrentGamePhase != EGamePhase::Playing) return;
+	// 이제 막 게임 시작한 케이스
+	if(CurrentPlayerIndex == -1 )
+	{
+		PickRandomPlayer();
+	}
+	// Result인 경우 결과 확인 페이즈인 케이스
+	if(CurrentPlayerIndex != -1)
+	{
+		// 결과 판별 아직 안 만들어서 임시 구현
+		PickRandomPlayer(); 
+	}
+
+	StartTurnTimer(20.0f);
+}
+
+// 플레이어 랜덤 선택
 void AMainGameMode::PickRandomPlayer()
 {
 	if (!HasAuthority()) return;
@@ -199,7 +215,7 @@ void AMainGameMode::PickRandomPlayer()
 	if (!GS) return;
 
 	const int32 SeatedPlayerNum = GS-> SeatChairArray.Num();
-	if (SeatedPlayerNum <= 0) return; // TODO: 테스트 추후 값 수정
+	if (SeatedPlayerNum <= 0) return;
 
 	int32 CurrentPlayerIndex = FMath::RandRange(0, SeatedPlayerNum - 1);
 	ASeatActor* CurrentChair = GS -> SeatChairArray[CurrentPlayerIndex];
@@ -208,6 +224,8 @@ void AMainGameMode::PickRandomPlayer()
 	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(CurrentChair->GetOccupant());
 	if (!OccupantCharacter) return;
 	AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
+	if(!PS) return;
+	
 	CheckPlayer = PS->GetPlayerId();
 	GS -> ChangeGameTurn(PS -> GetPlayerId(), CurrentPlayerIndex);
 }
@@ -229,7 +247,7 @@ void AMainGameMode::OnTurnTimerExpired()
 
 	UE_LOG(LogTemp, Warning, TEXT("[GM] TimeOut NextTurn"));
 	GS -> ChangeCurrentBetInfo(EBetAction::CheckCall);
-	NextTurn();
+	CheckNext();
 }
 
 // 활성 인원 업데이트
@@ -255,17 +273,27 @@ int32 AMainGameMode::UpdateActivePlayer(AMainGameState* GS)
 	return ActivePlayer;
 }
 
-// 다음 턴 갈 수 있는지 검사 -> NextTurn/NextRound/EndGame 판별 및 넘김
-void AMainGameMode::NextTurn()
+// 게임 결과 확인
+void AMainGameMode::CheckPlayerCard()
+{
+	AMainGameState* GS = GetGameState<AMainGameState>();
+    if (!GS) return;
+
+	GS->SetGamePhase(EGamePhase::Result);
+
+	/* 결과 관련 코드 작성*/
+
+	NextRound(GS);
+}
+
+// 다음 행동(NextTurn, NextRound, ReStart) 체크 함수
+void AMainGameMode::CheckNext()
 {
 	if (!HasAuthority()) return;
 
 	AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
 
-	const int32 NumSeats = GS->SeatChairArray.Num();
-    if (NumSeats <= 0) return;
-	
 	// 생존 인원이 1명일 때
 	if(GS -> AlivePlayerCount == 1)
 	{
@@ -274,18 +302,46 @@ void AMainGameMode::NextTurn()
 	}
 	GS->bTurnActionInProgress = false;
 
-	// 한 명을 제외한 모든 인원이 폴드한 경우
-	// 활성 인원이 1명 이하면 이번 라운드 종료
+	// 활성 인원(비폴드 + 생존)이 1명 이하면 이번 라운드 종료
 	int32 ActivePlayer = UpdateActivePlayer(GS);
 	if(ActivePlayer <= 1)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Betting round ended: only one active player left"));
-		NextRound();
+		NextRound(GS);
 		return;
 	}
 
-	// 다음 인원 선택
-	int32 NextPlayerIndex = GS->CurrentPlayerIndex;
+	// 다음 플레이어 PS 획득
+	AMainPlayerState* NextPS = GetNextPlayerState(GS->CurrentPlayerIndex);
+	if(!NextPS) return;
+
+	// CheckPlayer와 다음 플레이어가 동일 할 때 
+	if(CheckPlayer == NextPS -> GetPlayerId())
+	{
+		// 추후 결과 확인 구현
+		CheckPlayerCard();
+	}
+	//CheckPlayer와 다음 플레이어가 다를 때
+	else
+	{
+		NextTurn(NextPS);
+		return;
+	}
+}
+
+// 다음 플레이어 Get
+// MainPlayerState* 리턴 및 GS의 CurrentPlayerIndex 업데이트
+AMainPlayerState* AMainGameMode::GetNextPlayerState(int32 CurrentPlayerIndex)
+{
+	if (!HasAuthority()) return nullptr;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+    if (!GS) return nullptr;
+
+	const int32 NumSeats = GS->SeatChairArray.Num();
+    if (NumSeats <= 0) return nullptr;
+
+	int32 NextPlayerIndex = CurrentPlayerIndex;
 	for(int i = 0; i < NumSeats; i++)
 	{
 		NextPlayerIndex = (NextPlayerIndex + 1) % NumSeats;
@@ -301,37 +357,30 @@ void AMainGameMode::NextTurn()
 		if (!NextPS->isAlive) continue;
 		if (NextPS->isFold) continue;
 
-		// 종료 기준점 플레이어에게 다시 도달하면 한 라운드 종료
-		if (NextPS->GetPlayerId() == CheckPlayer)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[GM] Betting round ended. Returned to checkpoint player: %d"), CheckPlayer);
-			//TODO : 결과 확인
-			// 현재는 NextRound만
-			NextRound();
-			return;
-		}
-
-		GS->ChangeGameTurn(NextPS->GetPlayerId(), NextPlayerIndex);
-		StartTurnTimer(20.0f);
-		return;
+		GS -> CurrentPlayerIndex = NextPlayerIndex;
+		return NextPS;
 	}
+	return nullptr;
 }
 
-// 결과확인
-void AMainGameMode::CheckPlayerCard()
-{
 
-}
-
-// 다음 라운드로 넘기는 함수
-void AMainGameMode::NextRound()
+// 다음 턴으로
+void AMainGameMode::NextTurn(AMainPlayerState* NextPS)
 {
 	if (!HasAuthority()) return;
 
 	AMainGameState* GS = GetGameState<AMainGameState>();
-	if (!GS) return;
+    if (!GS) return;
 
-	UE_LOG(LogTemp, Warning, TEXT("NextRound 함수 호출!"));
+	GS->ChangeGameTurn(NextPS->GetPlayerId(), GS -> CurrentPlayerIndex);
+	StartTurnTimer(20.0f);
+	return;
+}
+
+// 다음 라운드로 넘기는 함수
+void AMainGameMode::NextRound(AMainGameState* GS)
+{
+	if (!HasAuthority()) return;
 	
 	//타이머 정리
 	GetWorldTimerManager().ClearTimer(TimerHandle);
@@ -339,13 +388,11 @@ void AMainGameMode::NextRound()
 	// isFold 초기화
 	ResetFoldState();
 
-	// GateState초기화
-	// 추후 GS로 옮길 예정
-	GS->CurrentBetInfo.CurrentBetAction = EBetAction::None;
-	GS->CurrentBetInfo.BetActionTotal = 0;
-	GS->CurrentBulletCount = 1;
+	// 다음 라운드 대비 GateState 초기화
+	GS -> SetNextRoundGameState();
 
 	// 플레이어 선택 코드
+	PickPlayer(GS -> CurrentPlayerIndex);
 }
 
 void AMainGameMode::ResetFoldState()

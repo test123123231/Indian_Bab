@@ -89,6 +89,9 @@ public:
 	// 서버에서 준비 인원 호출
 	void ChangeReadyPlayerCount(int NewReadyCount);
 
+	// 다음 라운드 위한 초기화
+	void SetNextRoundGameState();
+
 
 protected:
 	// 클라이언트에서 GamePhase가 변경되었을 때 실행될 로직 (UI 업데이트 등)
