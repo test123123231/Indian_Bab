@@ -10,6 +10,9 @@
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
 #include "Interface/InteractableInterface.h"
+#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineIdentityInterface.h"
+#include "PlayerState/MainPlayerState.h"
 
 
 AMainGamePlayerController::AMainGamePlayerController()
@@ -38,6 +41,8 @@ void AMainGamePlayerController::BeginPlay()
 	FInputModeGameOnly Mode;
 	SetInputMode(Mode);
 	bShowMouseCursor = false;
+
+    TrySendSteamNickname();
 }
 
 
@@ -190,6 +195,36 @@ void AMainGamePlayerController::RequestFold()
     Server_RequestBetAction(EBetAction::Fold);
 }
 
+// 내 스팀 닉네임 읽기
+FString AMainGamePlayerController::GetMySteamNickname() const
+{
+    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+    if (!Subsystem) return TEXT("");
+
+    IOnlineIdentityPtr Identity = Subsystem->GetIdentityInterface();
+    if (Identity.IsValid())
+    {
+        return Identity->GetPlayerNickname(0);
+    }
+
+    return TEXT("");
+}
+
+void AMainGamePlayerController::TrySendSteamNickname()
+{
+    if (bSteamNicknameSent) return;
+
+    if (!IsLocalPlayerController()) return;
+
+    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (!PS) return;
+
+    const FString MyNickname = GetMySteamNickname();
+    if (MyNickname.IsEmpty()) return;
+
+    Server_SetSteamNickname(MyNickname);
+    bSteamNicknameSent = true;
+}
 
 void AMainGamePlayerController::OnMainGameLook(const FInputActionValue& Value)
 {
@@ -260,6 +295,8 @@ void AMainGamePlayerController::OnRep_PlayerState()
     {
         MainGameWidgetInstance->InitWidget();
     }
+
+    TrySendSteamNickname();
 }
 
 void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
@@ -268,6 +305,14 @@ void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetActio
     if(!GM) return;
 
     GM -> HandleBetAction(this, Action);
+}
+
+void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FString& NewNickname)
+{
+    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (!PS) return;
+
+    PS->SetSteamNickname(NewNickname);
 }
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()

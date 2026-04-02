@@ -17,6 +17,20 @@ void AMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(AMainPlayerState, isFold);
     DOREPLIFETIME(AMainPlayerState, BulletArray);
     DOREPLIFETIME(AMainPlayerState, TotalTriggerCount);
+    DOREPLIFETIME(AMainPlayerState, SteamNickname);
+}
+
+// 닉네임 Set 함수
+void AMainPlayerState::SetSteamNickname(const FString& NewNickname)
+{
+    SteamNickname = NewNickname;
+    SetPlayerName(NewNickname);
+}
+
+// 닉네임 Get 함수
+FString AMainPlayerState::GetSteamNickname() const
+{
+    return SteamNickname;
 }
 
 // 처음 서브 리볼버 설정
@@ -65,4 +79,9 @@ void AMainPlayerState::OnRep_isAlive()
 void AMainPlayerState::OnRep_isFold()
 {
     UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : Fold!"), GetPlayerId());
+}
+
+void AMainPlayerState::OnRep_SteamNickname()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] SteamNickname: %s"), GetPlayerId(), *SteamNickname);
 }
