@@ -91,6 +91,15 @@ void AMainGameState::ChangeReadyPlayerCount(int32 NewReadyCount)
 	}
 }
 
+// 다음 라운드 위한 초기화
+void AMainGameState::SetNextRoundGameState()
+{
+	CurrentBetInfo.CurrentBetAction = EBetAction::None;
+	CurrentBetInfo.BetActionTotal = 0;
+	CurrentBulletCount = 1;
+	SetGamePhase(EGamePhase::Playing);
+}
+
 void AMainGameState::OnRep_CurrentTurnPlayerId()
 {
 	// 현재 턴의 플레이어 아이디 표시
@@ -103,6 +112,10 @@ void AMainGameState::OnRep_GamePhase()
 	if (CurrentGamePhase == EGamePhase::Playing)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 게임이 시작되었습니다! 장전된 총알 : %d==="), CurrentBulletCount);
+	}	
+	if (CurrentGamePhase == EGamePhase::Result)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 결과 확인 중!"));
 	}
 }
 
@@ -131,5 +144,5 @@ void AMainGameState::OnRep_ReadyPlayerCount()
 
 void AMainGameState::OnRep_CurrentBulletCount()
 {
-	//UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
+	UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
 }

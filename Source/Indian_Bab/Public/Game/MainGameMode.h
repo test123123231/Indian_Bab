@@ -8,6 +8,8 @@
 class AMainGamePlayerController;
 class ASeatActor;
 class ALobbyCharacter;
+class AMainGameState;
+class AMainPlayerState;
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
@@ -39,6 +41,9 @@ protected:
 	// 게임 루프 시작
 	void StartMainGame();
 
+	// 플레이어 선택
+	void PickPlayer(int32 CurrentPlayerIndex);
+
 	// 플레이어 랜덤 선택
 	void PickRandomPlayer();
 
@@ -48,10 +53,31 @@ protected:
 	// 턴 제한시간은 넘겼을 때
 	void OnTurnTimerExpired();
 
+	// 활성 인원 업데이트
+	int32 UpdateActivePlayer(AMainGameState* GS);
+
+	// 결과확인
+	void CheckPlayerCard();
+
+	// 다음 행동(NextTurn, NextRound, ReStart) 체크 함수
+	void CheckNext();
+
+	// 다음 플레이어 PS Get
+	AMainPlayerState* GetNextPlayerState(int32 CurrentPlayerIndex);
+	
 	// 다음 턴
-	void NextTurn();
+	void NextTurn(AMainPlayerState* NextPS);
+
+	// 다음 라운드
+	void NextRound(AMainGameState* GS);
+
+	// 폴드 인원 초기화
+	void ResetFoldState();
 
 private:
 	FTimerHandle TimerHandle;
+
+	// 베팅 기준점 플레이어
+	int32 CheckPlayer;
 
 };
