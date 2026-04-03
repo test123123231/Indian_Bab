@@ -13,6 +13,7 @@ class UCameraComponent;
 class UGroomComponent;
 class ASeatActor;
 class ARevolver;
+class UWidgetComponent;
 
 
 UCLASS()
@@ -108,6 +109,9 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
 	float ReplicatedAimYaw = 0.0f;
 
+	UFUNCTION()
+	void UpdateNameWidget();
+
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateAimYaw(float NewYaw);
 
@@ -145,9 +149,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
 	float InteractRange = 250.0f;
 
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TObjectPtr<UWidgetComponent> NameWidgetComponent;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	virtual void OnRep_PlayerState() override;
 
 	// 상호작용 입력 처리 함수
 	void OnInteract(const FInputActionValue& Value);

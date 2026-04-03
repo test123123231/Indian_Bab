@@ -22,6 +22,9 @@ public:
 private:
 
 public:
+	DECLARE_MULTICAST_DELEGATE(FOnSteamNicknameChanged);
+	FOnSteamNicknameChanged OnSteamNicknameChanged;
+
 	// 플레이어의 생존 유무
 	UPROPERTY(ReplicatedUsing = "OnRep_isAlive", BlueprintReadOnly, Category = "PlayerState")
 	bool isAlive;

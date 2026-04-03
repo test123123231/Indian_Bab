@@ -25,6 +25,7 @@ void AMainPlayerState::SetSteamNickname(const FString& NewNickname)
 {
     SteamNickname = NewNickname;
     SetPlayerName(NewNickname);
+    OnSteamNicknameChanged.Broadcast();
 }
 
 // 닉네임 Get 함수
@@ -84,4 +85,5 @@ void AMainPlayerState::OnRep_isFold()
 void AMainPlayerState::OnRep_SteamNickname()
 {
     UE_LOG(LogTemp, Warning, TEXT("[PS_%d] SteamNickname: %s"), GetPlayerId(), *SteamNickname);
+    OnSteamNicknameChanged.Broadcast();
 }

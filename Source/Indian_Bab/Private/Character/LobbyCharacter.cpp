@@ -12,6 +12,9 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Game/MainGameMode.h"
+#include "PlayerState/MainPlayerState.h"
+#include "Widget/PlayerNameWidget.h"
+#include "Components/WidgetComponent.h"
 
 
 // Sets default values
@@ -106,6 +109,14 @@ ALobbyCharacter::ALobbyCharacter()
 	CameraComponent->bEnableFirstPersonScale = true;
 	CameraComponent->FirstPersonFieldOfView = 70.0f;
 	CameraComponent->FirstPersonScale = 0.6f;
+
+	// 닉네임
+	NameWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidget"));
+	NameWidgetComponent->SetupAttachment(GetRootComponent());
+	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 110.f));
+
+	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	NameWidgetComponent->SetDrawAtDesiredSize(true);
 }
 
 
@@ -114,14 +125,36 @@ void ALobbyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (PS)
+    {
+        PS->OnSteamNicknameChanged.AddUObject(this, &ALobbyCharacter::UpdateNameWidget);
+    }
+
+	UpdateNameWidget();
+
+	if (!IsLocallyControlled()) return;
 	
 	MainGamePC = Cast<AMainGamePlayerController>(GetController());
 }
 
+void ALobbyCharacter::UpdateNameWidget()
+{
+	if (!NameWidgetComponent) return;
+
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (!PS) return;
+
+    UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
+    if (!Widget) return;
+
+    
+    FString Name = PS->GetSteamNickname();
+    if (Name.IsEmpty())
+        Name = TEXT("Unknown");
+
+    Widget->SetPlayerName(Name);
+}
 
 // Called every frame
 void ALobbyCharacter::Tick(float DeltaTime)
@@ -383,6 +416,18 @@ void ALobbyCharacter::OnRep_IsSitting()
 	}
 }
 
+void ALobbyCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (PS)
+    {
+        PS->OnSteamNicknameChanged.AddUObject(this, &ALobbyCharacter::UpdateNameWidget);
+    }
+
+    UpdateNameWidget();
+}
 
 void ALobbyCharacter::Client_LockCameraAfterSit_Implementation(FRotator FinalSitRotation)
 {
