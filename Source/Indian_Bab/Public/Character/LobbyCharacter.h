@@ -149,8 +149,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
 	float InteractRange = 250.0f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	TObjectPtr<UWidgetComponent> NameWidgetComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PlayerNameWidget")
+	TObjectPtr<UWidgetComponent> PlayerNameComponent;
 
 protected:
 	// Called when the game starts or when spawned
