@@ -111,11 +111,11 @@ ALobbyCharacter::ALobbyCharacter()
 	CameraComponent->FirstPersonScale = 0.6f;
 
 	// // 닉네임
-	PlayerNameComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidget"));
-	PlayerNameComponent->SetupAttachment(GetRootComponent());
-	PlayerNameComponent->SetRelativeLocation(FVector(0.f, 0.f, 210.f));
-	PlayerNameComponent->SetWidgetSpace(EWidgetSpace::Screen);
-	PlayerNameComponent->SetDrawAtDesiredSize(true);
+	NameWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidget"));
+	NameWidgetComponent->SetupAttachment(GetRootComponent());
+	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 210.f));
+	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	NameWidgetComponent->SetDrawAtDesiredSize(true);
 }
 
 
@@ -139,12 +139,12 @@ void ALobbyCharacter::BeginPlay()
 
 void ALobbyCharacter::UpdateNameWidget()
 {
-	if (!PlayerNameComponent) return;
+	if (!NameWidgetComponent) return;
 
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
     if (!PS) return;
 
-    UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(PlayerNameComponent->GetUserWidgetObject());
+    UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
     if (!Widget) return;
 
     

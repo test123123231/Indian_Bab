@@ -150,7 +150,7 @@ public:
 	float InteractRange = 250.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PlayerNameWidget")
-	TObjectPtr<UWidgetComponent> PlayerNameComponent;
+	TObjectPtr<UWidgetComponent> NameWidgetComponent;
 
 protected:
 	// Called when the game starts or when spawned
