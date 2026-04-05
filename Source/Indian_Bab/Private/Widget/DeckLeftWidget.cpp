@@ -2,3 +2,14 @@
 
 
 #include "Widget/DeckLeftWidget.h"
+
+void UDeckLeftWidget::InvisibleWidget() 
+{
+	SetVisibility(ESlateVisibility::Hidden);
+}
+
+void UDeckLeftWidget::VisibleWidget()
+{
+	SetVisibility(ESlateVisibility::Visible);
+	
+}

@@ -76,6 +76,10 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBetInfo, BlueprintReadOnly, Category = "Game State")
 	FBetActionInfo CurrentBetInfo;
 
+	//해당 부분에서 카드의 사용/미사용 여부를 저장할 예정
+	UPROPERTY()
+	TArray<bool> CardArray;
+
 
 	// 서버가 GamePhase를 변경할 때 호출
 	void SetGamePhase(EGamePhase NewPhase);

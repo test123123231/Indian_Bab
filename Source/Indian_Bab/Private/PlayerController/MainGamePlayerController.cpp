@@ -4,6 +4,7 @@
 #include "EnhancedInputComponent.h"
 #include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "Widget/MainGameWidget.h"
+#include "Widget/DeckLeftWidget.h"
 #include "Game/MainGameMode.h"
 #include "Game/MainGameTypes.h"
 #include "GameFramework/PlayerState.h"
@@ -26,8 +27,8 @@ void AMainGamePlayerController::BeginPlay()
         return;
 
     CreateMainGameWidget();
+    CreateDeckLeftWidget();
     EnterCameraMode();
-
 	ApplyLobbyMappingContext();
 
     if (USettingSubsystem* SettingSS = GetGameInstance()->GetSubsystem<USettingSubsystem>())
@@ -38,6 +39,7 @@ void AMainGamePlayerController::BeginPlay()
 	FInputModeGameOnly Mode;
 	SetInputMode(Mode);
 	bShowMouseCursor = false;
+    
 }
 
 
@@ -81,6 +83,11 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             EnhancedInput->BindAction(IA_LobbyLook, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnLobbyLook);
         }
+
+        if (IA_MainGameTab)
+        {
+            EnhancedInput->BindAction(IA_MainGameTab, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameTabPressed);
+        }
     }
 }
 
@@ -123,6 +130,7 @@ void AMainGamePlayerController::ApplyMainGameMappingContext()
     {
         Subsys->AddMappingContext(MainGameMappingContext, 0);
     }
+    
 }
 
 
@@ -146,6 +154,23 @@ void AMainGamePlayerController::CreateMainGameWidget()
     }
 }
 
+void AMainGamePlayerController::CreateDeckLeftWidget() 
+{
+    if (!DeckLeftWidgetClass) return;
+
+    if (!DeckLeftWidgetInstance) 
+    {
+        DeckLeftWidgetInstance = CreateWidget<UDeckLeftWidget>(this, DeckLeftWidgetClass);
+    }
+    if (DeckLeftWidgetInstance && !DeckLeftWidgetInstance->IsInViewport()) 
+    {
+        DeckLeftWidgetInstance->AddToViewport();
+    }
+    if (DeckLeftWidgetInstance) 
+    {
+        DeckLeftWidgetInstance->InvisibleWidget();
+    }
+}
 
 void AMainGamePlayerController::EnterUIMode()
 {
@@ -281,4 +306,13 @@ int AMainGamePlayerController::GetPlayerIdSafe()
 {
     const APlayerState* PS = GetPlayerState<APlayerState>();
     return PS ? PS->GetPlayerId() : -1;
+}
+
+void AMainGamePlayerController::OnMainGameTabPressed(const FInputActionValue& Value)
+{
+
+    if (DeckLeftWidgetInstance)
+    {
+        DeckLeftWidgetInstance->VisibleWidget();
+    }
 }
