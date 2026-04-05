@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "InputActionValue.h"  
+#include "InputActionValue.h" 
 #include "MainGamePlayerController.generated.h"
 
 class UMainGameWidget;
+class UDeckLeftWidget;
 class UInputMappingContext;
 class UInputAction;
 
@@ -51,6 +52,7 @@ private:
 
     // UI 생성/관리
     void CreateMainGameWidget();
+    void CreateDeckLeftWidget();
 
 	// 입력 바인딩 함수
     void OnMainGameLook(const FInputActionValue& Value);
@@ -69,6 +71,9 @@ private:
 
     void OnLobbyLook(const FInputActionValue& Value);
 
+    void OnMainGameTabPressed(const FInputActionValue& Value);
+
+
     // 플레이어 스테이트 변화 발생 시 실행(위젯에서 플레이어 스테이트 등록 실패 시 재등록)
     virtual void OnRep_PlayerState() override;
 
@@ -84,6 +89,12 @@ private:
 
     UPROPERTY()
     TObjectPtr<UMainGameWidget> MainGameWidgetInstance;
+
+    UPROPERTY(EditDefaultsOnly, Category="UI")
+    TSubclassOf<UDeckLeftWidget> DeckLeftWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UDeckLeftWidget> DeckLeftWidgetInstance;
 
     // Input 관리
     UPROPERTY(EditDefaultsOnly, Category="Input")
@@ -112,5 +123,8 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_LobbyLook;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_MainGameTab;
 
 };

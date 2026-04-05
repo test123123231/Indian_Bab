@@ -1,5 +1,5 @@
-#include "Game/MainGameState.h"
 #include "PlayerState/MainPlayerState.h"
+#include "Game/MainGameState.h"
 #include "Net/UnrealNetwork.h"
 
 AMainPlayerState::AMainPlayerState()

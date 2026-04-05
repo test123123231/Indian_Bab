@@ -148,4 +148,5 @@ void UMainGameWidget::InitWidget()
 		UE_LOG(LogTemp, Display, TEXT("Click Fold Button"));
 		MainGamePC->RequestFold();
 	}
+
 }

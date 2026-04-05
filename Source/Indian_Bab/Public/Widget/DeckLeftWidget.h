@@ -6,12 +6,20 @@
 #include "Blueprint/UserWidget.h"
 #include "DeckLeftWidget.generated.h"
 
+class AMainGamePlayerController;
+class AMainPlayerState;
+
 UCLASS()
 class INDIAN_BAB_API UDeckLeftWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
-	void LoadWidget() {
-		
-	}
+	TObjectPtr<AMainGamePlayerController> MainGamePC;
+
+	UPROPERTY()
+	TObjectPtr<AMainPlayerState> MainPS;
+
+	void InvisibleWidget();
+
+	void VisibleWidget();
 };
