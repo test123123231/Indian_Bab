@@ -46,9 +46,18 @@ private:
     UFUNCTION(Server, Reliable)
     void Server_RequestBetAction(EBetAction Action);
 
+    UFUNCTION(Server, Reliable)
+    void Server_SetSteamNickname(const FString& NewNickname);
+
 	// 입력 모드 전환 함수
     void EnterUIMode();     // 커서 보이기
     void EnterCameraMode(); // 커서 숨기고 회전
+
+    // 내 스팀 닉네임 읽기
+    FString GetMySteamNickname() const;
+
+    // PS에 닉네임 보내는 함수
+    void TrySendSteamNickname();
 
     // UI 생성/관리
     void CreateMainGameWidget();
@@ -82,6 +91,9 @@ private:
 
     // 카메라 모드/UI 모드 관리
     bool bRMBHeld = false;
+
+    // PS에 스팀 닉네임이 보내졌는지 확인
+    bool bSteamNicknameSent = false;
 
    	// UI 위젯 클래스와 인스턴스 참조 변수
     UPROPERTY(EditDefaultsOnly, Category="UI")

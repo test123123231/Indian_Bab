@@ -22,6 +22,9 @@ public:
 private:
 
 public:
+	DECLARE_MULTICAST_DELEGATE(FOnSteamNicknameChanged);
+	FOnSteamNicknameChanged OnSteamNicknameChanged;
+
 	// 플레이어의 생존 유무
 	UPROPERTY(ReplicatedUsing = "OnRep_isAlive", BlueprintReadOnly, Category = "PlayerState")
 	bool isAlive;
@@ -37,6 +40,12 @@ public:
 	// 서브 리볼버 당김 횟수
 	UPROPERTY(ReplicatedUsing = "OnRep_TotalTriggerCount", BlueprintReadOnly, Category = "PlayerState")
 	int32 TotalTriggerCount;
+
+	// 닉네임 Set 함수
+    void SetSteamNickname(const FString& NewNickname);
+
+	// 닉네임 Get 함수
+    FString GetSteamNickname() const;
 
 	// 처음 서브 리볼버 설정
 	void SetInitSubRevolver();
@@ -55,5 +64,12 @@ protected:
 
 	UFUNCTION()
 	void OnRep_isFold();
+
+    UFUNCTION()
+    void OnRep_SteamNickname();
+
+	// 스팀 닉네임 변수
+	UPROPERTY(ReplicatedUsing = OnRep_SteamNickname, BlueprintReadOnly, Category = "PlayerState")
+    FString SteamNickname;
 	
 };
