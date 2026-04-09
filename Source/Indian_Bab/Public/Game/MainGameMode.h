@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
 #include "Game/MainGameTypes.h"
-#include "CardController/CardManager.h"
+#include "CardController/CardData.h"
 #include "MainGameMode.generated.h"
 
 class AMainGamePlayerController;
@@ -11,6 +11,7 @@ class ASeatActor;
 class ALobbyCharacter;
 class AMainGameState;
 class AMainPlayerState;
+class ACardManager;
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode

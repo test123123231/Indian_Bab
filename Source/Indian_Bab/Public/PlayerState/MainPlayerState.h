@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
-#include "CardController/CardManager.h"
+#include "CardController/CardData.h"
 #include "MainPlayerState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTriggerCountChanged, int32);

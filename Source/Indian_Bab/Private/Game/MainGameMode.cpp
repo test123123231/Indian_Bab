@@ -6,6 +6,7 @@
 #include "PlayerState/MainPlayerState.h"
 #include "Character/LobbyCharacter.h"
 #include "Kismet/GameplayStatics.h"
+#include "CardController/CardManager.h"
 
 AMainGameMode::AMainGameMode()
 {

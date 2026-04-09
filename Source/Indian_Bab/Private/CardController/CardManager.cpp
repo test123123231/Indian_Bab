@@ -1,3 +1,4 @@
+#include "CardController/CardData.h"
 #include "CardController/CardManager.h"
 
 // 생성자: Tick이 필요 없으므로 꺼둠
