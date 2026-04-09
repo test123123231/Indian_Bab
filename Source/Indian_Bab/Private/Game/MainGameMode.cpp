@@ -177,9 +177,10 @@ void AMainGameMode::StartMainGame()
 	MainCardManager = GetCardManager();
 	if(!MainCardManager)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Your message"));
+		UE_LOG(LogTemp, Warning, TEXT("No CardManager"));
 		return;
 	}
+	MainCardManager -> InitializeDeck();
 
 	if (GS)
 	{
@@ -224,8 +225,25 @@ void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 		// 결과 판별 아직 안 만들어서 임시 구현
 		PickRandomPlayer(); 
 	}
-	
-	DealtCards = MainCardManager -> DealCards(GS -> AlivePlayerCount);
+
+		DistributeCard();
+		StartTurnTimer(20.0f);
+}
+
+// 카드 분배
+void AMainGameMode::DistributeCard()
+{
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
+
+	DealtCards = MainCardManager->DealCards(GS->AlivePlayerCount);
+	if (DealtCards.Num() != GS->AlivePlayerCount)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("카드 배분 실패: Alive=%d, Dealt=%d"),
+			GS->AlivePlayerCount, DealtCards.Num());
+		return;
+	}
+
 	int32 CardIndex = 0;
 	for(ASeatActor* Seat : GS->SeatChairArray)
 	{
@@ -241,8 +259,6 @@ void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 		PS -> SetMyCard(DealtCards[CardIndex++]);
 		UE_LOG(LogTemp, Warning, TEXT("PS[%d] : PS_Card(%d, %s)"), PS->GetPlayerId(), PS->GetMyCard().Value, *PS->GetMyCard().Suit);
 	}
-
-	StartTurnTimer(20.0f);
 }
 
 // 플레이어 랜덤 선택

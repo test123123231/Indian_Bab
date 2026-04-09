@@ -1,8 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Engine/DataTable.h"
-#include "Engine/StaticMesh.h"
+#include "CardController/CardData.h"
 #include "CardManager.generated.h"
 
 UCLASS()

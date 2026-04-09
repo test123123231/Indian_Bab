@@ -1,6 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataTable.h"
+#include "Engine/StaticMesh.h"
 #include "CardData.generated.h"
 
 // 데이터 테이블의 각 행(Row)으로 사용할 카드 정보 구조체
@@ -25,3 +27,5 @@ struct FCardData : public FTableRowBase
     // 기본 생성자: 초기값 설정
     FCardData() : Value(1), Suit(TEXT("Spade")), CardMesh(nullptr) {}
 };
+
+

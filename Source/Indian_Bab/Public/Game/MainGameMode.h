@@ -52,6 +52,9 @@ protected:
 	// 플레이어 랜덤 선택
 	void PickRandomPlayer();
 
+	// 카드 분배
+	void DistributeCard();
+
 	// 턴 넘기는 타이머
 	void StartTurnTimer(float Time);
 

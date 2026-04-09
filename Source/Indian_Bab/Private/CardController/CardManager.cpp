@@ -12,7 +12,7 @@ void ACardManager::BeginPlay()
 {
     Super::BeginPlay();
 
-    InitializeDeck();
+    //InitializeDeck();
 }
 
 void ACardManager::InitializeDeck()
@@ -30,6 +30,7 @@ void ACardManager::InitializeDeck()
     // 데이터 테이블의 모든 행을 포인터 배열로 가져옴
     TArray<FCardData*> AllRows;
     CardDataTable->GetAllRows<FCardData>(TEXT("Context_CardInit"), AllRows);
+    UE_LOG(LogTemp, Warning, TEXT("AllRows.Num() = %d"), AllRows.Num());
 
     // 포인터 배열을 실제 구조체 배열로 복사
     for (FCardData* Row : AllRows)
@@ -39,6 +40,7 @@ void ACardManager::InitializeDeck()
             CurrentDeck.Add(*Row); // 구조체 값 복사
         }
     }
+    UE_LOG(LogTemp, Warning, TEXT("덱 초기화 완료: CurrentDeck.Num() = %d"), CurrentDeck.Num());
 
     // Fisher-Yates 셔플: 완전한 무작위를 보장하는 알고리즘
     // 뒤에서부터 순회하며 현재 위치와 무작위 위치의 카드를 교환
