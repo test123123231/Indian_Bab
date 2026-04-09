@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
 #include "Game/MainGameTypes.h"
+#include "CardController/CardManager.h"
 #include "MainGameMode.generated.h"
 
 class AMainGamePlayerController;
@@ -38,8 +39,11 @@ protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수
 	void CheckGameStart();
 
-	// 게임 루프 시작
+	// 게임 루프 시작점(여기로 안 돌아옴)
 	void StartMainGame();
+
+	// 카드 매니저 획득
+	ACardManager* GetCardManager();
 
 	// 플레이어 선택
 	void PickPlayer(int32 CurrentPlayerIndex);
@@ -79,5 +83,11 @@ private:
 
 	// 베팅 기준점 플레이어
 	int32 CheckPlayer;
+
+	UPROPERTY()
+	TObjectPtr<ACardManager> MainCardManager;
+
+	UPROPERTY()
+	TArray<FCardData> DealtCards;
 
 };

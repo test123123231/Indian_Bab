@@ -5,12 +5,12 @@
 #include "PlayerController/MainGamePlayerController.h"
 #include "PlayerState/MainPlayerState.h"
 #include "Character/LobbyCharacter.h"
+#include "Kismet/GameplayStatics.h"
 
 AMainGameMode::AMainGameMode()
 {
 	GameStateClass = AMainGameState::StaticClass();
 }
-
 
 void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 {
@@ -19,7 +19,6 @@ void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 	// 접속한 플레이어 수 로그 (NumPlayers는 AGameMode 기본 변수)
 	UE_LOG(LogTemp, Warning, TEXT("플레이어 접속 완료. 현재 인원: %d"), NumPlayers);
 }
-
 
 void AMainGameMode::PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* SeatedChair)
 {
@@ -150,6 +149,7 @@ void AMainGameMode::CheckGameStart()
 		UE_LOG(LogTemp, Warning, TEXT("모든 플레이어가 착석했습니다. 3초 후 게임을 시작합니다."));
 
 		GS->SetGamePhase(EGamePhase::Starting);
+
 		// 각 플레이어 서브 리볼버 초기화(제일 처음에만/ 매 라운드x)
 		for(APlayerState* PS : GS -> PlayerArray)
 		{
@@ -166,13 +166,20 @@ void AMainGameMode::CheckGameStart()
 	}
 }
 
-
 // MainGame 시작
 void AMainGameMode::StartMainGame()
 {
 	// TODO: 카드 분배, 앤티(Ante) 지불 등 실제 인게임 로직 호출, 생존자 카운팅
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	CheckPlayer = -1;
+
+	MainCardManager = GetCardManager();
+	if(!MainCardManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Your message"));
+		return;
+	}
+
 	if (GS)
 	{
 		ResetFoldState();
@@ -183,6 +190,19 @@ void AMainGameMode::StartMainGame()
 	}
 }
 
+// 카드 매니저 획득
+ACardManager* AMainGameMode::GetCardManager()
+{
+    if (!MainCardManager)
+    {
+        MainCardManager = Cast<ACardManager>(
+            UGameplayStatics::GetActorOfClass(GetWorld(), ACardManager::StaticClass())
+        );
+    }
+    return MainCardManager;
+}
+
+
 // 플레이어 선택
 void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 {
@@ -191,6 +211,7 @@ void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if(!GS) return;
 	if(GS -> CurrentGamePhase != EGamePhase::Playing) return;
+	
 	// 이제 막 게임 시작한 케이스
 	if(CurrentPlayerIndex == -1 )
 	{
@@ -201,6 +222,23 @@ void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 	{
 		// 결과 판별 아직 안 만들어서 임시 구현
 		PickRandomPlayer(); 
+	}
+	
+	DealtCards = MainCardManager -> DealCards(GS -> AlivePlayerCount);
+	int32 CardIndex = 0;
+	for(ASeatActor* Seat : GS->SeatChairArray)
+	{
+		if(!Seat || !Seat->GetOccupant()) continue;
+
+		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		if (!OccupantCharacter) continue;
+
+		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
+		if(!PS) continue;
+		if(!PS -> isAlive) continue;
+
+		PS -> SetMyCard(DealtCards[CardIndex++]);
+		UE_LOG(LogTemp, Warning, TEXT("PS[%d] : PS_Card(%d, %s)"), PS->GetPlayerId(), PS->GetMyCard().Value, *PS->GetMyCard().Suit);
 	}
 
 	StartTurnTimer(20.0f);

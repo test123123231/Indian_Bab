@@ -10,6 +10,7 @@ ACardManager::ACardManager()
 void ACardManager::BeginPlay()
 {
     Super::BeginPlay();
+
     InitializeDeck();
 }
 

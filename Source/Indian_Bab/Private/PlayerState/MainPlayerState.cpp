@@ -34,6 +34,15 @@ FString AMainPlayerState::GetSteamNickname() const
     return SteamNickname;
 }
 
+void AMainPlayerState::SetMyCard(const FCardData& NewCard)
+{
+    MyCard = NewCard;
+}
+FCardData AMainPlayerState::GetMyCard() const
+{
+    return MyCard;
+}
+
 // 처음 서브 리볼버 설정
 void AMainPlayerState::SetInitSubRevolver()
 {

@@ -4,14 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "CardController/CardManager.h"
 #include "MainPlayerState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTriggerCountChanged, int32);
+
+class ACardManager;
 
 UCLASS()
 class INDIAN_BAB_API AMainPlayerState : public APlayerState
 {
 	GENERATED_BODY()
+
+
 
 public:
 	AMainPlayerState();
@@ -43,9 +48,10 @@ public:
 
 	// 닉네임 Set 함수
     void SetSteamNickname(const FString& NewNickname);
-
-	// 닉네임 Get 함수
     FString GetSteamNickname() const;
+
+	void SetMyCard(const FCardData& NewCard);
+	FCardData GetMyCard() const;
 
 	// 처음 서브 리볼버 설정
 	void SetInitSubRevolver();
@@ -54,6 +60,7 @@ public:
 	bool ChangeSubRevolver();
 
 	FOnTriggerCountChanged OnTriggerCountChanged;
+
 protected:
 	// 서브 리볼버의 당김 횟수가 바뀌었을 때 호출
 	UFUNCTION()
@@ -71,5 +78,9 @@ protected:
 	// 스팀 닉네임 변수
 	UPROPERTY(ReplicatedUsing = OnRep_SteamNickname, BlueprintReadOnly, Category = "PlayerState")
     FString SteamNickname;
+
+	UPROPERTY()
+	FCardData MyCard;
+
 	
 };
