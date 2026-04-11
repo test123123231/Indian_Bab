@@ -22,7 +22,7 @@ void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 	if(CurrentPlayerIndex != -1)
 	{
 		// 결과 판별 아직 안 만들어서 임시 구현
-		PickRandomPlayer(); 
+		PickByResult();
 	}
 	return;
 }
@@ -50,6 +50,38 @@ void AMainGameMode::PickRandomPlayer()
 	CheckPlayer = PS->GetPlayerId();
 	GS -> ChangeGameTurn(PS -> GetPlayerId(), CurrentPlayerIndex);
 	return;
+}
+
+void AMainGameMode::PickByResult()
+{
+    if (!HasAuthority()) return;
+
+    AMainGameState* GS = GetGameState<AMainGameState>();
+    if (!GS) return;
+
+    AMainPlayerState* WinPS = MaxCardPlayer();
+    if (!WinPS) return;
+    
+    for (int32 i = 0; i < GS->SeatChairArray.Num(); i++)
+    {
+        ASeatActor* Seat = GS->SeatChairArray[i];
+        if (!Seat || !Seat->GetOccupant()) continue;
+
+        ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+        if (!OccupantCharacter) continue;
+
+        AMainPlayerState* PS = OccupantCharacter->GetPlayerState<AMainPlayerState>();
+        if (!PS) continue;
+
+        if (PS == WinPS)
+        {
+            CheckPlayer = PS->GetPlayerId();
+            GS->ChangeGameTurn(PS->GetPlayerId(), i);
+
+            UE_LOG(LogTemp, Warning, TEXT("[GM] PickByResult -> Player %d selected as next starter"), PS->GetPlayerId());
+            return;
+        }
+    }
 }
 
 // 활성 인원 업데이트

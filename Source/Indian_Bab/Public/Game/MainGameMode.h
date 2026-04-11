@@ -52,6 +52,9 @@ protected:
 	// 플레이어 랜덤 선택
 	void PickRandomPlayer();
 
+	// 결과 기반 선택
+	void PickByResult();
+
 	// 카드 분배
 	void DistributeCard();
 
@@ -64,7 +67,7 @@ protected:
 	// 활성 인원 업데이트
 	int32 UpdateActivePlayer(AMainGameState* GS);
 
-	// 결과확인
+	// 결과확인 및 승리 플레이어 PS 리턴
 	void CheckPlayerCard();
 
 	// 다음 행동(NextTurn, NextRound, ReStart) 체크 함수
@@ -93,5 +96,8 @@ private:
 
 	UPROPERTY()
 	TArray<FCardData> DealtCards;
+
+	// 활성 인원 중에서 가장 큰 값을 가진 플레이어
+	AMainPlayerState* MaxCardPlayer();
 
 };

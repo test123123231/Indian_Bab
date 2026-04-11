@@ -103,3 +103,25 @@ TArray<FCardData> ACardManager::DealCards(int32 PlayerCount)
     UE_LOG(LogTemp, Log, TEXT("%d명에게 카드 배분 완료"), PlayerCount);
     return DealtCards;
 }
+
+int32 ACardManager::GetSuitRank(const FString& Suit)
+{
+    if (Suit == "Spade")   return 4;
+    if (Suit == "Diamond") return 3;
+    if (Suit == "Heart")   return 2;
+    if (Suit == "Clover")  return 1;
+    return 0;
+}
+
+
+bool ACardManager::IsCardHigher(const FCardData& A, const FCardData& B)
+{
+    // 숫자 우선 비교
+    if (A.Value != B.Value)
+    {
+        return A.Value > B.Value;
+    }
+
+    // 숫자가 같을 때만 문양 비교
+    return GetSuitRank(A.Suit) > GetSuitRank(B.Suit);
+}

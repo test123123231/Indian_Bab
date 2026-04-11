@@ -103,6 +103,7 @@ void AMainGameMode::StartMainGame()
 	
 	StartTurnTimer(20.0f);
 
+	return;
 }
 
 // 턴 넘기는 타이머
@@ -161,6 +162,7 @@ void AMainGameMode::CheckNext()
 	{
 		// 추후 결과 확인 구현
 		CheckPlayerCard();
+		NextRound(GS);
 		return;
 	}
 	//CheckPlayer와 다음 플레이어가 다를 때

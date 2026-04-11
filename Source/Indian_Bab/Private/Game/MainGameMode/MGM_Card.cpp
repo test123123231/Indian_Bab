@@ -59,8 +59,44 @@ void AMainGameMode::CheckPlayerCard()
 
 	GS->SetGamePhase(EGamePhase::Result);
 
-	/* 결과 관련 코드 작성*/
+    AMainPlayerState* WinPS = MaxCardPlayer();
+    UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), WinPS -> GetPlayerId(), WinPS->GetMyCard().Value, *WinPS->GetMyCard().Suit);
 
-	// 일단 임시로 했음
-	NextRound(GS);
+    return;
+}
+
+// 활성 인원 중에서 가장 큰 값을 가진 플레이어
+AMainPlayerState* AMainGameMode::MaxCardPlayer()
+{
+    AMainGameState* GS = GetGameState<AMainGameState>();
+    if (!GS) return nullptr;
+
+    AMainPlayerState* MaxPS = nullptr;
+    FCardData MaxCard;
+
+    bool bFound = false;
+
+    for(ASeatActor* Seat : GS->SeatChairArray)
+	{
+		if(!Seat || !Seat->GetOccupant()) continue;
+
+		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		if (!OccupantCharacter) continue;
+
+		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
+		if(!PS) continue;
+		if(!PS -> isAlive) continue;
+        if(PS -> isFold) continue;
+
+        FCardData CurrentCard = PS->GetMyCard();
+
+        if (!bFound || MainCardManager -> IsCardHigher(CurrentCard, MaxCard))
+        {
+            MaxCard = CurrentCard;
+            MaxPS = PS;
+            bFound = true;
+        }
+	}
+
+    return MaxPS;
 }

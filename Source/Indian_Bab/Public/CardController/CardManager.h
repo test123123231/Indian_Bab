@@ -36,6 +36,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Card Logic")
     TArray<FCardData> DealCards(int32 PlayerCount);
 
+    // 문양에 따른 순위
+    int32 GetSuitRank(const FString& Suit);
+
+    // 어떤 카드가 더 큰 지 비교
+    bool IsCardHigher(const FCardData& A, const FCardData& B);
+
+
 protected:
     // 게임 시작 시 자동으로 덱 초기화
     virtual void BeginPlay() override;
