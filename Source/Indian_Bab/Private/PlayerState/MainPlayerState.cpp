@@ -83,12 +83,14 @@ void AMainPlayerState::OnRep_TotalTriggerCount()
 
 void AMainPlayerState::OnRep_isAlive()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : dead!"), GetPlayerId());
+    if(isAlive == 0)
+        UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : dead!"), GetPlayerId());
 }
 
 void AMainPlayerState::OnRep_isFold()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : Fold!"), GetPlayerId());
+    if(isFold == 1)
+        UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : Fold!"), GetPlayerId());
 }
 
 void AMainPlayerState::OnRep_SteamNickname()

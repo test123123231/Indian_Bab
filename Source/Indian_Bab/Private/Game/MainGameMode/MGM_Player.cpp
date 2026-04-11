@@ -65,13 +65,15 @@ void AMainGameMode::PickByResult()
     for (int32 i = 0; i < GS->SeatChairArray.Num(); i++)
     {
         ASeatActor* Seat = GS->SeatChairArray[i];
-        if (!Seat || !Seat->GetOccupant()) continue;
+        if(!Seat || !Seat->GetOccupant()) continue;
 
         ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
-        if (!OccupantCharacter) continue;
+        if(!OccupantCharacter) continue;
 
         AMainPlayerState* PS = OccupantCharacter->GetPlayerState<AMainPlayerState>();
-        if (!PS) continue;
+        if(!PS) continue;
+        if(!PS -> isAlive) continue;
+        if(PS -> isFold) continue;
 
         if (PS == WinPS)
         {
