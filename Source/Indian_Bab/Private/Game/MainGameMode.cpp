@@ -137,7 +137,7 @@ void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 	CheckNext();
 }
 
-// 게임 시작 조건이 충족되었을 때 실행
+// 게임 시작 조건이 충족되었을 때 실행 및 초기화
 void AMainGameMode::CheckGameStart()
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
@@ -161,35 +161,43 @@ void AMainGameMode::CheckGameStart()
 			}
 		}
 
+		// 기준 플레이어 초기화
+		CheckPlayer = -1;
+
+		//  카드 매니저 초기화
+		MainCardManager = GetCardManager();
+		if(!MainCardManager)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("No CardManager"));
+			return;
+		}
+		MainCardManager -> InitializeDeck();
+
 		// 3초 뒤에 StartMainGame 함수 실행
 		GetWorldTimerManager().ClearTimer(TimerHandle);
 		GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::StartMainGame, 3.0f, false);
 	}
 }
 
-// MainGame 시작
+// MainGame 시작(반복됨)
 void AMainGameMode::StartMainGame()
 {
 	// TODO: 카드 분배, 앤티(Ante) 지불 등 실제 인게임 로직 호출, 생존자 카운팅
 	AMainGameState* GS = GetGameState<AMainGameState>();
-	CheckPlayer = -1;
+	if (!GS) return;
+	
+	GS->SetGamePhase(EGamePhase::Playing);
 
-	MainCardManager = GetCardManager();
-	if(!MainCardManager)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("No CardManager"));
-		return;
-	}
-	MainCardManager -> InitializeDeck();
+	//GS의 게임 페이즈 기반 플레이어 선택
+	PickPlayer(GS -> CurrentPlayerIndex);
+	
+	// 라운드 내 isFold 초기화
+	ResetFoldState();
+	
+	DistributeCard();
+	
+	StartTurnTimer(20.0f);
 
-	if (GS)
-	{
-		ResetFoldState();
-		GS->SetGamePhase(EGamePhase::Playing);
-
-		//GS의 게임 페이즈 기반 플레이어 선택
-		PickPlayer(GS -> CurrentPlayerIndex);
-	}
 }
 
 // 카드 매니저 획득
@@ -225,9 +233,7 @@ void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 		// 결과 판별 아직 안 만들어서 임시 구현
 		PickRandomPlayer(); 
 	}
-
-		DistributeCard();
-		StartTurnTimer(20.0f);
+	return;
 }
 
 // 카드 분배
@@ -259,6 +265,7 @@ void AMainGameMode::DistributeCard()
 		PS -> SetMyCard(DealtCards[CardIndex++]);
 		UE_LOG(LogTemp, Warning, TEXT("PS[%d] : PS_Card(%d, %s)"), PS->GetPlayerId(), PS->GetMyCard().Value, *PS->GetMyCard().Suit);
 	}
+	return;
 }
 
 // 플레이어 랜덤 선택
@@ -283,6 +290,7 @@ void AMainGameMode::PickRandomPlayer()
 	
 	CheckPlayer = PS->GetPlayerId();
 	GS -> ChangeGameTurn(PS -> GetPlayerId(), CurrentPlayerIndex);
+	return;
 }
 
 // 턴 넘기는 타이머
@@ -290,6 +298,7 @@ void AMainGameMode::StartTurnTimer(float Time)
 {
 	GetWorldTimerManager().ClearTimer(TimerHandle);
 	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnTurnTimerExpired, Time, false);
+	return;
 }
 
 // 턴 제한시간은 넘겼을 때
@@ -303,6 +312,7 @@ void AMainGameMode::OnTurnTimerExpired()
 	UE_LOG(LogTemp, Warning, TEXT("[GM] TimeOut NextTurn"));
 	GS -> ChangeCurrentBetInfo(EBetAction::CheckCall);
 	CheckNext();
+	return;
 }
 
 // 활성 인원 업데이트
@@ -338,6 +348,7 @@ void AMainGameMode::CheckPlayerCard()
 
 	/* 결과 관련 코드 작성*/
 
+	// 일단 임시로 했음
 	NextRound(GS);
 }
 
@@ -375,6 +386,7 @@ void AMainGameMode::CheckNext()
 	{
 		// 추후 결과 확인 구현
 		CheckPlayerCard();
+		return;
 	}
 	//CheckPlayer와 다음 플레이어가 다를 때
 	else
@@ -440,16 +452,14 @@ void AMainGameMode::NextRound(AMainGameState* GS)
 	//타이머 정리
 	GetWorldTimerManager().ClearTimer(TimerHandle);
 
-	// isFold 초기화
-	ResetFoldState();
-
 	// 다음 라운드 대비 GateState 초기화
 	GS -> SetNextRoundGameState();
 
-	// 플레이어 선택 코드
-	PickPlayer(GS -> CurrentPlayerIndex);
+	// 메인 게임 새로 시작
+	StartMainGame();
 }
 
+// 라운드 내 isFold 초기화
 void AMainGameMode::ResetFoldState()
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
