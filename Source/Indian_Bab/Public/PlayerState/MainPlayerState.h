@@ -30,6 +30,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnSteamNicknameChanged);
 	FOnSteamNicknameChanged OnSteamNicknameChanged;
 
+	DECLARE_MULTICAST_DELEGATE(FOnCardChanged);
+	FOnCardChanged OnCardChanged;
+
 	// 플레이어의 생존 유무
 	UPROPERTY(ReplicatedUsing = "OnRep_isAlive", BlueprintReadOnly, Category = "PlayerState")
 	bool isAlive;
@@ -75,12 +78,14 @@ protected:
     UFUNCTION()
     void OnRep_SteamNickname();
 
+	UFUNCTION()
+	void OnRep_MyCard();
+
 	// 스팀 닉네임 변수
 	UPROPERTY(ReplicatedUsing = OnRep_SteamNickname, BlueprintReadOnly, Category = "PlayerState")
     FString SteamNickname;
 
-	UPROPERTY()
+	UPROPERTY(ReplicatedUsing = "OnRep_MyCard", BlueprintReadOnly, Category = "PlayerState")
 	FCardData MyCard;
 
-	
 };

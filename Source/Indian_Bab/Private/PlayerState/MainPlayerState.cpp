@@ -18,6 +18,7 @@ void AMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(AMainPlayerState, BulletArray);
     DOREPLIFETIME(AMainPlayerState, TotalTriggerCount);
     DOREPLIFETIME(AMainPlayerState, SteamNickname);
+    DOREPLIFETIME(AMainPlayerState, MyCard);
 }
 
 // 닉네임 Set 함수
@@ -37,6 +38,7 @@ FString AMainPlayerState::GetSteamNickname() const
 void AMainPlayerState::SetMyCard(const FCardData& NewCard)
 {
     MyCard = NewCard;
+    OnCardChanged.Broadcast(); 
 }
 FCardData AMainPlayerState::GetMyCard() const
 {
@@ -97,4 +99,10 @@ void AMainPlayerState::OnRep_SteamNickname()
 {
     UE_LOG(LogTemp, Warning, TEXT("[PS_%d] SteamNickname: %s"), GetPlayerId(), *SteamNickname);
     OnSteamNicknameChanged.Broadcast();
+}
+
+void AMainPlayerState::OnRep_MyCard()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] Card updated (Client)"), GetPlayerId());
+    OnCardChanged.Broadcast();
 }

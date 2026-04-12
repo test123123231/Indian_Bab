@@ -124,17 +124,38 @@ void ALobbyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
-    if (PS)
-    {
-        PS->OnSteamNicknameChanged.AddUObject(this, &ALobbyCharacter::UpdateNameWidget);
-    }
-
 	UpdateNameWidget();
+	UpdateCardWidget();
 
 	if (!IsLocallyControlled()) return;
 	
 	MainGamePC = Cast<AMainGamePlayerController>(GetController());
+}
+
+// 서버에서 스팀 닉네임 및 카드 바인딩
+void ALobbyCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	BindPlayerStateDelegates();
+}
+
+// 스팀 닉네임 및 카드 바인딩 함수
+void ALobbyCharacter::BindPlayerStateDelegates()
+{
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+	PS->OnSteamNicknameChanged.RemoveAll(this);
+	PS->OnSteamNicknameChanged.AddUObject(this, &ALobbyCharacter::UpdateNameWidget);
+
+	PS->OnCardChanged.RemoveAll(this);
+	PS->OnCardChanged.AddUObject(this, &ALobbyCharacter::UpdateCardWidget);
+
+	UE_LOG(LogTemp, Warning, TEXT("[LC] BindPlayerStateDelegates success. PS=%d"), PS->GetPlayerId());
+
+	UpdateNameWidget();
+	UpdateCardWidget();
 }
 
 void ALobbyCharacter::UpdateNameWidget()
@@ -147,12 +168,32 @@ void ALobbyCharacter::UpdateNameWidget()
     UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
     if (!Widget) return;
 
-    
     FString Name = PS->GetSteamNickname();
     if (Name.IsEmpty())
         Name = TEXT("Unknown");
 
     Widget->SetPlayerName(Name);
+}
+
+void ALobbyCharacter::UpdateCardWidget()
+{
+	if (!NameWidgetComponent) return;
+
+	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
+	if (!Widget) return;
+
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+	const FCardData Card = PS->GetMyCard();
+	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
+	if (Card.Value <= 0)
+	{
+		Widget->SetCardText(TEXT(""));
+		return;
+	}
+
+	Widget->SetCardText(CardStr);
 }
 
 // Called every frame
@@ -419,13 +460,7 @@ void ALobbyCharacter::OnRep_PlayerState()
 {
     Super::OnRep_PlayerState();
 
-    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
-    if (PS)
-    {
-        PS->OnSteamNicknameChanged.AddUObject(this, &ALobbyCharacter::UpdateNameWidget);
-    }
-
-    UpdateNameWidget();
+	BindPlayerStateDelegates();
 }
 
 void ALobbyCharacter::Client_LockCameraAfterSit_Implementation(FRotator FinalSitRotation)

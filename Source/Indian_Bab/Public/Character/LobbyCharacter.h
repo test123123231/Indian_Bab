@@ -109,8 +109,15 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
 	float ReplicatedAimYaw = 0.0f;
 
+	virtual void PossessedBy(AController* NewController) override;
+
+	void BindPlayerStateDelegates();
+
 	UFUNCTION()
 	void UpdateNameWidget();
+
+	UFUNCTION()
+	void UpdateCardWidget();
 
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateAimYaw(float NewYaw);
