@@ -33,6 +33,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnCardChanged);
 	FOnCardChanged OnCardChanged;
 
+	FOnTriggerCountChanged OnTriggerCountChanged;
+
 	// 플레이어의 생존 유무
 	UPROPERTY(ReplicatedUsing = "OnRep_isAlive", BlueprintReadOnly, Category = "PlayerState")
 	bool isAlive;
@@ -53,6 +55,7 @@ public:
     void SetSteamNickname(const FString& NewNickname);
     FString GetSteamNickname() const;
 
+	// 카드 관련 함수
 	void SetMyCard(const FCardData& NewCard);
 	FCardData GetMyCard() const;
 
@@ -62,10 +65,8 @@ public:
 	// 리볼버 당김 횟수 변경
 	bool ChangeSubRevolver();
 
-	FOnTriggerCountChanged OnTriggerCountChanged;
-
 protected:
-	// 서브 리볼버의 당김 횟수가 바뀌었을 때 호출
+	// On_Rep : 오른쪽에 적힌 함수 변화했을 때 실행하는 함수
 	UFUNCTION()
 	void OnRep_TotalTriggerCount();
 

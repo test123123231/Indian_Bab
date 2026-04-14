@@ -113,7 +113,7 @@ ALobbyCharacter::ALobbyCharacter()
 	// // 닉네임
 	NameWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidget"));
 	NameWidgetComponent->SetupAttachment(GetRootComponent());
-	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 210.f));
+	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 75.f));
 	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
 	NameWidgetComponent->SetDrawAtDesiredSize(true);
 }
@@ -124,12 +124,9 @@ void ALobbyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UpdateNameWidget();
-	UpdateCardWidget();
-
 	if (!IsLocallyControlled()) return;
 	
-	MainGamePC = Cast<AMainGamePlayerController>(GetController());
+	//MainGamePC = Cast<AMainGamePlayerController>(GetController());
 }
 
 // 서버에서 스팀 닉네임 및 카드 바인딩
@@ -140,7 +137,7 @@ void ALobbyCharacter::PossessedBy(AController* NewController)
 	BindPlayerStateDelegates();
 }
 
-// 스팀 닉네임 및 카드 바인딩 함수
+// 스팀 닉네임 및 카드 바인딩 함수(PS에서 스팀 닉네임이나 카드 상태 변화하면 Updaate함수 실행)
 void ALobbyCharacter::BindPlayerStateDelegates()
 {
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
@@ -152,8 +149,6 @@ void ALobbyCharacter::BindPlayerStateDelegates()
 	PS->OnCardChanged.RemoveAll(this);
 	PS->OnCardChanged.AddUObject(this, &ALobbyCharacter::UpdateCardWidget);
 
-	UE_LOG(LogTemp, Warning, TEXT("[LC] BindPlayerStateDelegates success. PS=%d"), PS->GetPlayerId());
-
 	UpdateNameWidget();
 	UpdateCardWidget();
 }
@@ -163,15 +158,22 @@ void ALobbyCharacter::UpdateNameWidget()
 	if (!NameWidgetComponent) return;
 
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
-    if (!PS) return;
+	if (!PS) return;
 
     UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
     if (!Widget) return;
 
-    FString Name = PS->GetSteamNickname();
-    if (Name.IsEmpty())
-        Name = TEXT("Unknown");
+	if (IsLocallyControlled())
+	{
+		Widget->SetCardText(TEXT(""));
+		return;
+	}
 
+    FString Name = PS->GetSteamNickname();
+	if (Name.IsEmpty())
+	{
+        Name = TEXT("Unknown");
+	}
     Widget->SetPlayerName(Name);
 }
 
@@ -179,20 +181,26 @@ void ALobbyCharacter::UpdateCardWidget()
 {
 	if (!NameWidgetComponent) return;
 
-	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
-	if (!Widget) return;
-
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
 	if (!PS) return;
 
-	const FCardData Card = PS->GetMyCard();
-	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
-	if (Card.Value <= 0)
+	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
+    if (!Widget) return;
+
+	if (IsLocallyControlled())
 	{
 		Widget->SetCardText(TEXT(""));
 		return;
 	}
 
+	const FCardData Card = PS->GetMyCard();
+	if (Card.Value == 0)
+	{
+		Widget->SetCardText(TEXT(""));
+		return;
+	}
+	
+	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
 	Widget->SetCardText(CardStr);
 }
 

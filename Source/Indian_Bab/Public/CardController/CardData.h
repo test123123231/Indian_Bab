@@ -25,7 +25,7 @@ struct FCardData : public FTableRowBase
     TSoftObjectPtr<UStaticMesh> CardMesh;
 
     // 기본 생성자: 초기값 설정
-    //FCardData() : Value(1), Suit(TEXT("Spade")), CardMesh(nullptr) {}
+    FCardData() : Value(0), Suit(TEXT("")), CardMesh(nullptr) {}
 };
 
 

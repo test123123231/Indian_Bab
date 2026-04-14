@@ -21,7 +21,7 @@ void AMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(AMainPlayerState, MyCard);
 }
 
-// 닉네임 Set 함수
+// 닉네임 Set/Get 함수
 void AMainPlayerState::SetSteamNickname(const FString& NewNickname)
 {
     SteamNickname = NewNickname;
@@ -29,17 +29,18 @@ void AMainPlayerState::SetSteamNickname(const FString& NewNickname)
     OnSteamNicknameChanged.Broadcast();
 }
 
-// 닉네임 Get 함수
 FString AMainPlayerState::GetSteamNickname() const
 {
     return SteamNickname;
 }
 
+// 카드 Set/Get 함순
 void AMainPlayerState::SetMyCard(const FCardData& NewCard)
 {
     MyCard = NewCard;
     OnCardChanged.Broadcast(); 
 }
+
 FCardData AMainPlayerState::GetMyCard() const
 {
     return MyCard;

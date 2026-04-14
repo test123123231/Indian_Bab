@@ -109,8 +109,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
 	float ReplicatedAimYaw = 0.0f;
 
+	// 서버에서 스팀 닉네임 및 카드 바인딩
 	virtual void PossessedBy(AController* NewController) override;
 
+	// 스팀 닉네임 및 카드 바인딩 함수
 	void BindPlayerStateDelegates();
 
 	UFUNCTION()
@@ -184,7 +186,7 @@ protected:
 	void OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 private:
-	TObjectPtr<AMainGamePlayerController> MainGamePC;
+	//TObjectPtr<AMainGamePlayerController> MainGamePC;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
