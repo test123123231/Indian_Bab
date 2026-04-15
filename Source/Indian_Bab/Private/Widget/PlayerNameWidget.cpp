@@ -9,3 +9,10 @@ void UPlayerNameWidget::SetPlayerName(const FString& Name)
     }
 }
 
+void UPlayerNameWidget::SetCardText(const FString& Name)
+{
+    if (CardText)
+    {
+        CardText->SetText(FText::FromString(Name));
+    }
+}

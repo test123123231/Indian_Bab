@@ -4,14 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerState.h"
+#include "CardController/CardData.h"
 #include "MainPlayerState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTriggerCountChanged, int32);
+
+class ACardManager;
 
 UCLASS()
 class INDIAN_BAB_API AMainPlayerState : public APlayerState
 {
 	GENERATED_BODY()
+
+
 
 public:
 	AMainPlayerState();
@@ -24,6 +29,11 @@ private:
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnSteamNicknameChanged);
 	FOnSteamNicknameChanged OnSteamNicknameChanged;
+
+	DECLARE_MULTICAST_DELEGATE(FOnCardChanged);
+	FOnCardChanged OnCardChanged;
+
+	FOnTriggerCountChanged OnTriggerCountChanged;
 
 	// 플레이어의 생존 유무
 	UPROPERTY(ReplicatedUsing = "OnRep_isAlive", BlueprintReadOnly, Category = "PlayerState")
@@ -43,9 +53,11 @@ public:
 
 	// 닉네임 Set 함수
     void SetSteamNickname(const FString& NewNickname);
-
-	// 닉네임 Get 함수
     FString GetSteamNickname() const;
+
+	// 카드 관련 함수
+	void SetMyCard(const FCardData& NewCard);
+	FCardData GetMyCard() const;
 
 	// 처음 서브 리볼버 설정
 	void SetInitSubRevolver();
@@ -53,9 +65,8 @@ public:
 	// 리볼버 당김 횟수 변경
 	bool ChangeSubRevolver();
 
-	FOnTriggerCountChanged OnTriggerCountChanged;
 protected:
-	// 서브 리볼버의 당김 횟수가 바뀌었을 때 호출
+	// On_Rep : 오른쪽에 적힌 함수 변화했을 때 실행하는 함수
 	UFUNCTION()
 	void OnRep_TotalTriggerCount();
 
@@ -68,8 +79,14 @@ protected:
     UFUNCTION()
     void OnRep_SteamNickname();
 
+	UFUNCTION()
+	void OnRep_MyCard();
+
 	// 스팀 닉네임 변수
 	UPROPERTY(ReplicatedUsing = OnRep_SteamNickname, BlueprintReadOnly, Category = "PlayerState")
     FString SteamNickname;
-	
+
+	UPROPERTY(ReplicatedUsing = "OnRep_MyCard", BlueprintReadOnly, Category = "PlayerState")
+	FCardData MyCard;
+
 };

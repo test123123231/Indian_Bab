@@ -14,7 +14,12 @@ class INDIAN_BAB_API UPlayerNameWidget : public UUserWidget
 public:
     void SetPlayerName(const FString& Name);
 
+    void SetCardText(const FString& Name);
+
 protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UTextBlock> PlayerNameText;
+
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> CardText;
 };

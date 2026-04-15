@@ -1,32 +1,8 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Engine/DataTable.h"
-#include "Engine/StaticMesh.h"
+#include "CardController/CardData.h"
 #include "CardManager.generated.h"
-
-// 데이터 테이블의 각 행(Row)으로 사용할 카드 정보 구조체
-USTRUCT(BlueprintType)
-struct FCardData : public FTableRowBase
-{
-    GENERATED_BODY()
-
-    // 카드 숫자 (1~13, 0 = 조커)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card Info")
-    int32 Value;
-
-    // 카드 무늬 (Spade, Heart, Club, Diamond, Joker)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card Info")
-    FString Suit;
-
-    // 카드별 3D 메시 에셋 (SM_Card_Spade_1 등)
-    // TSoftObjectPtr: 게임 시작 시 53장을 한꺼번에 메모리에 올리지 않고 필요할 때만 로딩
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Card Visual")
-    TSoftObjectPtr<UStaticMesh> CardMesh;
-
-    // 기본 생성자: 초기값 설정
-    FCardData() : Value(1), Suit(TEXT("Spade")), CardMesh(nullptr) {}
-};
 
 UCLASS()
 class INDIAN_BAB_API ACardManager : public AActor
@@ -59,6 +35,13 @@ public:
     // 반환된 배열의 인덱스 = 플레이어 순서
     UFUNCTION(BlueprintCallable, Category = "Card Logic")
     TArray<FCardData> DealCards(int32 PlayerCount);
+
+    // 문양에 따른 순위
+    int32 GetSuitRank(const FString& Suit);
+
+    // 어떤 카드가 더 큰 지 비교
+    bool IsCardHigher(const FCardData& A, const FCardData& B);
+
 
 protected:
     // 게임 시작 시 자동으로 덱 초기화
