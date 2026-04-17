@@ -47,8 +47,7 @@ void URoomCreateWidget::OnNoClicked()
 			PlayerControllerRef->SetInputMode(InputModeData);
 		}
 	}
-	// 자신을 뷰포트에서 제거
-	RemoveFromParent();
+	OnCloseMenuVR();
 }
 
 
