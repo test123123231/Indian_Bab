@@ -1,39 +1,50 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Widget/BetProgressWidget.h"
 #include "MainGameWidget.generated.h"
 
 class UButton;
-// class UMultiLineEditableText;
-// class UEditableTextBox;
+class UDeckLeftWidget;
 class UTextBlock;
+class UEditableTextBox;
+class UBetProgressWidget;
 class AMainGamePlayerController;
-
+class AMainPlayerState;
 
 UCLASS()
 class INDIAN_BAB_API UMainGameWidget : public UUserWidget
 {
 	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float RemainingTime = 20.f;
 
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 
 private:
-	// UPROPERTY(meta = (BindWidget))
-	// TObjectPtr<UEditableTextBox> Text_SubRevolverCount;
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UEditableTextBox> SubRevolverCount;
 
 	// UPROPERTY(meta = (BindWidget))
 	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
+	UPROPERTY(EditAnywhere)
+	float BetNum = 0;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> Text_Time;
+	TObjectPtr<UTextBlock> Time;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> Text_CheckCall;
+	TObjectPtr<UTextBlock> BetCount;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Plus_Button;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Minus_Button;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Raise;
@@ -44,8 +55,18 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Fold;
 
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UBetProgressWidget> WBP_BetProgress;
+
+	UFUNCTION(BlueprintCallable)
+	void OperateTimer();
+
 	// 플레이어 컨트롤러 참조 변수
 	TObjectPtr<AMainGamePlayerController> MainGamePC;
+
+	// 플레이어 스테이트 참조 변수
+	UPROPERTY()
+	TObjectPtr<AMainPlayerState> MainPS;
 
 	// 레이즈 버튼 클릭 시
 	UFUNCTION()
@@ -58,6 +79,19 @@ private:
 	// 폴드 버튼 클릭 시
 	UFUNCTION()
 	void OnButtonFold();
-};
 
+	UFUNCTION()
+	void UpdateSubRevolverCount(int32 Count);
+
+public:
+	// 플레이어 컨트롤러 및 플레이어 스테이트 등록
+	void InitWidget();
+
+private:
+	UFUNCTION()
+	void MinusButtonClicked();
+
+	UFUNCTION()
+	void PlusButtonClicked();
+};
 

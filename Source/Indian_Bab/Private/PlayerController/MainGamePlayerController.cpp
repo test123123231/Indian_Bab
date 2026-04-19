@@ -4,12 +4,16 @@
 #include "EnhancedInputComponent.h"
 #include "GameInstanceSubsystem/SettingSubsystem.h"
 #include "Widget/MainGameWidget.h"
+#include "Widget/DeckLeftWidget.h"
 #include "Game/MainGameMode.h"
 #include "Game/MainGameTypes.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
 #include "Interface/InteractableInterface.h"
+#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineIdentityInterface.h"
+#include "PlayerState/MainPlayerState.h"
 
 
 AMainGamePlayerController::AMainGamePlayerController()
@@ -26,8 +30,8 @@ void AMainGamePlayerController::BeginPlay()
         return;
 
     CreateMainGameWidget();
+    CreateDeckLeftWidget();
     EnterCameraMode();
-
 	ApplyLobbyMappingContext();
 
     if (USettingSubsystem* SettingSS = GetGameInstance()->GetSubsystem<USettingSubsystem>())
@@ -38,6 +42,8 @@ void AMainGamePlayerController::BeginPlay()
 	FInputModeGameOnly Mode;
 	SetInputMode(Mode);
 	bShowMouseCursor = false;
+
+    TrySendSteamNickname();
 }
 
 
@@ -81,6 +87,11 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             EnhancedInput->BindAction(IA_LobbyLook, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnLobbyLook);
         }
+
+        if (IA_MainGameTab)
+        {
+            EnhancedInput->BindAction(IA_MainGameTab, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameTabPressed);
+        }
     }
 }
 
@@ -123,6 +134,7 @@ void AMainGamePlayerController::ApplyMainGameMappingContext()
     {
         Subsys->AddMappingContext(MainGameMappingContext, 0);
     }
+    
 }
 
 
@@ -139,8 +151,30 @@ void AMainGamePlayerController::CreateMainGameWidget()
     {
         MainGameWidgetInstance->AddToViewport();
     }
+
+    if (MainGameWidgetInstance)
+    {
+        MainGameWidgetInstance->InitWidget();
+    }
 }
 
+void AMainGamePlayerController::CreateDeckLeftWidget() 
+{
+    if (!DeckLeftWidgetClass) return;
+
+    if (!DeckLeftWidgetInstance) 
+    {
+        DeckLeftWidgetInstance = CreateWidget<UDeckLeftWidget>(this, DeckLeftWidgetClass);
+    }
+    if (DeckLeftWidgetInstance && !DeckLeftWidgetInstance->IsInViewport()) 
+    {
+        DeckLeftWidgetInstance->AddToViewport();
+    }
+    if (DeckLeftWidgetInstance) 
+    {
+        DeckLeftWidgetInstance->InvisibleWidget();
+    }
+}
 
 void AMainGamePlayerController::EnterUIMode()
 {
@@ -185,6 +219,36 @@ void AMainGamePlayerController::RequestFold()
     Server_RequestBetAction(EBetAction::Fold);
 }
 
+// 내 스팀 닉네임 읽기
+FString AMainGamePlayerController::GetMySteamNickname() const
+{
+    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+    if (!Subsystem) return TEXT("");
+
+    IOnlineIdentityPtr Identity = Subsystem->GetIdentityInterface();
+    if (Identity.IsValid())
+    {
+        return Identity->GetPlayerNickname(0);
+    }
+
+    return TEXT("");
+}
+
+void AMainGamePlayerController::TrySendSteamNickname()
+{
+    if (bSteamNicknameSent) return;
+
+    if (!IsLocalPlayerController()) return;
+
+    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (!PS) return;
+
+    const FString MyNickname = GetMySteamNickname();
+    if (MyNickname.IsEmpty()) return;
+
+    Server_SetSteamNickname(MyNickname);
+    bSteamNicknameSent = true;
+}
 
 void AMainGamePlayerController::OnMainGameLook(const FInputActionValue& Value)
 {
@@ -247,12 +311,32 @@ void AMainGamePlayerController::OnLobbyLook(const FInputActionValue& Value)
     AddPitchInput(-LookAxis.Y * LookSensitivity);
 }
 
+void AMainGamePlayerController::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+    if (MainGameWidgetInstance)
+    {
+        MainGameWidgetInstance->InitWidget();
+    }
+
+    TrySendSteamNickname();
+}
+
 void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
 {
     AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
     if(!GM) return;
 
     GM -> HandleBetAction(this, Action);
+}
+
+void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FString& NewNickname)
+{
+    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (!PS) return;
+
+    PS->SetSteamNickname(NewNickname);
 }
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()
@@ -266,4 +350,13 @@ int AMainGamePlayerController::GetPlayerIdSafe()
 {
     const APlayerState* PS = GetPlayerState<APlayerState>();
     return PS ? PS->GetPlayerId() : -1;
+}
+
+void AMainGamePlayerController::OnMainGameTabPressed(const FInputActionValue& Value)
+{
+
+    if (DeckLeftWidgetInstance)
+    {
+        DeckLeftWidgetInstance->VisibleWidget();
+    }
 }

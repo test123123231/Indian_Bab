@@ -49,9 +49,16 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_ReadyPlayerCount, BlueprintReadOnly, Category = "Game State")
 	int32 ReadyPlayerCount;
 
+	// 현재 의자에 앉아 준비를 마친 플레이어 수
+	UPROPERTY(ReplicatedUsing = OnRep_AlivePlayerCount, BlueprintReadOnly, Category = "Game State")
+	int32 AlivePlayerCount;
+
 	// 현재 턴의 플레이어
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentTurnPlayerId, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentTurnPlayerId;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category ="Game State")
+	bool bTurnActionInProgress;
 
 	// 현재 턴의 플레이어의 인덱스(SeatChairArray 인덱스)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game State")
@@ -69,6 +76,10 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBetInfo, BlueprintReadOnly, Category = "Game State")
 	FBetActionInfo CurrentBetInfo;
 
+	//해당 부분에서 카드의 사용/미사용 여부를 저장할 예정
+	UPROPERTY()
+	TArray<bool> CardArray;
+
 
 	// 서버가 GamePhase를 변경할 때 호출
 	void SetGamePhase(EGamePhase NewPhase);
@@ -81,6 +92,9 @@ public:
 
 	// 서버에서 준비 인원 호출
 	void ChangeReadyPlayerCount(int NewReadyCount);
+
+	// 다음 라운드 위한 초기화
+	void SetNextRoundGameState();
 
 
 protected:
@@ -99,6 +113,9 @@ protected:
 	// 클라이언트에서 준비 인원(앉은 인원)이 변경되었을 때 실행
 	UFUNCTION()
 	void OnRep_ReadyPlayerCount();
+
+	UFUNCTION()
+	void OnRep_AlivePlayerCount();
 
 	UFUNCTION()
 	void OnRep_CurrentBulletCount();

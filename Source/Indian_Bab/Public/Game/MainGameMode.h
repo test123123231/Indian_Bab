@@ -3,10 +3,15 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
 #include "Game/MainGameTypes.h"
+#include "CardController/CardData.h"
 #include "MainGameMode.generated.h"
 
 class AMainGamePlayerController;
 class ASeatActor;
+class ALobbyCharacter;
+class AMainGameState;
+class AMainPlayerState;
+class ACardManager;
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
@@ -25,15 +30,33 @@ public:
 	// 베팅 액션 관리
 	void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action);
 
+	// 폴드 베팅 액션
+	void HandleFoldAction(AMainGamePlayerController* RequestPC);
+
+	// 폴드 행동이 끝났을 때
+	void HandleFoldMontageFinished(ALobbyCharacter* Character);
+
 protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수
 	void CheckGameStart();
 
-	// 게임 루프 시작
+	// 게임 루프 시작점(여기로 안 돌아옴)
 	void StartMainGame();
+
+	// 카드 매니저 획득
+	ACardManager* GetCardManager();
+
+	// 플레이어 선택
+	void PickPlayer(int32 CurrentPlayerIndex);
 
 	// 플레이어 랜덤 선택
 	void PickRandomPlayer();
+
+	// 결과 기반 선택
+	void PickByResult();
+
+	// 카드 분배
+	void DistributeCard();
 
 	// 턴 넘기는 타이머
 	void StartTurnTimer(float Time);
@@ -41,10 +64,40 @@ protected:
 	// 턴 제한시간은 넘겼을 때
 	void OnTurnTimerExpired();
 
+	// 활성 인원 업데이트
+	int32 UpdateActivePlayer(AMainGameState* GS);
+
+	// 결과확인 및 승리 플레이어 PS 리턴
+	void CheckPlayerCard();
+
+	// 다음 행동(NextTurn, NextRound, ReStart) 체크 함수
+	void CheckNext();
+
+	// 다음 플레이어 PS Get
+	AMainPlayerState* GetNextPlayerState(int32 CurrentPlayerIndex);
+	
 	// 다음 턴
-	void NextTurn();
+	void NextTurn(AMainPlayerState* NextPS);
+
+	// 다음 라운드
+	void NextRound(AMainGameState* GS);
+
+	// 폴드 인원 초기화
+	void ResetFoldState();
 
 private:
 	FTimerHandle TimerHandle;
+
+	// 베팅 기준점 플레이어
+	int32 CheckPlayer;
+
+	UPROPERTY()
+	TObjectPtr<ACardManager> MainCardManager;
+
+	UPROPERTY()
+	TArray<FCardData> DealtCards;
+
+	// 활성 인원 중에서 가장 큰 값을 가진 플레이어
+	AMainPlayerState* MaxCardPlayer();
 
 };

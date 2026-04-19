@@ -11,6 +11,10 @@
 #include "Actor/Revolver.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Game/MainGameMode.h"
+#include "PlayerState/MainPlayerState.h"
+#include "Widget/PlayerNameWidget.h"
+#include "Components/WidgetComponent.h"
 
 
 // Sets default values
@@ -105,6 +109,13 @@ ALobbyCharacter::ALobbyCharacter()
 	CameraComponent->bEnableFirstPersonScale = true;
 	CameraComponent->FirstPersonFieldOfView = 70.0f;
 	CameraComponent->FirstPersonScale = 0.6f;
+
+	// // 닉네임
+	NameWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidget"));
+	NameWidgetComponent->SetupAttachment(GetRootComponent());
+	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 75.f));
+	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	NameWidgetComponent->SetDrawAtDesiredSize(true);
 }
 
 
@@ -113,14 +124,85 @@ void ALobbyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!IsLocallyControlled())
+	if (!IsLocallyControlled()) return;
+	
+	//MainGamePC = Cast<AMainGamePlayerController>(GetController());
+}
+
+// 서버에서 스팀 닉네임 및 카드 바인딩
+void ALobbyCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	BindPlayerStateDelegates();
+}
+
+// 스팀 닉네임 및 카드 바인딩 함수(PS에서 스팀 닉네임이나 카드 상태 변화하면 Updaate함수 실행)
+void ALobbyCharacter::BindPlayerStateDelegates()
+{
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+	PS->OnSteamNicknameChanged.RemoveAll(this);
+	PS->OnSteamNicknameChanged.AddUObject(this, &ALobbyCharacter::UpdateNameWidget);
+
+	PS->OnCardChanged.RemoveAll(this);
+	PS->OnCardChanged.AddUObject(this, &ALobbyCharacter::UpdateCardWidget);
+
+	UpdateNameWidget();
+	UpdateCardWidget();
+}
+
+void ALobbyCharacter::UpdateNameWidget()
+{
+	if (!NameWidgetComponent) return;
+
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+    UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
+    if (!Widget) return;
+
+	if (IsLocallyControlled())
 	{
+		Widget->SetCardText(TEXT(""));
+		return;
+	}
+
+    FString Name = PS->GetSteamNickname();
+	if (Name.IsEmpty())
+	{
+        Name = TEXT("Unknown");
+	}
+    Widget->SetPlayerName(Name);
+}
+
+void ALobbyCharacter::UpdateCardWidget()
+{
+	if (!NameWidgetComponent) return;
+
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
+    if (!Widget) return;
+
+	if (IsLocallyControlled())
+	{
+		Widget->SetCardText(TEXT(""));
+		return;
+	}
+
+	const FCardData Card = PS->GetMyCard();
+	if (Card.Value == 0)
+	{
+		Widget->SetCardText(TEXT(""));
 		return;
 	}
 	
-	MainGamePC = Cast<AMainGamePlayerController>(GetController());
+	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
+	Widget->SetCardText(CardStr);
 }
-
 
 // Called every frame
 void ALobbyCharacter::Tick(float DeltaTime)
@@ -247,6 +329,10 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 	if (MontageToPlay)
 	{
 		AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &ALobbyCharacter::OnGrabGunMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
 	}
 }
 
@@ -330,6 +416,19 @@ void ALobbyCharacter::OnSitMontageEnded(UAnimMontage* Montage, bool bInterrupted
 	}
 }
 
+void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (bInterrupted) return;
+	if (!HasAuthority()) return;
+	if (GunHoldReason == EGunHoldReason::Fold)
+	{
+		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+		if (!GM) return;
+
+		GM->HandleFoldMontageFinished(this);
+	}
+}
+
 
 void ALobbyCharacter::OnRep_IsSitting()
 {
@@ -365,6 +464,12 @@ void ALobbyCharacter::OnRep_IsSitting()
 	}
 }
 
+void ALobbyCharacter::OnRep_PlayerState()
+{
+    Super::OnRep_PlayerState();
+
+	BindPlayerStateDelegates();
+}
 
 void ALobbyCharacter::Client_LockCameraAfterSit_Implementation(FRotator FinalSitRotation)
 {

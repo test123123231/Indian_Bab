@@ -2,10 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "InputActionValue.h"  
+#include "InputActionValue.h" 
 #include "MainGamePlayerController.generated.h"
 
 class UMainGameWidget;
+class UDeckLeftWidget;
 class UInputMappingContext;
 class UInputAction;
 
@@ -45,12 +46,22 @@ private:
     UFUNCTION(Server, Reliable)
     void Server_RequestBetAction(EBetAction Action);
 
+    UFUNCTION(Server, Reliable)
+    void Server_SetSteamNickname(const FString& NewNickname);
+
 	// 입력 모드 전환 함수
     void EnterUIMode();     // 커서 보이기
     void EnterCameraMode(); // 커서 숨기고 회전
 
+    // 내 스팀 닉네임 읽기
+    FString GetMySteamNickname() const;
+
+    // PS에 닉네임 보내는 함수
+    void TrySendSteamNickname();
+
     // UI 생성/관리
     void CreateMainGameWidget();
+    void CreateDeckLeftWidget();
 
 	// 입력 바인딩 함수
     void OnMainGameLook(const FInputActionValue& Value);
@@ -69,11 +80,20 @@ private:
 
     void OnLobbyLook(const FInputActionValue& Value);
 
+    void OnMainGameTabPressed(const FInputActionValue& Value);
+
+
+    // 플레이어 스테이트 변화 발생 시 실행(위젯에서 플레이어 스테이트 등록 실패 시 재등록)
+    virtual void OnRep_PlayerState() override;
+
     // 감도
     float LookSensitivity = 1.0f;
 
     // 카메라 모드/UI 모드 관리
     bool bRMBHeld = false;
+
+    // PS에 스팀 닉네임이 보내졌는지 확인
+    bool bSteamNicknameSent = false;
 
    	// UI 위젯 클래스와 인스턴스 참조 변수
     UPROPERTY(EditDefaultsOnly, Category="UI")
@@ -81,6 +101,12 @@ private:
 
     UPROPERTY()
     TObjectPtr<UMainGameWidget> MainGameWidgetInstance;
+
+    UPROPERTY(EditDefaultsOnly, Category="UI")
+    TSubclassOf<UDeckLeftWidget> DeckLeftWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UDeckLeftWidget> DeckLeftWidgetInstance;
 
     // Input 관리
     UPROPERTY(EditDefaultsOnly, Category="Input")
@@ -109,5 +135,8 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_LobbyLook;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_MainGameTab;
 
 };

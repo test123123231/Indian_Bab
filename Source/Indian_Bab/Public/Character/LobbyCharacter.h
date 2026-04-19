@@ -13,6 +13,7 @@ class UCameraComponent;
 class UGroomComponent;
 class ASeatActor;
 class ARevolver;
+class UWidgetComponent;
 
 
 UCLASS()
@@ -108,6 +109,18 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
 	float ReplicatedAimYaw = 0.0f;
 
+	// 서버에서 스팀 닉네임 및 카드 바인딩
+	virtual void PossessedBy(AController* NewController) override;
+
+	// 스팀 닉네임 및 카드 바인딩 함수
+	void BindPlayerStateDelegates();
+
+	UFUNCTION()
+	void UpdateNameWidget();
+
+	UFUNCTION()
+	void UpdateCardWidget();
+
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateAimYaw(float NewYaw);
 
@@ -145,9 +158,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
 	float InteractRange = 250.0f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PlayerNameWidget")
+	TObjectPtr<UWidgetComponent> NameWidgetComponent;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	virtual void OnRep_PlayerState() override;
 
 	// 상호작용 입력 처리 함수
 	void OnInteract(const FInputActionValue& Value);
@@ -163,8 +181,12 @@ protected:
 	UFUNCTION()
 	void OnSitMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+	// 총 쏘는 몽타주가 끝났을 때 서버에서 호출될 콜백 함수
+	UFUNCTION()
+	void OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+
 private:
-	TObjectPtr<AMainGamePlayerController> MainGamePC;
+	//TObjectPtr<AMainGamePlayerController> MainGamePC;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
