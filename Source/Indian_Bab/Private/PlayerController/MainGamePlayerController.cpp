@@ -92,6 +92,11 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             EnhancedInput->BindAction(IA_MainGameTab, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameTabPressed);
         }
+
+        if (IA_Fire)
+        {
+            EnhancedInputComponent->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnFire);
+        }
     }
 }
 
@@ -359,4 +364,9 @@ void AMainGamePlayerController::OnMainGameTabPressed(const FInputActionValue& Va
     {
         DeckLeftWidgetInstance->VisibleWidget();
     }
+}
+
+void AMainGamePlayerController::OnFire(const FInputActionValue& Value)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[PC] Space Fire Input"));
 }

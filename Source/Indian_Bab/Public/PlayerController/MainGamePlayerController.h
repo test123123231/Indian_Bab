@@ -82,6 +82,8 @@ private:
 
     void OnMainGameTabPressed(const FInputActionValue& Value);
 
+    void OnFire(const FInputActionValue& Value);
+
 
     // 플레이어 스테이트 변화 발생 시 실행(위젯에서 플레이어 스테이트 등록 실패 시 재등록)
     virtual void OnRep_PlayerState() override;
@@ -139,4 +141,6 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_MainGameTab;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_Fire;
 };
