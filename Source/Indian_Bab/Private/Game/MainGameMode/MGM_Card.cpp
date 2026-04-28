@@ -8,7 +8,7 @@
 #include "PlayerState/MainPlayerState.h"
 
 // 카드 매니저 획득
-ACardManager* AMainGameMode::GetCardManager()
+TObjectPtr<ACardManager> AMainGameMode::GetCardManager()
 {
     if (!MainCardManager)
     {
@@ -59,14 +59,19 @@ void AMainGameMode::CheckPlayerCard()
 
 	GS->SetGamePhase(EGamePhase::Result);
 
-    AMainPlayerState* WinPS = MaxCardPlayer();
-    UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), WinPS -> GetPlayerId(), WinPS->GetMyCard().Value, *WinPS->GetMyCard().Suit);
+    CurrentWinnerPS = MaxCardPlayer();
+	if(!CurrentWinnerPS)
+	{
+		NextRound(GS);
+        return;
+	}
+    UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
 
-    return;
+	StartMainShotPhase(CurrentWinnerPS);
 }
 
 // 활성 인원 중에서 가장 큰 값을 가진 플레이어
-AMainPlayerState* AMainGameMode::MaxCardPlayer()
+TObjectPtr<AMainPlayerState> AMainGameMode::MaxCardPlayer()
 {
     AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return nullptr;

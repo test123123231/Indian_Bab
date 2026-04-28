@@ -111,7 +111,7 @@ int32 AMainGameMode::UpdateActivePlayer(AMainGameState* GS)
 
 // 다음 플레이어 Get
 // MainPlayerState* 리턴 및 GS의 CurrentPlayerIndex 업데이트
-AMainPlayerState* AMainGameMode::GetNextPlayerState(int32 CurrentPlayerIndex)
+TObjectPtr<AMainPlayerState> AMainGameMode::GetNextPlayerState(int32 CurrentPlayerIndex)
 {
 	if (!HasAuthority()) return nullptr;
 

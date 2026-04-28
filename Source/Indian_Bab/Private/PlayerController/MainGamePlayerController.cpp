@@ -344,6 +344,14 @@ void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FSt
     PS->SetSteamNickname(NewNickname);
 }
 
+void AMainGamePlayerController::Server_RequestMainRevolverShot_Implementation()
+{
+    AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+	if (!GM) return;
+
+	GM->HandleMainRevolverShotAction(this);
+}
+
 void AMainGamePlayerController::ClientOnSeated_Implementation()
 {
     // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
@@ -368,5 +376,5 @@ void AMainGamePlayerController::OnMainGameTabPressed(const FInputActionValue& Va
 
 void AMainGamePlayerController::OnFire(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[PC] Space Fire Input"));
+	Server_RequestMainRevolverShot();
 }

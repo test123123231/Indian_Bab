@@ -160,9 +160,7 @@ void AMainGameMode::CheckNext()
 	// CheckPlayer와 다음 플레이어가 동일 할 때 
 	if(CheckPlayer == NextPS -> GetPlayerId())
 	{
-		// 추후 결과 확인 구현
 		CheckPlayerCard();
-		NextRound(GS);
 		return;
 	}
 	//CheckPlayer와 다음 플레이어가 다를 때
@@ -171,6 +169,42 @@ void AMainGameMode::CheckNext()
 		NextTurn(NextPS);
 		return;
 	}
+}
+
+// 격발 페이즈 시작
+void AMainGameMode::StartMainShotPhase(AMainPlayerState* WinnerPS)
+{
+	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS || !WinnerPS) return;
+
+	CurrentWinnerPS = WinnerPS;
+	UE_LOG(LogTemp, Warning, TEXT("[GM] WinShot Phase Start. Winner=%d, Shots=%d"), CurrentWinnerPS->GetPlayerId(), GS -> CurrentBulletCount);
+
+	if (GS -> CurrentBulletCount <= 0)
+	{
+		FinishMainShotPhase();
+		return;
+	}
+
+	StartMainshotTimer(10.0f);
+}
+
+// 격발 페이즈 끝
+void AMainGameMode::FinishMainShotPhase()
+{
+    if (!HasAuthority()) return;
+
+    GetWorldTimerManager().ClearTimer(TimerHandle);
+
+    AMainGameState* GS = GetGameState<AMainGameState>();
+    if (!GS) return;
+
+    CurrentWinnerPS = nullptr;
+	GS -> CurrentBulletCount = 0;
+
+    NextRound(GS);
 }
 
 // 다음 턴으로

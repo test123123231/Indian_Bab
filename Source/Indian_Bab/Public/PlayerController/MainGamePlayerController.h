@@ -49,6 +49,9 @@ private:
     UFUNCTION(Server, Reliable)
     void Server_SetSteamNickname(const FString& NewNickname);
 
+    UFUNCTION(Server, Reliable)
+    void Server_RequestMainRevolverShot();
+
 	// 입력 모드 전환 함수
     void EnterUIMode();     // 커서 보이기
     void EnterCameraMode(); // 커서 숨기고 회전

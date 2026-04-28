@@ -33,6 +33,9 @@ public:
 	// 폴드 베팅 액션
 	void HandleFoldAction(AMainGamePlayerController* RequestPC);
 
+	// 메인 리볼버 격발 액션
+	void HandleMainRevolverShotAction(AMainGamePlayerController* RequestPC);
+
 	// 폴드 행동이 끝났을 때
 	void HandleFoldMontageFinished(ALobbyCharacter* Character);
 
@@ -44,7 +47,7 @@ protected:
 	void StartMainGame();
 
 	// 카드 매니저 획득
-	ACardManager* GetCardManager();
+	TObjectPtr<ACardManager> GetCardManager();
 
 	// 플레이어 선택
 	void PickPlayer(int32 CurrentPlayerIndex);
@@ -64,6 +67,21 @@ protected:
 	// 턴 제한시간은 넘겼을 때
 	void OnTurnTimerExpired();
 
+	// 격발 페이즈 시작
+	void StartMainShotPhase(AMainPlayerState* WinnerPS);
+
+	// 격발 페이즈 끝
+	void FinishMainShotPhase();
+
+	// 메인 리볼버 격발 시간 타이머
+	void StartMainshotTimer(float Time);
+
+	// 메인 리볼버 격발 시간 넘겼을 때
+	void OnMainShotTimerExpired();
+
+	// 메인 리볼버 격발 실행
+	void ExecuteMainShot(bool bAutoFire);
+
 	// 활성 인원 업데이트
 	int32 UpdateActivePlayer(AMainGameState* GS);
 
@@ -74,7 +92,7 @@ protected:
 	void CheckNext();
 
 	// 다음 플레이어 PS Get
-	AMainPlayerState* GetNextPlayerState(int32 CurrentPlayerIndex);
+	TObjectPtr<AMainPlayerState> GetNextPlayerState(int32 CurrentPlayerIndex);
 	
 	// 다음 턴
 	void NextTurn(AMainPlayerState* NextPS);
@@ -91,13 +109,19 @@ private:
 	// 베팅 기준점 플레이어
 	int32 CheckPlayer;
 
+	// 카드 관리
 	UPROPERTY()
 	TObjectPtr<ACardManager> MainCardManager;
 
+	// 분배된 카드 배열
 	UPROPERTY()
 	TArray<FCardData> DealtCards;
 
+	// 승리 플레이어 PS
+	UPROPERTY()
+	TObjectPtr<AMainPlayerState> CurrentWinnerPS;
+
 	// 활성 인원 중에서 가장 큰 값을 가진 플레이어
-	AMainPlayerState* MaxCardPlayer();
+	TObjectPtr<AMainPlayerState> MaxCardPlayer();
 
 };
