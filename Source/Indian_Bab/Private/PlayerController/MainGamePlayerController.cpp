@@ -95,7 +95,7 @@ void AMainGamePlayerController::SetupInputComponent()
 
         if (IA_Fire)
         {
-            EnhancedInputComponent->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnFire);
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnFire);
         }
     }
 }
