@@ -164,11 +164,5 @@ void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 
 	//  TODO 라인 트레이스 및 사망처리
 
-	if (GS -> CurrentBulletCount  <= 0)
-	{
-		FinishMainShotPhase();
-		return;
-	}
-
-	StartMainshotTimer(10.0f);
+	ManageShotPhase();
 }

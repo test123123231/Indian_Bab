@@ -149,7 +149,7 @@ void AMainGameMode::CheckNext()
 	if(ActivePlayer <= 1)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Betting round ended: only one active player left"));
-		NextRound(GS);
+		NextRound();
 		return;
 	}
 
@@ -161,6 +161,7 @@ void AMainGameMode::CheckNext()
 	if(CheckPlayer == NextPS -> GetPlayerId())
 	{
 		CheckPlayerCard();
+		ManageShotPhase();
 		return;
 	}
 	//CheckPlayer와 다음 플레이어가 다를 때
@@ -171,27 +172,30 @@ void AMainGameMode::CheckNext()
 	}
 }
 
-// 격발 페이즈 시작
-void AMainGameMode::StartMainShotPhase(AMainPlayerState* WinnerPS)
+//격발 페이즈 관리
+void AMainGameMode::ManageShotPhase()
 {
-	if (!HasAuthority()) return;
-
 	AMainGameState* GS = GetGameState<AMainGameState>();
-	if (!GS || !WinnerPS) return;
+    if (!GS) return;
 
-	CurrentWinnerPS = WinnerPS;
-	UE_LOG(LogTemp, Warning, TEXT("[GM] WinShot Phase Start. Winner=%d, Shots=%d"), CurrentWinnerPS->GetPlayerId(), GS -> CurrentBulletCount);
-
-	if (GS -> CurrentBulletCount <= 0)
-	{
+    if (GS->CurrentGamePhase != EGamePhase::Result || !CurrentWinnerPS)
+    {
 		FinishMainShotPhase();
-		return;
-	}
+        return;
+    }
 
-	StartMainshotTimer(10.0f);
+    if (GS -> CurrentBulletCount <= 0)
+    {
+        FinishMainShotPhase();
+        return;
+    }
+	else
+	{
+		StartMainshotTimer(10.0f);
+	}
 }
 
-// 격발 페이즈 끝
+// 격발 페이즈 종료 후 정리
 void AMainGameMode::FinishMainShotPhase()
 {
     if (!HasAuthority()) return;
@@ -204,7 +208,7 @@ void AMainGameMode::FinishMainShotPhase()
     CurrentWinnerPS = nullptr;
 	GS -> CurrentBulletCount = 0;
 
-    NextRound(GS);
+    NextRound();
 }
 
 // 다음 턴으로
@@ -221,9 +225,12 @@ void AMainGameMode::NextTurn(AMainPlayerState* NextPS)
 }
 
 // 다음 라운드로 넘기는 함수
-void AMainGameMode::NextRound(AMainGameState* GS)
+void AMainGameMode::NextRound()
 {
 	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+    if (!GS) return;
 	
 	//타이머 정리
 	GetWorldTimerManager().ClearTimer(TimerHandle);

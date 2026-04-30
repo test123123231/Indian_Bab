@@ -67,10 +67,10 @@ protected:
 	// 턴 제한시간은 넘겼을 때
 	void OnTurnTimerExpired();
 
-	// 격발 페이즈 시작
-	void StartMainShotPhase(AMainPlayerState* WinnerPS);
+	// 격발 페이즈 관리
+	void ManageShotPhase();
 
-	// 격발 페이즈 끝
+	// 격발 페이즈 종료 후 정리
 	void FinishMainShotPhase();
 
 	// 메인 리볼버 격발 시간 타이머
@@ -98,7 +98,7 @@ protected:
 	void NextTurn(AMainPlayerState* NextPS);
 
 	// 다음 라운드
-	void NextRound(AMainGameState* GS);
+	void NextRound();
 
 	// 폴드 인원 초기화
 	void ResetFoldState();

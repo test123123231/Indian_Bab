@@ -52,6 +52,7 @@ void AMainGameMode::DistributeCard()
 }
 
 // 게임 결과 확인
+// CurrentWinnerPS 업데이트
 void AMainGameMode::CheckPlayerCard()
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
@@ -60,14 +61,9 @@ void AMainGameMode::CheckPlayerCard()
 	GS->SetGamePhase(EGamePhase::Result);
 
     CurrentWinnerPS = MaxCardPlayer();
-	if(!CurrentWinnerPS)
-	{
-		NextRound(GS);
-        return;
-	}
-    UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
+	if(!CurrentWinnerPS) return;
 
-	StartMainShotPhase(CurrentWinnerPS);
+    UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
 }
 
 // 활성 인원 중에서 가장 큰 값을 가진 플레이어
