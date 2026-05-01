@@ -39,6 +39,9 @@ public:
 	// 폴드 행동이 끝났을 때
 	void HandleFoldMontageFinished(ALobbyCharacter* Character);
 
+	// 메인 리볼버 가져오는 애니메이션 끝났을 때
+	void HandleMainMontageFinished(ALobbyCharacter* Character);
+
 protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수
 	void CheckGameStart();

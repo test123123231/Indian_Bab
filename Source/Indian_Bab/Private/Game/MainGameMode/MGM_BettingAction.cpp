@@ -141,6 +141,18 @@ void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 	CheckNext();
 }
 
+// 메인 리볼버 줍는 애니메이션 끝났을 때 호출
+void AMainGameMode::HandleMainMontageFinished(ALobbyCharacter* Character)
+{
+	if (!HasAuthority()) return;
+	if (!Character) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if(!GS) return;
+
+	ManageShotPhase();
+}
+
 void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 {
 	if (!HasAuthority()) return;

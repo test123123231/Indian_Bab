@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
+#include "PlayerController/MainGamePlayerController.h"
 
 // 카드 매니저 획득
 TObjectPtr<ACardManager> AMainGameMode::GetCardManager()
@@ -64,6 +65,12 @@ void AMainGameMode::CheckPlayerCard()
 	if(!CurrentWinnerPS) return;
 
     UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
+	
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
+	if (!PC) return;
+
+	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+	WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
 }
 
 // 활성 인원 중에서 가장 큰 값을 가진 플레이어

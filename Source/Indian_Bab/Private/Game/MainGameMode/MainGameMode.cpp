@@ -161,7 +161,6 @@ void AMainGameMode::CheckNext()
 	if(CheckPlayer == NextPS -> GetPlayerId())
 	{
 		CheckPlayerCard();
-		ManageShotPhase();
 		return;
 	}
 	//CheckPlayer와 다음 플레이어가 다를 때

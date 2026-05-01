@@ -427,6 +427,13 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 
 		GM->HandleFoldMontageFinished(this);
 	}
+	else if(GunHoldReason == EGunHoldReason::Win)
+	{
+		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+		if (!GM) return;
+
+		GM->HandleMainMontageFinished(this);
+	}
 }
 
 
