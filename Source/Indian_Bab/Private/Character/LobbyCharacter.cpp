@@ -216,7 +216,7 @@ void ALobbyCharacter::Tick(float DeltaTime)
 		{
 			// (현재 마우스 좌우 방향) - (의자에 안착한 캡슐의 고정된 방향) = 순수하게 목이 돌아간 각도
 			float YawDifference = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, PC->GetControlRotation().Yaw);
-			UE_LOG(LogTemp, Log, TEXT("YawDifference: %f"), YawDifference);
+			//UE_LOG(LogTemp, Log, TEXT("YawDifference: %f"), YawDifference);
 			// 내 화면을 위해 로컬 변수 즉시 업데이트
 			ReplicatedAimYaw = YawDifference;
 
@@ -329,9 +329,37 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 	if (MontageToPlay)
 	{
 		AnimInstance->Montage_Play(MontageToPlay, 1.0f);
-
 		FOnMontageEnded EndDelegate;
 		EndDelegate.BindUObject(this, &ALobbyCharacter::OnGrabGunMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
+	}
+}
+
+void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason Reason)
+{
+    UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+    if (!AnimInstance)
+    {
+        return;
+    }
+
+    UAnimMontage* MontageToPlay = nullptr;
+
+    if (Reason == EGunHoldReason::Fold)
+    {
+        MontageToPlay = EndAimMyselfMontage;
+    }
+    else if (Reason == EGunHoldReason::Win)
+    {
+        MontageToPlay = WinEndMontage;
+    }
+
+    if (MontageToPlay)
+	{
+		PendingPutBackReason = Reason;
+		AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &ALobbyCharacter::OnPutBackGunMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
 	}
 }
@@ -371,6 +399,33 @@ void ALobbyCharacter::AttachRevolverToSocket()
 	TP_RevolverMesh->SetVisibility(true);
 }
 
+void ALobbyCharacter::ReturnRevolverToDesk()
+{
+    if (!DeskRevolver) return;
+
+    // 1. 손에 들고 있던 1인칭 리볼버 메시 숨김
+    if (FP_RevolverMesh)
+    {
+        FP_RevolverMesh->SetVisibility(false);
+        FP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+    }
+
+    // 2. 손에 들고 있던 3인칭 리볼버 메시 숨김
+    if (TP_RevolverMesh)
+    {
+        TP_RevolverMesh->SetVisibility(false);
+        TP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+    }
+
+    // 3. 책상 위 원래 리볼버 다시 보이게 함
+    DeskRevolver->SetActorHiddenInGame(false);
+
+    // 4. 다시 상호작용 가능하게 콜리전 복구
+    if (DeskRevolver->CollisionSphere)
+    {
+        DeskRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+    }
+}
 
 void ALobbyCharacter::StartSitTransition(ASeatActor* TargetSeat)
 {
@@ -425,6 +480,7 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 		if (!GM) return;
 
+		GunHoldReason = EGunHoldReason::None;
 		GM->HandleFoldMontageFinished(this);
 	}
 	else if(GunHoldReason == EGunHoldReason::Win)
@@ -432,10 +488,24 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 		if (!GM) return;
 
+		GunHoldReason = EGunHoldReason::None;
 		GM->HandleMainMontageFinished(this);
 	}
 }
 
+void ALobbyCharacter::OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (bInterrupted) return;
+	if (!HasAuthority()) return;
+
+	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+	if (!GM) return;
+
+	const EGunHoldReason FinishedReason = PendingPutBackReason;
+	PendingPutBackReason = EGunHoldReason::None;
+
+	GM->HandlePutBackGunMontageFinished(this, FinishedReason);
+}
 
 void ALobbyCharacter::OnRep_IsSitting()
 {

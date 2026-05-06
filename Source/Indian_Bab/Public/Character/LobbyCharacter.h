@@ -97,9 +97,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<UAnimMontage> AimMyselfMontage;
 
+	// Fold 격발 끝나고 돌려두는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> EndAimMyselfMontage;
+
 	// 승리 시 총을 겨냥하는 애니메이션 몽타주 (BP에서 할당)
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<UAnimMontage> WinAimMontage;
+
+	// 승리 후 총을 격발 후 되돌리는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> WinEndMontage;
 
 	// 총을 집어든 이유 - ABP 스테이트 머신 트랜지션 판별용 (Replicated)
 	UPROPERTY(ReplicatedUsing = OnRep_GunHoldReason, BlueprintReadOnly, Category = "State")
@@ -131,6 +139,10 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_PlayGrabGunMontage(EGunHoldReason Reason);
 
+	// 총 원래 위치로 보내는 몽타주 재생 (Fold/Win 공통)
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PutBackGunMontage(EGunHoldReason Reason);
+
 	// 이 캐릭터 자리에 놓인 리볼버 (SeatActor 착석 시 할당, Replicated)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<ARevolver> DeskRevolver;
@@ -145,6 +157,9 @@ public:
 
 	// AnimNotify_GrabRevolver 에서 호출 - 책상 리볼버를 숨기고 FP/TP 메시를 소켓에 부착
 	void AttachRevolverToSocket();
+
+	// AnimNotify_ReturnRevolverToDesk에서 호출 - 손 리볼버 메시를 숨기고 책상 리볼버를 다시 보이게 함
+	void ReturnRevolverToDesk();
 
 	// ★ 추가: 현재 캐릭터가 앉아있는지 여부 (동기화 됨)
 	UPROPERTY(ReplicatedUsing = OnRep_IsSitting, BlueprintReadOnly, Category = "State")
@@ -185,13 +200,16 @@ protected:
 	UFUNCTION()
 	void OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-private:
-	//TObjectPtr<AMainGamePlayerController> MainGamePC;
+	UFUNCTION()
+	void OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
 
 	// 현재 상호작용 중인 의자 캐싱
 	UPROPERTY()
 	TObjectPtr<ASeatActor> CurrentSeat;
+
+	EGunHoldReason PendingPutBackReason = EGunHoldReason::None;
 };

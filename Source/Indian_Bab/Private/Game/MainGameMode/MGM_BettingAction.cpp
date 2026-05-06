@@ -60,6 +60,12 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 
 	AMainPlayerState* PS = RequestPC->GetPlayerState<AMainPlayerState>();
 	if (!PS) return;
+	
+	if (CheckPlayer == PS->GetPlayerId())
+	{
+		bCheckPlayerFolded = true;
+	}
+
 
 	PS->isFold = true;
 
@@ -132,13 +138,13 @@ void AMainGameMode::HandleMainRevolverShotAction(AMainGamePlayerController* Requ
 // 폴드 애니메이션 끝났을 때 호출
 void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 {
-	if (!HasAuthority()) return;
-	if (!Character) return;
+    if (!HasAuthority()) return;
+    if (!Character) return;
 
-	AMainGameState* GS = GetGameState<AMainGameState>();
-	if(!GS) return;
-
-	CheckNext();
+    AMainGameState* GS = GetGameState<AMainGameState>();
+    if (!GS) return;
+	
+    Character->Multicast_PutBackGunMontage(EGunHoldReason::Fold);
 }
 
 // 메인 리볼버 줍는 애니메이션 끝났을 때 호출
@@ -151,6 +157,30 @@ void AMainGameMode::HandleMainMontageFinished(ALobbyCharacter* Character)
 	if(!GS) return;
 
 	ManageShotPhase();
+}
+
+// 자기 머리에 쏜 이후
+void AMainGameMode::HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason)
+{
+	if (!HasAuthority()) return;
+	if (!Character) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
+
+	if (Reason == EGunHoldReason::Fold)
+	{
+		CheckNext();
+		return;
+	}
+
+	if (Reason == EGunHoldReason::Win)
+	{
+		// 승리자가 메인 리볼버를 되돌린 뒤 다음 처리.
+		// 현재 구조에서는 ManageShotPhase() 또는 FinishMainShotPhase() 중 하나가 필요함.
+		ManageShotPhase();
+		return;
+	}
 }
 
 void AMainGameMode::ExecuteMainShot(bool bAutoFire)

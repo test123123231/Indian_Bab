@@ -36,11 +36,14 @@ public:
 	// 메인 리볼버 격발 액션
 	void HandleMainRevolverShotAction(AMainGamePlayerController* RequestPC);
 
-	// 폴드 행동이 끝났을 때
+	// 자기 머리에 겨냥했을 때
 	void HandleFoldMontageFinished(ALobbyCharacter* Character);
 
 	// 메인 리볼버 가져오는 애니메이션 끝났을 때
 	void HandleMainMontageFinished(ALobbyCharacter* Character);
+
+	// 자기 머리에 쏜 이후
+	void HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason);
 
 protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수
@@ -126,5 +129,7 @@ private:
 
 	// 활성 인원 중에서 가장 큰 값을 가진 플레이어
 	TObjectPtr<AMainPlayerState> MaxCardPlayer();
+
+	bool bCheckPlayerFolded = false;
 
 };

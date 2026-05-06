@@ -156,6 +156,13 @@ void AMainGameMode::CheckNext()
 	// 다음 플레이어 PS 획득
 	AMainPlayerState* NextPS = GetNextPlayerState(GS->CurrentPlayerIndex);
 	if(!NextPS) return;
+	if (bCheckPlayerFolded)
+	{
+		CheckPlayer = NextPS->GetPlayerId();
+		bCheckPlayerFolded = false;
+		NextTurn(NextPS);
+		return;
+	}
 
 	// CheckPlayer와 다음 플레이어가 동일 할 때 
 	if(CheckPlayer == NextPS -> GetPlayerId())
