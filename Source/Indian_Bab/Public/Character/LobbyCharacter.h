@@ -176,6 +176,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PlayerNameWidget")
 	TObjectPtr<UWidgetComponent> NameWidgetComponent;
 
+	UPROPERTY(BlueprintReadOnly, Category = "State")
+	bool bIsPuttingBackGun = false;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -211,5 +214,5 @@ private:
 	UPROPERTY()
 	TObjectPtr<ASeatActor> CurrentSeat;
 
-	EGunHoldReason PendingPutBackReason = EGunHoldReason::None;
+	EGunHoldReason FinishedReason;
 };

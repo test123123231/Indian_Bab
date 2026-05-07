@@ -159,7 +159,7 @@ void AMainGameMode::HandleMainMontageFinished(ALobbyCharacter* Character)
 	ManageShotPhase();
 }
 
-// 자기 머리에 쏜 이후
+// 리볼버 격발 끝난 후(폴드나 게임 후)
 void AMainGameMode::HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason)
 {
 	if (!HasAuthority()) return;
@@ -176,8 +176,6 @@ void AMainGameMode::HandlePutBackGunMontageFinished(ALobbyCharacter* Character, 
 
 	if (Reason == EGunHoldReason::Win)
 	{
-		// 승리자가 메인 리볼버를 되돌린 뒤 다음 처리.
-		// 현재 구조에서는 ManageShotPhase() 또는 FinishMainShotPhase() 중 하나가 필요함.
 		ManageShotPhase();
 		return;
 	}
