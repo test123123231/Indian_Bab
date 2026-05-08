@@ -192,7 +192,7 @@ void AMainGameMode::ManageShotPhase()
 
     if (GS -> CurrentBulletCount <= 0)
     {
-        FinishMainShotPhase();
+        StartMainRevolverPutBack();
         return;
     }
 	else

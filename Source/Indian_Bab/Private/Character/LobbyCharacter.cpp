@@ -251,6 +251,7 @@ void ALobbyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(ALobbyCharacter, GunHoldReason);
 	DOREPLIFETIME(ALobbyCharacter, DeskRevolver);
 	DOREPLIFETIME(ALobbyCharacter, ReplicatedAimYaw);
+	DOREPLIFETIME(ALobbyCharacter, ActiveRevolver);
 }
 
 
@@ -371,14 +372,23 @@ void ALobbyCharacter::OnRep_GunHoldReason()
 
 void ALobbyCharacter::AttachRevolverToSocket()
 {
-	if (!DeskRevolver) return;
+	ARevolver* RevolverToAttach = ActiveRevolver ? ActiveRevolver.Get() : DeskRevolver.Get();
+	UE_LOG(LogTemp, Warning,
+		TEXT("[AttachRevolverToSocket] Char=%s Active=%s Desk=%s Attach=%s"),
+		*GetName(),
+		*GetNameSafe(ActiveRevolver),
+		*GetNameSafe(DeskRevolver),
+		*GetNameSafe(RevolverToAttach)
+	);
+
+	if (!RevolverToAttach) return;
 
 	// 1) 책상 위 리볼버 Prop 숨기기 + 콜리전 제거
-	DeskRevolver->SetActorHiddenInGame(true);
-	DeskRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	RevolverToAttach->SetActorHiddenInGame(true);
+	RevolverToAttach->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	// 2) 책상 리볼버와 동일한 스켈레탈 메시 에셋을 FP/TP 컴포넌트에 복사
-	USkeletalMesh* RevolverMeshAsset = DeskRevolver->WeaponMesh->GetSkeletalMeshAsset();
+	USkeletalMesh* RevolverMeshAsset = RevolverToAttach->WeaponMesh->GetSkeletalMeshAsset();
 	FP_RevolverMesh->SetSkeletalMeshAsset(RevolverMeshAsset);
 	TP_RevolverMesh->SetSkeletalMeshAsset(RevolverMeshAsset);
 
@@ -401,6 +411,8 @@ void ALobbyCharacter::AttachRevolverToSocket()
 
 void ALobbyCharacter::ReturnRevolverToDesk()
 {
+	ARevolver* RevolverToReturn = ActiveRevolver ? ActiveRevolver.Get() : DeskRevolver.Get();
+
 	if (FP_RevolverMesh)
 	{
 		FP_RevolverMesh->SetVisibility(false);
@@ -413,12 +425,12 @@ void ALobbyCharacter::ReturnRevolverToDesk()
 		TP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
 	}
 
-	if (!DeskRevolver) return;
-	DeskRevolver->SetActorHiddenInGame(false);
+	if (!RevolverToReturn) return;
+	RevolverToReturn->SetActorHiddenInGame(false);
 
-	if (DeskRevolver->CollisionSphere)
+	if (RevolverToReturn->CollisionSphere)
 	{
-		DeskRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		RevolverToReturn->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	}
 }
 
@@ -584,4 +596,12 @@ void ALobbyCharacter::Client_PrepareSit_Implementation(FVector TargetLocation, F
 void ALobbyCharacter::Server_UpdateAimYaw_Implementation(float NewYaw)
 {
 	ReplicatedAimYaw = NewYaw; // 서버가 값을 받아서 모든 클라이언트에게 자동 전파
+}
+
+void ALobbyCharacter::SetActiveRevolver(ARevolver* NewRevolver)
+{
+	if (!HasAuthority()) return;
+
+	ActiveRevolver = NewRevolver;
+	ForceNetUpdate();
 }

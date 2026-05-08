@@ -12,6 +12,7 @@ class ALobbyCharacter;
 class AMainGameState;
 class AMainPlayerState;
 class ACardManager;
+class ARevolver;
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
@@ -127,9 +128,19 @@ private:
 	UPROPERTY()
 	TObjectPtr<AMainPlayerState> CurrentWinnerPS;
 
+	// 메인 리볼버
+	UPROPERTY()
+	TObjectPtr<ARevolver> MainRevolver;
+
 	// 활성 인원 중에서 가장 큰 값을 가진 플레이어
 	TObjectPtr<AMainPlayerState> MaxCardPlayer();
 
+	ARevolver* GetMainRevolver();
+
 	bool bCheckPlayerFolded = false;
+
+	bool bMainRevolverPutBackInProgress = false;
+
+	void StartMainRevolverPutBack();
 
 };

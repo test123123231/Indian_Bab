@@ -3,7 +3,6 @@
 #include "Kismet/GameplayStatics.h"
 #include "Character/LobbyCharacter.h"
 #include "Actor/SeatActor.h"
-#include "Kismet/GameplayStatics.h"
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
 #include "PlayerController/MainGamePlayerController.h"
@@ -64,12 +63,21 @@ void AMainGameMode::CheckPlayerCard()
     CurrentWinnerPS = MaxCardPlayer();
 	if(!CurrentWinnerPS) return;
 
-    UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
+    UE_LOG(LogTemp, Warning, TEXT("[GM] Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
 	
 	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
 	if (!PC) return;
 
 	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+	ARevolver* Revolver = GetMainRevolver();
+	if (!Revolver) 
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is NULL"));
+		return;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
+
+	WinnerCharacter->SetActiveRevolver(Revolver);
 	WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
 }
 

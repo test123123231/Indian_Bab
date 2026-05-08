@@ -3,6 +3,8 @@
 #include "PlayerController/MainGamePlayerController.h"
 #include "Character/LobbyCharacter.h"
 #include "PlayerState/MainPlayerState.h"
+#include "Actor/Revolver.h"
+#include "Kismet/GameplayStatics.h"
 
 void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action)
 {
@@ -72,6 +74,7 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 	ALobbyCharacter* Character = Cast<ALobbyCharacter>(RequestPC->GetPawn());
 	if (Character)
 	{
+		Character->SetActiveRevolver(Character->DeskRevolver);
 		Character->Multicast_PlayGrabGunMontage(EGunHoldReason::Fold);
 	}
 
@@ -128,7 +131,7 @@ void AMainGameMode::HandleMainRevolverShotAction(AMainGamePlayerController* Requ
 
 	if (GS -> CurrentBulletCount <= 0)
 	{
-		FinishMainShotPhase();
+		StartMainRevolverPutBack();
 		return;
 	}
 
@@ -176,11 +179,11 @@ void AMainGameMode::HandlePutBackGunMontageFinished(ALobbyCharacter* Character, 
 
 	if (Reason == EGunHoldReason::Win)
 	{
-		ManageShotPhase();
+		bMainRevolverPutBackInProgress = false;
+		FinishMainShotPhase();
 		return;
 	}
 }
-
 void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 {
 	if (!HasAuthority()) return;
@@ -203,6 +206,86 @@ void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 	GS -> CurrentBulletCount -= 1;
 
 	//  TODO 라인 트레이스 및 사망처리
+	
+	if (GS->CurrentBulletCount <= 0)
+	{
+		StartMainRevolverPutBack();
+		return;
+	}
 
 	ManageShotPhase();
+}
+
+ARevolver* AMainGameMode::GetMainRevolver()
+{
+	if (MainRevolver)
+	{
+		return MainRevolver;
+	}
+
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsWithTag(
+		GetWorld(),
+		FName("MainRevolver"),
+		FoundActors
+	);
+
+	if (FoundActors.Num() <= 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GM] MainRevolver not found in map"));
+		return nullptr;
+	}
+
+	MainRevolver = Cast<ARevolver>(FoundActors[0]);
+
+	if (!MainRevolver)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GM] Found actor has MainRevolver tag but is not ARevolver"));
+		return nullptr;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver found: %s"), *GetNameSafe(MainRevolver));
+
+	return MainRevolver;
+}
+
+void AMainGameMode::StartMainRevolverPutBack()
+{
+	if (!HasAuthority()) return;
+
+	if (bMainRevolverPutBackInProgress) return;
+
+	bMainRevolverPutBackInProgress = true;
+
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+
+	if (!CurrentWinnerPS)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GM] StartMainRevolverPutBack failed: CurrentWinnerPS is NULL"));
+		bMainRevolverPutBackInProgress = false;
+		FinishMainShotPhase();
+		return;
+	}
+
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
+	if (!PC)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GM] StartMainRevolverPutBack failed: Winner PC is NULL"));
+		bMainRevolverPutBackInProgress = false;
+		FinishMainShotPhase();
+		return;
+	}
+
+	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+	if (!WinnerCharacter)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[GM] StartMainRevolverPutBack failed: WinnerCharacter is NULL"));
+		bMainRevolverPutBackInProgress = false;
+		FinishMainShotPhase();
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Start Main Revolver PutBack"));
+
+	WinnerCharacter->Multicast_PutBackGunMontage(EGunHoldReason::Win);
 }

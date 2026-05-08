@@ -146,6 +146,11 @@ public:
 	// 이 캐릭터 자리에 놓인 리볼버 (SeatActor 착석 시 할당, Replicated)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<ARevolver> DeskRevolver;
+	
+	// 현재 애니메이션에서 손에 붙일 리볼버
+	// Fold일 때는 자리 앞 서브 리볼버, Win일 때는 맵 중앙 메인 리볼버
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<ARevolver> ActiveRevolver;
 
 	// 1인칭 리볼버 메시 (FirstPersonMetaHumanBody의 Revolver 소켓에 부착, 본인만 보임)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
@@ -178,6 +183,8 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, Category = "State")
 	bool bIsPuttingBackGun = false;
+
+	void SetActiveRevolver(ARevolver* NewRevolver);
 
 protected:
 	// Called when the game starts or when spawned
