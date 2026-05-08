@@ -17,3 +17,4 @@ Saved
 /build
 .claude
 CLAUDE.md
+*.code-workspace
