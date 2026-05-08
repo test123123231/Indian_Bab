@@ -11,6 +11,16 @@ AMainGameMode::AMainGameMode()
 	GameStateClass = AMainGameState::StaticClass();
 }
 
+void AMainGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
+{
+	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
+	// 서버는 Null OSS, 클라이언트는 Steam ID → OSS 플랫폼 불일치 에러 무시
+	if (ErrorMessage == TEXT("incompatible_unique_net_id"))
+	{
+		ErrorMessage = TEXT("");
+	}
+}
+
 void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);

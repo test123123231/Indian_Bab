@@ -1,5 +1,5 @@
-#include "CardController/CardData.h"
 #include "CardController/CardManager.h"
+#include "CardController/CardData.h"
 
 // 생성자: Tick이 필요 없으므로 꺼둠
 ACardManager::ACardManager()

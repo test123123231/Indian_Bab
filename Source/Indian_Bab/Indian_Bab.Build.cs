@@ -25,7 +25,10 @@ public class Indian_Bab : ModuleRules
             "OnlineSubsystemUtils",
             "OnlineSubsystem",
             "HairStrandsCore",
-            "Niagara"
+            "Niagara",
+            "HTTP",
+            "Json",
+            "JsonUtilities"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

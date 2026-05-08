@@ -21,6 +21,8 @@ class INDIAN_BAB_API AMainGameMode : public AGameMode
 public:
 	AMainGameMode();
 
+	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
+
 	// 플레이어가 서버에 접속 완료했을 때 호출됨
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 

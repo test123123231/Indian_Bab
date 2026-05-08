@@ -3,6 +3,17 @@
 #include "OnlineSessionSettings.h"
 #include "Online/OnlineSessionNames.h"
 #include "Engine/LocalPlayer.h"
+#include "Network/DediServerConfig.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "GameFramework/PlayerController.h"
+
+
+const FName USessionSubsystem::Key_DediEndpoint = FName("DediEndpoint");
 
 
 USessionSubsystem::USessionSubsystem()
@@ -92,17 +103,94 @@ void USessionSubsystem::OnCreateSessionComplete(FName SessionName, bool bWasSucc
         SessionInterface->ClearOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegateHandle);
     }
 
-    if (bWasSuccessful)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Session Created Successfully!"));
-    }
-    else
+    if (!bWasSuccessful)
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to Create Session."));
+        OnCreateSessionCompleteEvent.Broadcast(false);
+        return;
     }
 
-    // UI에 결과 알림
-    OnCreateSessionCompleteEvent.Broadcast(bWasSuccessful);
+    UE_LOG(LogTemp, Warning, TEXT("Steam Session OK. Requesting matchmaker..."));
+    RequestMatchmakerCreateInstance();
+}
+
+
+// ---------------------------------------------------------
+// 매치메이커 흐름 (호스트)
+// ---------------------------------------------------------
+void USessionSubsystem::RequestMatchmakerCreateInstance()
+{
+    // ── [매치메이커 서버 도입 시 활성화] 실제 HTTP 호출 ─────────────────
+    // auto Req = FHttpModule::Get().CreateRequest();
+    // Req->SetURL(MatchmakerConfig::BaseURL + MatchmakerConfig::CreateMatchPath);
+    // Req->SetVerb(TEXT("POST"));
+    // Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+    // Req->SetContentAsString(TEXT("{}"));  // 추후 호스트 SteamID 등 주입
+    // Req->OnProcessRequestComplete().BindLambda(
+    //     [this](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+    //     {
+    //         HandleMatchmakerResponse(
+    //             Resp.IsValid() ? Resp->GetContentAsString() : FString(),
+    //             bOk && Resp.IsValid() && Resp->GetResponseCode() == 200);
+    //     });
+    // Req->ProcessRequest();
+    // return;
+
+    // ── [현재: 매치메이커 응답 모킹] ─────────────────────────────────
+    // 매치메이커 서버가 준비되면 위 블록 활성화 + 아래 두 줄 제거.
+    const FString MockResponse = TEXT(R"({"match_id":"TEST_MATCH_001","host_ip":"127.0.0.1","port":7777})");
+    HandleMatchmakerResponse(MockResponse, true);
+}
+
+
+void USessionSubsystem::HandleMatchmakerResponse(const FString& JsonBody, bool bOk)
+{
+    if (!bOk)
+    {
+        UE_LOG(LogTemp, Error, TEXT("Matchmaker request failed."));
+        OnCreateSessionCompleteEvent.Broadcast(false);
+        return;
+    }
+
+    TSharedPtr<FJsonObject> Json;
+    auto Reader = TJsonReaderFactory<>::Create(JsonBody);
+    if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("Matchmaker response parse failed: %s"), *JsonBody);
+        OnCreateSessionCompleteEvent.Broadcast(false);
+        return;
+    }
+
+    const FString DediURL = FString::Printf(TEXT("%s:%d"),
+        *Json->GetStringField(TEXT("host_ip")),
+        Json->GetIntegerField(TEXT("port")));
+
+    UE_LOG(LogTemp, Warning, TEXT("Matchmaker response → Dedi: %s"), *DediURL);
+    FinalizeHostTravel(DediURL);
+}
+
+
+void USessionSubsystem::FinalizeHostTravel(const FString& DediURL)
+{
+    // 1) SessionSettings에 데디 URL 심기 → 클라이언트가 검색 시 읽음
+    if (SessionInterface.IsValid())
+    {
+        if (auto* Named = SessionInterface->GetNamedSession(NAME_GameSession))
+        {
+            Named->SessionSettings.Set(Key_DediEndpoint, DediURL,
+                EOnlineDataAdvertisementType::ViaOnlineService);
+            SessionInterface->UpdateSession(NAME_GameSession, Named->SessionSettings, true);
+        }
+    }
+
+    // 2) 위젯에 결과 알림
+    OnCreateSessionCompleteEvent.Broadcast(true);
+
+    // 3) 호스트 본인 데디로 이동
+    if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
+    {
+        PC->ClientTravel(DediURL, ETravelType::TRAVEL_Absolute);
+    }
 }
 
 
@@ -172,6 +260,11 @@ void USessionSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
                 {
                     UE_LOG(LogTemp, Warning, TEXT("★★★ 코드 일치! 입장 시도... ★★★"));
 
+                    // 호스트가 SessionSettings에 심어둔 데디 endpoint 추출
+                    PendingDediURL.Empty();
+                    SearchResult.Session.SessionSettings.Get(Key_DediEndpoint, PendingDediURL);
+                    UE_LOG(LogTemp, Warning, TEXT("Found Dedi endpoint: %s"), *PendingDediURL);
+
                     JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
                         FOnJoinSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnJoinSessionComplete));
 
@@ -213,21 +306,23 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
         SessionInterface->ClearOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegateHandle);
     }
 
-    if (Result == EOnJoinSessionCompleteResult::Success)
+    const bool bJoinOk = (Result == EOnJoinSessionCompleteResult::Success);
+
+    if (bJoinOk)
     {
         UE_LOG(LogTemp, Warning, TEXT("Joined Session Successfully!"));
 
-        // 접속 주소(URL) 가져오기
-        FString ConnectInfo;
-        if (SessionInterface->GetResolvedConnectString(NAME_GameSession, ConnectInfo))
+        if (PendingDediURL.IsEmpty())
         {
+            UE_LOG(LogTemp, Error, TEXT("Join OK but Dedi endpoint missing in SessionSettings."));
+            OnJoinSessionCompleteEvent.Broadcast(false);
+            return;
+        }
 
-            // 클라이언트 이동 (Client Travel)
-            APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
-            if (PlayerController)
-            {
-                PlayerController->ClientTravel(ConnectInfo, ETravelType::TRAVEL_Absolute);
-            }
+        UE_LOG(LogTemp, Warning, TEXT("Join OK → ClientTravel %s"), *PendingDediURL);
+        if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
+        {
+            PC->ClientTravel(PendingDediURL, ETravelType::TRAVEL_Absolute);
         }
     }
     else
@@ -236,7 +331,7 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
     }
 
     // 성공 여부 UI 전송
-    OnJoinSessionCompleteEvent.Broadcast(Result == EOnJoinSessionCompleteResult::Success);
+    OnJoinSessionCompleteEvent.Broadcast(bJoinOk && !PendingDediURL.IsEmpty());
 }
 
 

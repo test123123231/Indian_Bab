@@ -165,27 +165,10 @@ void URoomCreateWidget::OnCreateSessionComplete(bool bWasSuccessful)
 		// [상태 업데이트] 성공 시
 		if (Text_Status)
 		{
-			Text_Status->SetText(FText::FromString(TEXT("생성 성공! 로비로 이동합니다...")));
+			Text_Status->SetText(FText::FromString(TEXT("생성 성공! 데디 서버로 이동합니다...")));
 			Text_Status->SetColorAndOpacity(FLinearColor::Green); // 초록색
 		}
-
-
-		// ★ 리슨 서버 시작 (레벨 이동)
-		// "?listen" 옵션이 있어야 호스트가 됩니다.
-		UGameplayStatics::OpenLevel(GetWorld(), LobbyLevelName, true, FString(L"listen"));
-		/*UWorld* World = GetWorld();
-		if (World)
-		{
-			FString Options = FString(TEXT("listen"));
-			World->ServerTravel(FString("/Game/Maps/Test_Map/Test_Map_Noh?listen"));
-		}*/
-
-		if (PlayerControllerRef->HasAuthority()) {
-			UE_LOG(LogTemp, Warning, TEXT("You are the Host!"));
-		}
-		else {
-			UE_LOG(LogTemp, Warning, TEXT("You are a Client!"));
-		}
+		// 실제 ClientTravel은 SessionSubsystem이 매치메이커 응답 후 수행 (FinalizeHostTravel)
 	}
 	else
 	{

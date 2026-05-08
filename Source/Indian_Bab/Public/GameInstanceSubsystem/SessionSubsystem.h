@@ -54,6 +54,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Session")
     FOnJoinSessionResult OnJoinSessionCompleteEvent;
 
+    // 매치메이커 응답 후 클라이언트가 사용할 데디 endpoint를 SessionSettings에 심는 키
+    static const FName Key_DediEndpoint;
+
 protected:
     // 내부적으로 사용할 변수들
     IOnlineSessionPtr SessionInterface;
@@ -64,6 +67,9 @@ protected:
     // 입장하려는 목표 초대 코드
     FString TargetCodeToJoin;
 
+    // 클라이언트: Join 성공 시 사용할 데디 URL (검색결과 SessionSettings에서 추출)
+    FString PendingDediURL;
+
     // 세션 설정 키 (초대 코드를 저장할 키 이름)
     const FName Key_InviteCode = FName("RoomCode");
 
@@ -73,6 +79,16 @@ protected:
     void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
     void OnFindSessionsComplete(bool bWasSuccessful);
     void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
+
+    // ----------------------------------------------------------------
+    // 매치메이커 흐름 (호스트 측)
+    // ----------------------------------------------------------------
+    // Steam Session 생성 직후 매치메이커에 인스턴스 생성 요청
+    void RequestMatchmakerCreateInstance();
+    // 매치메이커 응답 처리 (실제 HTTP 콜백 + 모킹 양쪽에서 호출)
+    void HandleMatchmakerResponse(const FString& JsonBody, bool bOk);
+    // 데디 URL 확정 후 SessionSettings 갱신 + 호스트 본인 ClientTravel
+    void FinalizeHostTravel(const FString& DediURL);
 
     // 헬퍼 함수
     FString GenerateRandomCode(int32 Length);
