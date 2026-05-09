@@ -186,6 +186,14 @@ public:
 
 	void SetActiveRevolver(ARevolver* NewRevolver);
 
+	// 메인 리볼버 조준선 표시 여부
+	UPROPERTY(BlueprintReadOnly, Category = "Main Revolver")
+	bool bShowMainShotAimLine = false;
+
+	// 조준선 거리
+	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")
+	float MainShotAimLineDistance = 5000.0f;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -222,4 +230,10 @@ private:
 	TObjectPtr<ASeatActor> CurrentSeat;
 
 	EGunHoldReason FinishedReason;
+
+	// 조준선 표시/숨김
+	void SetMainShotAimLineVisible(bool bVisible);
+
+	// 조준선 그리기
+	void DrawMainShotAimLine();
 };

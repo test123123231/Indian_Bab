@@ -15,6 +15,7 @@
 #include "PlayerState/MainPlayerState.h"
 #include "Widget/PlayerNameWidget.h"
 #include "Components/WidgetComponent.h"
+#include "DrawDebugHelpers.h"
 
 
 // Sets default values
@@ -224,6 +225,8 @@ void ALobbyCharacter::Tick(float DeltaTime)
 			Server_UpdateAimYaw(YawDifference);
 		}
 	}
+
+	DrawMainShotAimLine();
 }
 
 
@@ -342,6 +345,12 @@ void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason 
     if (!AnimInstance) return;
 
 	bIsPuttingBackGun = true;
+	
+	// 메인 리볼버를 내려놓기 시작하면 조준선 숨김
+	if (Reason == EGunHoldReason::Win)
+	{
+		SetMainShotAimLineVisible(false);
+	}
     UAnimMontage* MontageToPlay = nullptr;
 
     if (Reason == EGunHoldReason::Fold)
@@ -373,13 +382,13 @@ void ALobbyCharacter::OnRep_GunHoldReason()
 void ALobbyCharacter::AttachRevolverToSocket()
 {
 	ARevolver* RevolverToAttach = ActiveRevolver ? ActiveRevolver.Get() : DeskRevolver.Get();
-	UE_LOG(LogTemp, Warning,
-		TEXT("[AttachRevolverToSocket] Char=%s Active=%s Desk=%s Attach=%s"),
-		*GetName(),
-		*GetNameSafe(ActiveRevolver),
-		*GetNameSafe(DeskRevolver),
-		*GetNameSafe(RevolverToAttach)
-	);
+	// UE_LOG(LogTemp, Warning,
+	// 	TEXT("[AttachRevolverToSocket] Char=%s Active=%s Desk=%s Attach=%s"),
+	// 	*GetName(),
+	// 	*GetNameSafe(ActiveRevolver),
+	// 	*GetNameSafe(DeskRevolver),
+	// 	*GetNameSafe(RevolverToAttach)
+	// );
 
 	if (!RevolverToAttach) return;
 
@@ -407,6 +416,11 @@ void ALobbyCharacter::AttachRevolverToSocket()
 		FName("Revolver")
 	);
 	TP_RevolverMesh->SetVisibility(true);
+
+	if (GunHoldReason == EGunHoldReason::Win)
+	{
+		SetMainShotAimLineVisible(true);
+	}
 }
 
 void ALobbyCharacter::ReturnRevolverToDesk()
@@ -604,4 +618,41 @@ void ALobbyCharacter::SetActiveRevolver(ARevolver* NewRevolver)
 
 	ActiveRevolver = NewRevolver;
 	ForceNetUpdate();
+}
+
+void ALobbyCharacter::SetMainShotAimLineVisible(bool bVisible)
+{
+	bShowMainShotAimLine = bVisible;
+}
+
+void ALobbyCharacter::DrawMainShotAimLine()
+{
+	// 자기 화면에서만 보이게
+	if (!IsLocallyControlled()) return;
+
+	// 메인 리볼버 조준 중일 때만
+	if (!bShowMainShotAimLine) return;
+	if (GunHoldReason != EGunHoldReason::Win) return;
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC) return;
+
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+	const FVector Forward = ViewRotation.Vector();
+	const FVector Start = ViewLocation + Forward * 80.0f;
+	const FVector End = Start + Forward * 2500.0f;
+
+	DrawDebugLine(
+		GetWorld(),
+		Start,
+		End,
+		FColor::Red,
+		false,
+		0.0f,
+		0,
+		2.0f 
+	);
 }

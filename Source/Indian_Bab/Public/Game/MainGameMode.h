@@ -143,4 +143,29 @@ private:
 
 	void StartMainRevolverPutBack();
 
+	// 메인 리볼버 탄창 칸 수
+	int32 MainRevolverChamberCount = 8;
+
+	// 앞으로 몇 번 당기면 실탄이 나가는지(1이면 다음 격발이 실탄)
+	int32 MainLiveShotOffset = -1;
+
+	// 실탄 위치 초기화
+	void InitMainRevolverLiveBulletIfNeeded();
+
+	// 실탄 위치 재배치
+	void RandomizeMainRevolverLiveBullet();
+
+	// 방아쇠 당기는 함수
+	bool PullMainRevolverTrigger();
+
+	// 메인 리볼버 라인트레이스 거리
+	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")
+	float MainShotTraceDistance = 5000.0f;
+
+	// 현재는 카메라 기준, 나중에는 총구 소켓 기준으로 바꿀 함수
+	bool GetMainShotTraceStartEnd(AMainGamePlayerController* ShooterPC, FVector& OutStart, FVector& OutEnd);
+
+	// 조준한 대상 판정
+	AMainPlayerState* GetMainShotTargetByAim(AMainGamePlayerController* ShooterPC, FHitResult& OutHit);
+
 };
