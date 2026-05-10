@@ -135,6 +135,10 @@ void AMainGameState::OnRep_CurrentBetInfo()
 void AMainGameState::OnRep_AlivePlayerCount()
 {
 	UE_LOG(LogTemp, Warning, TEXT("현재 생존 인원 : %d"), AlivePlayerCount);
+	if (AlivePlayerCount <= 1)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GS] 게임 종료, 생존 인원 : %d"), AlivePlayerCount);
+	}
 }
 
 void AMainGameState::OnRep_ReadyPlayerCount()

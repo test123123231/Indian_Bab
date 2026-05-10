@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameMode.h"
 #include "Game/MainGameTypes.h"
+#include "CardController/CardData.h"
 #include "MainGameMode.generated.h"
 
 class AMainGamePlayerController;
@@ -10,6 +11,8 @@ class ASeatActor;
 class ALobbyCharacter;
 class AMainGameState;
 class AMainPlayerState;
+class ACardManager;
+class ARevolver;
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
@@ -31,15 +34,27 @@ public:
 	// 폴드 베팅 액션
 	void HandleFoldAction(AMainGamePlayerController* RequestPC);
 
-	// 폴드 행동이 끝났을 때
+	// 메인 리볼버 격발 액션
+	void HandleMainRevolverShotAction(AMainGamePlayerController* RequestPC);
+
+	// 자기 머리에 겨냥했을 때
 	void HandleFoldMontageFinished(ALobbyCharacter* Character);
+
+	// 메인 리볼버 가져오는 애니메이션 끝났을 때
+	void HandleMainMontageFinished(ALobbyCharacter* Character);
+
+	// 자기 머리에 쏜 이후
+	void HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason);
 
 protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수
 	void CheckGameStart();
 
-	// 게임 루프 시작
+	// 게임 루프 시작점(여기로 안 돌아옴)
 	void StartMainGame();
+
+	// 카드 매니저 획득
+	TObjectPtr<ACardManager> GetCardManager();
 
 	// 플레이어 선택
 	void PickPlayer(int32 CurrentPlayerIndex);
@@ -47,29 +62,50 @@ protected:
 	// 플레이어 랜덤 선택
 	void PickRandomPlayer();
 
+	// 결과 기반 선택
+	void PickByResult();
+
+	// 카드 분배
+	void DistributeCard();
+
 	// 턴 넘기는 타이머
 	void StartTurnTimer(float Time);
 
 	// 턴 제한시간은 넘겼을 때
 	void OnTurnTimerExpired();
 
+	// 격발 페이즈 관리
+	void ManageShotPhase();
+
+	// 격발 페이즈 종료 후 정리
+	void FinishMainShotPhase();
+
+	// 메인 리볼버 격발 시간 타이머
+	void StartMainshotTimer(float Time);
+
+	// 메인 리볼버 격발 시간 넘겼을 때
+	void OnMainShotTimerExpired();
+
+	// 메인 리볼버 격발 실행
+	void ExecuteMainShot(bool bAutoFire);
+
 	// 활성 인원 업데이트
 	int32 UpdateActivePlayer(AMainGameState* GS);
 
-	// 결과확인
+	// 결과확인 및 승리 플레이어 PS 리턴
 	void CheckPlayerCard();
 
 	// 다음 행동(NextTurn, NextRound, ReStart) 체크 함수
 	void CheckNext();
 
 	// 다음 플레이어 PS Get
-	AMainPlayerState* GetNextPlayerState(int32 CurrentPlayerIndex);
+	TObjectPtr<AMainPlayerState> GetNextPlayerState(int32 CurrentPlayerIndex);
 	
 	// 다음 턴
 	void NextTurn(AMainPlayerState* NextPS);
 
 	// 다음 라운드
-	void NextRound(AMainGameState* GS);
+	void NextRound();
 
 	// 폴드 인원 초기화
 	void ResetFoldState();
@@ -79,5 +115,57 @@ private:
 
 	// 베팅 기준점 플레이어
 	int32 CheckPlayer;
+
+	// 카드 관리
+	UPROPERTY()
+	TObjectPtr<ACardManager> MainCardManager;
+
+	// 분배된 카드 배열
+	UPROPERTY()
+	TArray<FCardData> DealtCards;
+
+	// 승리 플레이어 PS
+	UPROPERTY()
+	TObjectPtr<AMainPlayerState> CurrentWinnerPS;
+
+	// 메인 리볼버
+	UPROPERTY()
+	TObjectPtr<ARevolver> MainRevolver;
+
+	// 활성 인원 중에서 가장 큰 값을 가진 플레이어
+	TObjectPtr<AMainPlayerState> MaxCardPlayer();
+
+	ARevolver* GetMainRevolver();
+
+	bool bCheckPlayerFolded = false;
+
+	bool bMainRevolverPutBackInProgress = false;
+
+	void StartMainRevolverPutBack();
+
+	// 메인 리볼버 탄창 칸 수
+	int32 MainRevolverChamberCount = 8;
+
+	// 앞으로 몇 번 당기면 실탄이 나가는지(1이면 다음 격발이 실탄)
+	int32 MainLiveShotOffset = -1;
+
+	// 실탄 위치 초기화
+	void InitMainRevolverLiveBulletIfNeeded();
+
+	// 실탄 위치 재배치
+	void RandomizeMainRevolverLiveBullet();
+
+	// 방아쇠 당기는 함수
+	bool PullMainRevolverTrigger();
+
+	// 메인 리볼버 라인트레이스 거리
+	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")
+	float MainShotTraceDistance = 5000.0f;
+
+	// 현재는 카메라 기준, 나중에는 총구 소켓 기준으로 바꿀 함수
+	bool GetMainShotTraceStartEnd(AMainGamePlayerController* ShooterPC, FVector& OutStart, FVector& OutEnd);
+
+	// 조준한 대상 판정
+	AMainPlayerState* GetMainShotTargetByAim(AMainGamePlayerController* ShooterPC, FHitResult& OutHit);
 
 };
