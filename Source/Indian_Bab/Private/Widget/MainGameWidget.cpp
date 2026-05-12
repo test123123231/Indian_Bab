@@ -6,6 +6,7 @@
 //#include "Components/MultiLineEditableText.h" 
 #include "Components/Button.h"
 #include "Widget/BetProgressWidget.h"
+#include "Game/MainGameState.h"
 #include "PlayerController\MainGamePlayerController.h"
 
 
@@ -20,14 +21,22 @@ void UMainGameWidget::NativeDestruct()
     {
         MainPS->OnTriggerCountChanged.RemoveAll(this);
     }
+
 }
 
 void UMainGameWidget::OperateTimer() {
-	if (Time) {
-		if (RemainingTime-- > 0) {
-			Time->SetText(FText::AsNumber(RemainingTime));
-		}
+	if (!Time) return;
+
+	AMainGameState* GS = GetWorld() ? GetWorld()->GetGameState<AMainGameState>() : nullptr;
+	if (!GS) return;
+
+	if (!GS->bTimerActive)
+	{
+		Time->SetText(FText::FromString(TEXT("-")));
+		return;
 	}
+
+	Time->SetText(FText::AsNumber(GS->GetRemainingTimeCeil()));
 }
 
 void UMainGameWidget::NativeConstruct() 
@@ -59,45 +68,69 @@ void UMainGameWidget::NativeConstruct()
 		Button_Fold->OnClicked.RemoveAll(this);
 		Button_Fold->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonFold);
 	}
+	if (BetCount)
+	{
+		BetCount->SetText(FText::AsNumber(BetNum));
+		WBP_BetProgress->SetPerCent(-0.16f);
+	}
 	MainGamePC = Cast<AMainGamePlayerController>(GetOwningPlayer());
 
 }
 
-void UMainGameWidget::MinusButtonClicked() {
-	if (WBP_BetProgress && BetCount) {
-		if (BetNum == 0)
-			return;
-		if (--BetNum == 0) {
-			WBP_BetProgress->Empty();
-		}
-		else {
-			WBP_BetProgress->SetPerCent(0.16f);
-		}
-		BetCount->SetText(FText::AsNumber(BetNum));	
+void UMainGameWidget::MinusButtonClicked()
+{
+	if (BetNum <= 1)
+	{
+		return;
+	}
+
+	BetNum--;
+
+	if (BetCount)
+	{
+		BetCount->SetText(FText::AsNumber(BetNum));
+	}
+
+	if (WBP_BetProgress)
+	{
+		WBP_BetProgress->SetPerCent(0.16f);
 	}
 }
 
-void UMainGameWidget::PlusButtonClicked() {
-	if (WBP_BetProgress && BetCount) {
+void UMainGameWidget::PlusButtonClicked()
+{
+	if (BetNum >= 6)
+	{
+		return;
+	}
+
+	BetNum++;
+
+	if (BetCount)
+	{
+		BetCount->SetText(FText::AsNumber(BetNum));
+	}
+
+	if (WBP_BetProgress)
+	{
 		if (BetNum == 6)
-			return;
-		if (++BetNum == 6) {
+		{
 			WBP_BetProgress->Fill();
 		}
-		else if(BetNum > 0){
+		else
+		{
 			WBP_BetProgress->SetPerCent(-0.16f);
 		}
-		BetCount->SetText(FText::AsNumber(BetNum));
 	}
 }
 
 void UMainGameWidget::OnButtonRaise()
 {
-	if (MainGamePC)
-	{
-		UE_LOG(LogTemp, Display, TEXT("Click Raise Button"));
-		MainGamePC->RequestRaise();
-	}
+	if (!MainGamePC) return;
+	if (BetNum < 1 || BetNum > 6) return;
+	
+	UE_LOG(LogTemp, Display, TEXT("Click Raise Button"));
+	MainGamePC->RequestRaise(BetNum);
 }
 
 void UMainGameWidget::OnButtonCheckCall()
@@ -144,9 +177,9 @@ void UMainGameWidget::InitWidget()
 
     UpdateSubRevolverCount(MainPS->TotalTriggerCount);
     UE_LOG(LogTemp, Warning, TEXT("[Widget] InitWidget success"));
-	{
-		UE_LOG(LogTemp, Display, TEXT("Click Fold Button"));
-		MainGamePC->RequestFold();
-	}
+}
 
+int32 UMainGameWidget::GetBetNum() const
+{
+	return BetNum;
 }

@@ -13,6 +13,9 @@ AMainGameState::AMainGameState()
 	CurrentBulletCount = 1;
 	CurrentBetInfo.CurrentBetAction = EBetAction::None;
 	CurrentBetInfo.BetActionTotal = 0;
+	TimerEndServerTime = 0.0f;
+	TimerDuration = 0.0f;
+	bTimerActive = false;
 }
 
 
@@ -29,6 +32,9 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, CurrentBulletCount);
 	DOREPLIFETIME(AMainGameState, CurrentBetInfo);
 	DOREPLIFETIME(AMainGameState, bTurnActionInProgress);
+	DOREPLIFETIME(AMainGameState, TimerEndServerTime);
+	DOREPLIFETIME(AMainGameState, TimerDuration);
+	DOREPLIFETIME(AMainGameState, bTimerActive);
 }
 
 
@@ -61,14 +67,14 @@ void AMainGameState::ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex)
 	}
 }
 
-void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction)
+void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount)
 {
 	if(!HasAuthority()) return;
 
 	if(NewAction == EBetAction::Raise)
 	{
-		if(CurrentBulletCount >= 8) return;
-		CurrentBulletCount++;
+		if(CurrentBulletCount + RaiseCount > 8) return;
+		CurrentBulletCount += RaiseCount;
 
 		OnRep_CurrentBulletCount();
 	}
@@ -77,6 +83,39 @@ void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction)
 	CurrentBetInfo.BetActionTotal++;
 
 	OnRep_CurrentBetInfo();
+}
+
+void AMainGameState::SetTimerInfo(float Time)
+{
+	TimerDuration = Time;
+	TimerEndServerTime = GetServerWorldTimeSeconds() + Time;
+	bTimerActive = true;
+
+	OnRep_TimerInfo();
+}
+
+void AMainGameState::ClearTimerInfo()
+{
+	TimerDuration = 0.0f;
+	TimerEndServerTime = 0.0f;
+	bTimerActive = false;
+
+	OnRep_TimerInfo();
+}
+
+float AMainGameState::GetRemainingTime() const
+{
+	if (!bTimerActive)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(0.0f, TimerEndServerTime - GetServerWorldTimeSeconds());
+}
+
+int32 AMainGameState::GetRemainingTimeCeil() const
+{
+	return FMath::CeilToInt(GetRemainingTime());
 }
 
 void AMainGameState::ChangeReadyPlayerCount(int32 NewReadyCount)
@@ -149,4 +188,12 @@ void AMainGameState::OnRep_ReadyPlayerCount()
 void AMainGameState::OnRep_CurrentBulletCount()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
+}
+
+void AMainGameState::OnRep_TimerInfo()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[GS] TimerInfo Replicated. Active=%d Remaining=%d"),
+		bTimerActive,
+		GetRemainingTimeCeil()
+	);
 }

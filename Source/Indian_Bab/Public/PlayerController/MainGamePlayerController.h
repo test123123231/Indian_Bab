@@ -28,7 +28,7 @@ public:
 
     // 서버 호출
     UFUNCTION(BlueprintCallable)
-    void RequestRaise();
+    void RequestRaise(int32 RaiseCount);
 
     UFUNCTION(BlueprintCallable)
     void RequestCheckCall();
@@ -44,7 +44,7 @@ public:
 private:
     // 서버로 보내는 RPC
     UFUNCTION(Server, Reliable)
-    void Server_RequestBetAction(EBetAction Action);
+    void Server_RequestBetAction(EBetAction Action, int32 RaiseCount);
 
     UFUNCTION(Server, Reliable)
     void Server_SetSteamNickname(const FString& NewNickname);

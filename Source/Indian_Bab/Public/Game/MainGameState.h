@@ -76,6 +76,18 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBetInfo, BlueprintReadOnly, Category = "Game State")
 	FBetActionInfo CurrentBetInfo;
 
+	// 현재 타이머가 끝나는 서버 시간
+	UPROPERTY(ReplicatedUsing = OnRep_TimerInfo, BlueprintReadOnly, Category = "Timer")
+	float TimerEndServerTime;
+
+	// 타이머 전체 지속 시간
+	UPROPERTY(ReplicatedUsing = OnRep_TimerInfo, BlueprintReadOnly, Category = "Timer")
+	float TimerDuration;
+
+	// 현재 타이머 활성 상태 유무
+	UPROPERTY(ReplicatedUsing = OnRep_TimerInfo, BlueprintReadOnly, Category = "Timer")
+	bool bTimerActive;
+
 	//해당 부분에서 카드의 사용/미사용 여부를 저장할 예정
 	UPROPERTY()
 	TArray<bool> CardArray;
@@ -88,7 +100,7 @@ public:
 	void ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex);
 
 	// 서버에서 최근 베팅 액션 호출
-	void ChangeCurrentBetInfo(EBetAction NewAction);
+	void ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount = 0);
 
 	// 서버에서 준비 인원 호출
 	void ChangeReadyPlayerCount(int NewReadyCount);
@@ -96,6 +108,19 @@ public:
 	// 다음 라운드 위한 초기화
 	void SetNextRoundGameState();
 
+	// 서버에서 타이머 정보를 세팅
+	void SetTimerInfo(float Time);
+
+	// 서버에서 타이머 정보를 초기화
+	void ClearTimerInfo();
+
+	// 현재 남은 시간을 계산
+	UFUNCTION(BlueprintCallable, Category = "Timer")
+	float GetRemainingTime() const;
+
+	// UI 표시용 정수 남은 시간
+	UFUNCTION(BlueprintCallable, Category = "Timer")
+	int32 GetRemainingTimeCeil() const;
 
 protected:
 	// 클라이언트에서 GamePhase가 변경되었을 때 실행될 로직 (UI 업데이트 등)
@@ -119,4 +144,7 @@ protected:
 
 	UFUNCTION()
 	void OnRep_CurrentBulletCount();
+
+	UFUNCTION()
+	void OnRep_TimerInfo();
 };

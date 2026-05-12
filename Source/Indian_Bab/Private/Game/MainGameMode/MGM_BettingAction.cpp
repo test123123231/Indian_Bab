@@ -7,7 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 
-void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action)
+void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action, int32 RaiseCount)
 {
     if (!HasAuthority()) return;
     if (!RequestPC) return;
@@ -22,7 +22,7 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	if (GS -> CurrentTurnPlayerId != PlayerId) return;
 
 	// Raise 불가능하면 아예 막고 종료
-    if (Action == EBetAction::Raise && GS->CurrentBulletCount >= 8)
+    if (Action == EBetAction::Raise && GS->CurrentBulletCount + RaiseCount > 8)
     {
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Raise blocked: CurrentBulletCount is already %d"), GS->CurrentBulletCount);
         //TODO 추후에 텍스트로 Raise 불가라고 뜨게
@@ -41,6 +41,7 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	if(Action == EBetAction::Raise)
 	{
 		CheckPlayer = PlayerId;
+		GS->ChangeCurrentBetInfo(Action, RaiseCount);
 		CheckNext();
 		return;
 	}
@@ -100,6 +101,10 @@ void AMainGameMode::StartMainshotTimer(float Time)
 {
 	if (!HasAuthority()) return;
 
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
+	GS->SetTimerInfo(Time);
+
 	GetWorldTimerManager().ClearTimer(TimerHandle);
 	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnMainShotTimerExpired, Time, false);
 
@@ -109,6 +114,11 @@ void AMainGameMode::StartMainshotTimer(float Time)
 void AMainGameMode::OnMainShotTimerExpired()
 {
 	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (GS)
+		GS->ClearTimerInfo();
+
 	ExecuteMainShot(true);
 }
 

@@ -29,7 +29,7 @@ public:
 	void PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* SeatedChair);
 
 	// 베팅 액션 관리
-	void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action);
+	void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action, int32 RaiseCount);
 
 	// 폴드 베팅 액션
 	void HandleFoldAction(AMainGamePlayerController* RequestPC);
