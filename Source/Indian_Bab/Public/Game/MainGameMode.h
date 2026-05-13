@@ -9,10 +9,12 @@
 class AMainGamePlayerController;
 class ASeatActor;
 class ALobbyCharacter;
+class ALobbyVRCharacter;
 class AMainGameState;
 class AMainPlayerState;
 class ACardManager;
 class ARevolver;
+
 
 UCLASS()
 class INDIAN_BAB_API AMainGameMode : public AGameMode
@@ -38,13 +40,13 @@ public:
 	void HandleMainRevolverShotAction(AMainGamePlayerController* RequestPC);
 
 	// 자기 머리에 겨냥했을 때
-	void HandleFoldMontageFinished(ALobbyCharacter* Character);
+	void HandleFoldMontageFinished(ALobbyVRCharacter* Character);
 
 	// 메인 리볼버 가져오는 애니메이션 끝났을 때
-	void HandleMainMontageFinished(ALobbyCharacter* Character);
+	void HandleMainMontageFinished(ALobbyVRCharacter* Character);
 
 	// 자기 머리에 쏜 이후
-	void HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason);
+	void HandlePutBackGunMontageFinished(ALobbyVRCharacter* Character, EGunHoldReason Reason);
 
 protected:
 	// 전원 준비되었는지 체크하고 게임을 시작하는 함수

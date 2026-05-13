@@ -1,9 +1,8 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
 #include "Actor/SeatActor.h"
-#include "Character/LobbyCharacter.h"
 #include "PlayerState/MainPlayerState.h"
-#include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
 #include "CardController/CardManager.h"
 
 AMainGameMode::AMainGameMode()
