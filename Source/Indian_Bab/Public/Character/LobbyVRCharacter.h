@@ -1,3 +1,5 @@
+#pragma once
+
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Game/MainGameTypes.h"
