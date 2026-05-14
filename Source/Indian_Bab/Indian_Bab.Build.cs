@@ -35,6 +35,12 @@ public class Indian_Bab : ModuleRules
 
         DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 
+        if (Target.Platform == UnrealTargetPlatform.Win64)
+        {
+            PublicSystemLibraries.Add("bcrypt.lib");
+            PublicSystemLibraries.Add("ole32.lib"); // INetworkListManager COM (ConnectivitySubsystem)
+        }
+
         PublicIncludePaths.AddRange(new string[] {
             "Indian_Bab",
             "Indian_Bab/TP_FirstPerson",
