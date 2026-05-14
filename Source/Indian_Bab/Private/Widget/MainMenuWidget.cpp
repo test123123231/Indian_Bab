@@ -7,7 +7,6 @@
 #include "Widget/OptionMenuWidget.h"
 #include "Widget/RoomCreateWidget.h"
 #include "Widget/RoomJoinWidget.h"
-#include "GameInstanceSubsystem/ConnectivitySubsystem.h"
 
 
 void UMainMenuWidget::NativeConstruct()
@@ -33,33 +32,6 @@ void UMainMenuWidget::NativeConstruct()
 	}
 
 	PlayerControllerRef = GetOwningPlayer();
-
-	// 연결성 델리게이트 구독 — 메인 메뉴가 화면에 있는 동안만 활성
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
-		{
-			LostHandle = Connectivity->OnConnectivityLost.AddUObject(
-				this, &UMainMenuWidget::HandleConnectivityLost);
-			RestoredHandle = Connectivity->OnConnectivityRestored.AddUObject(
-				this, &UMainMenuWidget::HandleConnectivityRestored);
-		}
-	}
-}
-
-void UMainMenuWidget::NativeDestruct()
-{
-	// 델리게이트 해제 — 위젯이 닫힐 때 dangling 핸들 방지
-	if (UGameInstance* GI = GetGameInstance())
-	{
-		if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
-		{
-			Connectivity->OnConnectivityLost.Remove(LostHandle);
-			Connectivity->OnConnectivityRestored.Remove(RestoredHandle);
-		}
-	}
-
-	Super::NativeDestruct();
 }
 
 
@@ -175,53 +147,4 @@ void UMainMenuWidget::OnExitClicked()
 	// (기술서) 게임 애플리케이션을 종료
 	APlayerController* PC = GetOwningPlayer();
 	UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, true);
-}
-
-
-// 인터넷 연결 끊김 (grace 2초 경과 후 호출)
-void UMainMenuWidget::HandleConnectivityLost()
-{
-	if (!OfflineWidgetClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MainMenuWidget: OfflineWidgetClass 설정되지 않았습니다!"));
-		return;
-	}
-
-	if (!OfflineWidgetInstance)
-	{
-		OfflineWidgetInstance = CreateWidget<UUserWidget>(this, OfflineWidgetClass);
-	}
-
-	if (OfflineWidgetInstance && !OfflineWidgetInstance->IsInViewport())
-	{
-		OfflineWidgetInstance->AddToViewport(100); // ZOrder 높게 — 다른 위젯 위에 표시
-
-		// 오프라인 모달에만 포커스 고정 — 뒤 버튼 입력 차단
-		if (PlayerControllerRef)
-		{
-			FInputModeUIOnly InputModeData;
-			InputModeData.SetWidgetToFocus(OfflineWidgetInstance->TakeWidget());
-			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			PlayerControllerRef->SetInputMode(InputModeData);
-		}
-	}
-}
-
-
-// 인터넷 연결 복구
-void UMainMenuWidget::HandleConnectivityRestored()
-{
-	if (OfflineWidgetInstance && OfflineWidgetInstance->IsInViewport())
-	{
-		OfflineWidgetInstance->RemoveFromParent();
-
-		// 메인 메뉴 입력 모드 복구
-		if (PlayerControllerRef)
-		{
-			FInputModeGameAndUI InputModeData;
-			InputModeData.SetWidgetToFocus(TakeWidget());
-			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			PlayerControllerRef->SetInputMode(InputModeData);
-		}
-	}
 }

@@ -27,9 +27,6 @@ protected:
 	 */
 	virtual void NativeConstruct() override;
 
-	/** 위젯이 파괴될 때 호출 — 연결성 델리게이트 해제 */
-	virtual void NativeDestruct() override;
-
 private:
 	//--- BP 위젯 변수 바인딩 ---
 
@@ -59,10 +56,6 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<URoomJoinWidget> RoomJoinWidgetClass;
 
-	// 인터넷 연결 끊김 시 표시할 오프라인 알림 위젯 클래스 (BP에서 설정)
-	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
-	TSubclassOf<UUserWidget> OfflineWidgetClass;
-
 	//--- 위젯 인스턴스 캐시 ---
 
 	UPROPERTY()
@@ -73,9 +66,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UOptionMenuWidget> OptionMenuInstance;
-
-	UPROPERTY()
-	TObjectPtr<UUserWidget> OfflineWidgetInstance;
 
 	// --- 기타 캐시된 참조 ---
 	UPROPERTY()
@@ -94,12 +84,4 @@ private:
 
 	UFUNCTION()
 	void OnExitClicked();
-
-	//--- 연결성 콜백 ---
-
-	void HandleConnectivityLost();
-	void HandleConnectivityRestored();
-
-	FDelegateHandle LostHandle;
-	FDelegateHandle RestoredHandle;
 };

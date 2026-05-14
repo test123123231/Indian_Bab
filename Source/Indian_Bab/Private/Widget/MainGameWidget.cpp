@@ -3,7 +3,7 @@
 #include "Components/TextBlock.h"
 #include "PlayerState/MainPlayerState.h"
 #include "Components/EditableTextBox.h"
-//#include "Components/MultiLineEditableText.h" 
+//#include "Components/MultiLineEditableText.h"
 #include "Components/Button.h"
 #include "Widget/BetProgressWidget.h"
 #include "PlayerController\MainGamePlayerController.h"
@@ -20,6 +20,8 @@ void UMainGameWidget::NativeDestruct()
     {
         MainPS->OnTriggerCountChanged.RemoveAll(this);
     }
+
+    Super::NativeDestruct();
 }
 
 void UMainGameWidget::OperateTimer() {
