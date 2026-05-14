@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
@@ -27,6 +27,9 @@ protected:
 	 */
 	virtual void NativeConstruct() override;
 
+	/** 위젯이 파괴될 때 호출 — 연결성 델리게이트 해제 */
+	virtual void NativeDestruct() override;
+
 private:
 	//--- BP 위젯 변수 바인딩 ---
 
@@ -44,10 +47,6 @@ private:
 
 	//--- 위젯 설정 프로퍼티 ---
 
-	// // '시작하기' 버튼 클릭 시 열릴 레벨 이름 (BP의 클래스 기본값에서 설정)
-	// UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
-	// FName GameLevelName = FName(TEXT("AreaKeeper"));
-
 	// '설정' 버튼 클릭 시 열릴 옵션 메뉴 위젯 클래스 (BP에서 설정)
 	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UOptionMenuWidget> OptionMenuWidgetClass;
@@ -60,17 +59,23 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<URoomJoinWidget> RoomJoinWidgetClass;
 
-	// '룸 생성' 메뉴 인스턴스 캐시
+	// 인터넷 연결 끊김 시 표시할 오프라인 알림 위젯 클래스 (BP에서 설정)
+	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UUserWidget> OfflineWidgetClass;
+
+	//--- 위젯 인스턴스 캐시 ---
+
 	UPROPERTY()
 	TObjectPtr<URoomCreateWidget> RooomCreateInstance;
 
-	// '룸 참가' 메뉴 인스턴스 캐시
 	UPROPERTY()
 	TObjectPtr<URoomJoinWidget> RooomJoinInstance;
 
-	// '설정' 메뉴 인스턴스 캐시
 	UPROPERTY()
 	TObjectPtr<UOptionMenuWidget> OptionMenuInstance;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> OfflineWidgetInstance;
 
 	// --- 기타 캐시된 참조 ---
 	UPROPERTY()
@@ -78,19 +83,23 @@ private:
 
 	//--- C++ 이벤트 핸들러 ---
 
-	// '룸 생성' 버튼 클릭 시
 	UFUNCTION()
 	void OnRoomCreationClicked();
 
-	// '룸 참가' 버튼 클릭 시
 	UFUNCTION()
 	void OnRoomJoinClicked();
 
-	// '설정' 버튼 클릭 시
 	UFUNCTION()
 	void OnOptionClicked();
 
-	// '종료' 버튼 클릭 시
 	UFUNCTION()
 	void OnExitClicked();
+
+	//--- 연결성 콜백 ---
+
+	void HandleConnectivityLost();
+	void HandleConnectivityRestored();
+
+	FDelegateHandle LostHandle;
+	FDelegateHandle RestoredHandle;
 };
