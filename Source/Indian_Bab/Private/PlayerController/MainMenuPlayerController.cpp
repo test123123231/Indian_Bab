@@ -1,15 +1,48 @@
-﻿#include "PlayerController/MainMenuPlayerController.h"
+#include "PlayerController/MainMenuPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "Widget/MainMenuWidget.h"
+#include "GameInstanceSubsystem/ConnectivitySubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Blueprint/UserWidget.h"
 
 void AMainMenuPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if(IsLocalPlayerController())
+	if (!IsLocalPlayerController())
+		return;
+
+	OpenMainMenu();
+
+	// 연결성 구독 + 폴링 시작 — 메인메뉴 PC 살아있는 동안만 활성
+	if (UGameInstance* GI = GetGameInstance())
 	{
-		OpenMainMenu();
+		if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
+		{
+			LostHandle = Connectivity->OnConnectivityLost.AddUObject(
+				this, &AMainMenuPlayerController::HandleConnectivityLost);
+			RestoredHandle = Connectivity->OnConnectivityRestored.AddUObject(
+				this, &AMainMenuPlayerController::HandleConnectivityRestored);
+
+			Connectivity->StartPolling();
+		}
 	}
+}
+
+void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	// 델리게이트 해제 + 폴링 정지 — PC 파괴 시 dangling 핸들 방지
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
+		{
+			Connectivity->OnConnectivityLost.Remove(LostHandle);
+			Connectivity->OnConnectivityRestored.Remove(RestoredHandle);
+			Connectivity->StopPolling();
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void AMainMenuPlayerController::OpenMainMenu()
@@ -27,12 +60,56 @@ void AMainMenuPlayerController::OpenMainMenu()
 			MainMenuWidgetInstance->AddToViewport();
 
 			// 입력 모드를 게임 및 UI 겸용으로 변경
-			FInputModeGameAndUI InputModeData;
+			FInputModeUIOnly InputModeData;
 			InputModeData.SetWidgetToFocus(MainMenuWidgetInstance->TakeWidget()); // 포커스를 위젯으로
 			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 			SetInputMode(InputModeData);
 
 			bShowMouseCursor = true; // 마우스 커서 보이기
+		}
+	}
+}
+
+// 인터넷 끊김 (Grace 2초 경과 후 호출)
+void AMainMenuPlayerController::HandleConnectivityLost()
+{
+	if (!OfflineWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MainMenuPC: OfflineWidgetClass 설정되지 않았습니다!"));
+		return;
+	}
+
+	if (!OfflineWidgetInstance)
+	{
+		OfflineWidgetInstance = CreateWidget<UUserWidget>(this, OfflineWidgetClass);
+	}
+
+	if (OfflineWidgetInstance && !OfflineWidgetInstance->IsInViewport())
+	{
+		OfflineWidgetInstance->AddToViewport(100); // ZOrder 높게 — 메인메뉴 위에 표시
+
+		// 오프라인 모달에만 포커스 — 뒤 버튼 입력 차단
+		FInputModeUIOnly InputModeData;
+		InputModeData.SetWidgetToFocus(OfflineWidgetInstance->TakeWidget());
+		InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(InputModeData);
+	}
+}
+
+// 연결 복구 (Lost 카운트다운 중 회복된 경우)
+void AMainMenuPlayerController::HandleConnectivityRestored()
+{
+	if (OfflineWidgetInstance && OfflineWidgetInstance->IsInViewport())
+	{
+		OfflineWidgetInstance->RemoveFromParent();
+
+		// 메인메뉴 입력 모드 복구
+		if (MainMenuWidgetInstance)
+		{
+			FInputModeUIOnly InputModeData;
+			InputModeData.SetWidgetToFocus(MainMenuWidgetInstance->TakeWidget());
+			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(InputModeData);
 		}
 	}
 }

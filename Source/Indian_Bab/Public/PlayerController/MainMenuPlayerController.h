@@ -15,6 +15,7 @@ class INDIAN_BAB_API AMainMenuPlayerController : public APlayerController
 	GENERATED_BODY()
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	void OpenMainMenu();
 
@@ -27,5 +28,20 @@ protected:
 	// 생성된 메인 메뉴 위젯의 인스턴스를 저장할 변수
 	UPROPERTY(VisibleInstanceOnly, Category = "UI")
 	TObjectPtr<UMainMenuWidget> MainMenuWidgetInstance;
+
+	//--- 연결성(인터넷 끊김) ---
+
+	// 끊김 시 모달로 띄울 위젯 클래스 (BP에서 WBP_OfflineNotice 지정)
+	UPROPERTY(EditDefaultsOnly, Category = "Connectivity")
+	TSubclassOf<UUserWidget> OfflineWidgetClass;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> OfflineWidgetInstance;
+
 private:
+	void HandleConnectivityLost();
+	void HandleConnectivityRestored();
+
+	FDelegateHandle LostHandle;
+	FDelegateHandle RestoredHandle;
 };

@@ -25,22 +25,69 @@ void UConnectivitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
     }
 
     State = EConnState::Online;
-
-    // 1초마다 폴링 — FTicker는 World 없이 GameInstance 레벨에서 동작
-    PollHandle = FTSTicker::GetCoreTicker().AddTicker(
-        FTickerDelegate::CreateUObject(this, &UConnectivitySubsystem::OnPollTick),
-        1.0f);
 }
 
 void UConnectivitySubsystem::Deinitialize()
 {
-    FTSTicker::RemoveTicker(PollHandle);
+    StopPolling();
     Super::Deinitialize();
+}
+
+void UConnectivitySubsystem::StartPolling()
+{
+    State = EConnState::Online;
+    DisconnectTimestamp = 0.0;
+    LostTimestamp       = 0.0;
+    EnsurePollerRunning();
+    UE_LOG(LogConnectivity, Log, TEXT("[Connectivity] 폴링 시작 (메인메뉴 활성)."));
+}
+
+void UConnectivitySubsystem::StopPolling()
+{
+    if (PollHandle.IsValid())
+    {
+        FTSTicker::RemoveTicker(PollHandle);
+        PollHandle.Reset();
+        UE_LOG(LogConnectivity, Log, TEXT("[Connectivity] 폴링 정지 (인게임/종료)."));
+    }
+}
+
+void UConnectivitySubsystem::EnsurePollerRunning()
+{
+    if (!PollHandle.IsValid())
+    {
+        // 1초마다 폴링 — FTicker는 World 없이 GameInstance 레벨에서 동작
+        PollHandle = FTSTicker::GetCoreTicker().AddTicker(
+            FTickerDelegate::CreateUObject(this, &UConnectivitySubsystem::OnPollTick),
+            1.0f);
+    }
 }
 
 bool UConnectivitySubsystem::IsOnline() const
 {
     return QueryInternetConnection();
+}
+
+void UConnectivitySubsystem::ForceTriggerLost(const FString& Reason)
+{
+    // 이미 Lost면 중복 트리거 방지 (폴링이 이미 카운트다운 중)
+    if (State == EConnState::Lost)
+    {
+        UE_LOG(LogConnectivity, Verbose,
+            TEXT("[Connectivity] ForceTriggerLost 무시(이미 Lost): %s"), *Reason);
+        return;
+    }
+
+    UE_LOG(LogConnectivity, Error,
+        TEXT("[Connectivity] ForceTriggerLost: %s — Lost 상태 진입, %.0fs 후 종료."),
+        *Reason, ExitAfterLostSeconds);
+
+    State         = EConnState::Lost;
+    LostTimestamp = FPlatformTime::Seconds();
+    OnConnectivityLost.Broadcast();
+
+    // 폴링이 꺼진 인게임 구간에서도 Lost 카운트다운(10초 후 RequestExit)이 돌아야 함
+    EnsurePollerRunning();
 }
 
 bool UConnectivitySubsystem::QueryInternetConnection() const
