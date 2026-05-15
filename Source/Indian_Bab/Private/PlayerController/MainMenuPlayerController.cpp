@@ -82,6 +82,10 @@ void AMainMenuPlayerController::HandleConnectivityLost()
 	if (!OfflineWidgetInstance)
 	{
 		OfflineWidgetInstance = CreateWidget<UUserWidget>(this, OfflineWidgetClass);
+		if (OfflineWidgetInstance)
+		{
+			OfflineWidgetInstance->SetIsFocusable(true);
+		}
 	}
 
 	if (OfflineWidgetInstance && !OfflineWidgetInstance->IsInViewport())

@@ -9,6 +9,13 @@
 #include "Widget/RoomJoinWidget.h"
 
 
+UMainMenuWidget::UMainMenuWidget(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// SetInputModeUIOnly 포커스 대상이 되므로 기본 focusable 보장 — BP의 Is Focusable 체크 누락 방지
+	SetIsFocusable(true);
+}
+
 void UMainMenuWidget::NativeConstruct()
 {
 	Super::NativeConstruct();

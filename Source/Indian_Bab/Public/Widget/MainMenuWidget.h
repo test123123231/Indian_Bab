@@ -20,6 +20,9 @@ class INDIAN_BAB_API UMainMenuWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+public:
+	UMainMenuWidget(const FObjectInitializer& ObjectInitializer);
+
 protected:
 	/**
 	 * 위젯이 생성될 때 (BP의 EventConstruct) 호출

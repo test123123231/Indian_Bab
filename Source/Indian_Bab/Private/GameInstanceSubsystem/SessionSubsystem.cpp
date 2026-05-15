@@ -218,7 +218,7 @@ void USessionSubsystem::JoinRoomByCode(FString InputCode)
     SessionSearch->MaxSearchResults = 10000; // 최대한 많이 검색해서 코드를 찾아야 함
 
     // 스팀 로비(Presence) 검색 활성화
-    SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+    SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
 
     // 검색 시작
     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
