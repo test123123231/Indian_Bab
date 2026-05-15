@@ -48,8 +48,8 @@ void AMainGamePlayerController::BeginPlay()
 
     TrySendSteamNickname();
 
-    // 연결성 구독 — 인게임 구간엔 폴링은 안 시작(NetDriver OnNetworkFailure 가 책임)
-    // ForceTriggerLost 가 호출되면 OnConnectivityLost 가 발사되어 모달 표시
+    // 연결성 구독 + 폴링 시작 — 인게임에서도 NLM 폴링으로 로컬 끊김을 빠르게 감지.
+    // NLA 사각지대(NLM online 인데 서버 unreachable) 는 NetDriver OnNetworkFailure → ForceTriggerLost 가 백업.
     if (UGameInstance* GI = GetGameInstance())
     {
         if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
@@ -58,6 +58,8 @@ void AMainGamePlayerController::BeginPlay()
                 this, &AMainGamePlayerController::HandleConnectivityLost);
             RestoredHandle = Connectivity->OnConnectivityRestored.AddUObject(
                 this, &AMainGamePlayerController::HandleConnectivityRestored);
+
+            Connectivity->StartPolling();
         }
     }
 }
@@ -72,6 +74,7 @@ void AMainGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
             {
                 Connectivity->OnConnectivityLost.Remove(LostHandle);
                 Connectivity->OnConnectivityRestored.Remove(RestoredHandle);
+                Connectivity->StopPolling();
             }
         }
     }

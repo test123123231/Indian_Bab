@@ -60,10 +60,10 @@ void UConnectivitySubsystem::EnsurePollerRunning()
 {
     if (!PollHandle.IsValid())
     {
-        // 1초마다 폴링 — FTicker는 World 없이 GameInstance 레벨에서 동작
+        // PollIntervalSeconds 마다 폴링 — FTicker는 World 없이 GameInstance 레벨에서 동작
         PollHandle = FTSTicker::GetCoreTicker().AddTicker(
             FTickerDelegate::CreateUObject(this, &UConnectivitySubsystem::OnPollTick),
-            1.0f);
+            PollIntervalSeconds);
     }
 }
 
