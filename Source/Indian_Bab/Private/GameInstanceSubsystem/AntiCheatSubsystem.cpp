@@ -33,6 +33,7 @@ void UAntiCheatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
+#if UE_BUILD_SHIPPING
     // ConnectivitySubsystem 이 먼저 초기화되도록 보장
     Collection.InitializeDependency<UConnectivitySubsystem>();
 
@@ -46,6 +47,9 @@ void UAntiCheatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     }
 
     StartVerification();
+#else
+    UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] Non-Shipping build — 초기화 스킵"));
+#endif
 }
 
 void UAntiCheatSubsystem::Deinitialize()
