@@ -16,13 +16,17 @@ void UConnectivitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
 
-    // 부팅 시 오프라인이면 즉시 종료 (런타임 grace 없음)
+    // 단계 A 부팅 가드: 오프라인이면 즉시 종료 (런타임 grace 없음).
+    // Editor/PIE 는 제외 — 오프라인에서도 개발/테스트가 가능해야 한다.
+#if WITH_EDITOR
     if (!QueryInternetConnection())
     {
         UE_LOG(LogConnectivity, Error, TEXT("[Connectivity] 부팅 시 인터넷 미연결. 게임 종료."));
         FPlatformMisc::RequestExit(false);
         return;
     }
+    UE_LOG(LogConnectivity, Log, TEXT("[Connectivity] 부팅 시 인터넷 연결 확인."));
+#endif
 
     State = EConnState::Online;
 }

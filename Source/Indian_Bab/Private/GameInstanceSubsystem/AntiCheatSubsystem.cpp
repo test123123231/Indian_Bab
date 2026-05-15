@@ -1,5 +1,4 @@
 #include "GameInstanceSubsystem/AntiCheatSubsystem.h"
-#include "GameInstanceSubsystem/ConnectivitySubsystem.h"
 
 #include "Network/AntiCheatConfig.h"
 
@@ -34,18 +33,8 @@ void UAntiCheatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
     Super::Initialize(Collection);
 
 #if UE_BUILD_SHIPPING
-    // ConnectivitySubsystem 이 먼저 초기화되도록 보장
-    Collection.InitializeDependency<UConnectivitySubsystem>();
-
-    // 단계 A: 부팅 시 인터넷 미연결이면 즉시 종료
-    UConnectivitySubsystem* Connectivity = GetGameInstance()->GetSubsystem<UConnectivitySubsystem>();
-    if (Connectivity && !Connectivity->IsOnline())
-    {
-        UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] 부팅 시 인터넷 미연결. 게임 종료."));
-        FPlatformMisc::RequestExit(false);
-        return;
-    }
-
+    // 단계 A 부팅 가드(인터넷 미연결 시 종료)는 ConnectivitySubsystem::Initialize 가 단독으로 담당.
+    // 여기서는 verify 흐름만 실행.
     StartVerification();
 #else
     UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] Non-Shipping build — 초기화 스킵"));

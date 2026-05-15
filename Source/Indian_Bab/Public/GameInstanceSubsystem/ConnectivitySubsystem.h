@@ -19,7 +19,8 @@ DECLARE_MULTICAST_DELEGATE(FOnConnectivityRestored);
  * 에서 StartPolling(), NativeDestruct 에서 StopPolling() 호출. 데디 인게임 구간엔
  * 폴링이 꺼져있고 NetDriver 의 OnNetworkFailure(→ ForceTriggerLost) 가 책임진다.
  *
- * IsOnline() 은 동기 조회 — 부팅 가드(UAntiCheatSubsystem::Initialize) 에서 사용.
+ * 단계 A 부팅 가드: Initialize 단계에서 오프라인이면 즉시 RequestExit.
+ * IsOnline() 은 동기 조회 API — 다른 서브시스템이 즉시 상태 확인용으로 호출 가능.
  */
 UCLASS()
 class INDIAN_BAB_API UConnectivitySubsystem : public UGameInstanceSubsystem
