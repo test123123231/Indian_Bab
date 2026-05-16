@@ -39,6 +39,9 @@ public:
     UFUNCTION(Client, Reliable)
     void ClientOnSeated();
 
+    UFUNCTION(Server, Reliable)
+    void Server_RequestReady();
+
     int GetPlayerIdSafe();
 
 private:

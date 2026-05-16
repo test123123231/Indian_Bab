@@ -4,6 +4,7 @@
 #include "PlayerState/MainPlayerState.h"
 #include "Character/LobbyVRCharacter.h"
 #include "CardController/CardManager.h"
+#include "Kismet/GameplayStatics.h"
 
 AMainGameMode::AMainGameMode()
 {
@@ -16,6 +17,190 @@ void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 
 	// 접속한 플레이어 수 로그 (NumPlayers는 AGameMode 기본 변수)
 	UE_LOG(LogTemp, Warning, TEXT("플레이어 접속 완료. 현재 인원: %d"), NumPlayers);
+	
+	FTimerDelegate SeatDelegate;
+	SeatDelegate.BindUObject(this, &AMainGameMode::AssignInitialSeatToPlayer, NewPlayer);
+
+	GetWorldTimerManager().SetTimerForNextTick(SeatDelegate);
+}
+
+void AMainGameMode::HandlePlayerReady(APlayerController* ReadyPlayer)
+{
+	if (!HasAuthority() || !ReadyPlayer)
+	{
+		return;
+	}
+
+	if (bGameStartRequested)
+	{
+		return;
+	}
+
+	ReadyPlayers.AddUnique(ReadyPlayer);
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] ReadyCount = %d / Expected = %d"),
+		ReadyPlayers.Num(),
+		ExpectedPlayerCount
+	);
+
+	if (ReadyPlayers.Num() >= ExpectedPlayerCount)
+	{
+		StartGameAfterAllReady();
+	}
+}
+
+void AMainGameMode::AssignInitialSeatToPlayer(APlayerController* NewPlayer)
+{
+	if (!HasAuthority() || !NewPlayer)
+	{
+		return;
+	}
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(NewPlayer->GetPawn());
+	if (!VRCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Pawn is not ALobbyVRCharacter"));
+		return;
+	}
+
+	ASeatActor* EmptySeat = FindEmptySeat();
+	if (!EmptySeat)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] EmptySeat is null"));
+		return;
+	}
+
+	if (!EmptySeat->SitTarget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] EmptySeat SitTarget is null"));
+		return;
+	}
+
+	// 같은 의자가 중복 배정되지 않도록 먼저 등록
+	if (!GS->SeatChairArray.Contains(EmptySeat))
+	{
+		GS->SeatChairArray.Add(EmptySeat);
+
+		GS->SeatChairArray.Sort([](const ASeatActor& A, const ASeatActor& B)
+		{
+			return A.SeatOrder < B.SeatOrder;
+		});
+	}
+
+	VRCharacter->InitSeatedAtSeat(EmptySeat);
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Initial seated player: %s / Seat: %s"),
+		*GetNameSafe(VRCharacter),
+		*GetNameSafe(EmptySeat)
+	);
+}
+
+ASeatActor* AMainGameMode::FindEmptySeat()
+{
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS)
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> FoundActors;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ASeatActor::StaticClass(),
+		FoundActors
+	);
+
+	TArray<ASeatActor*> Seats;
+
+	for (AActor* Actor : FoundActors)
+	{
+		ASeatActor* Seat = Cast<ASeatActor>(Actor);
+		if (!Seat)
+		{
+			continue;
+		}
+
+		Seats.Add(Seat);
+	}
+
+	Seats.Sort([](const ASeatActor& A, const ASeatActor& B)
+	{
+		return A.SeatOrder < B.SeatOrder;
+	});
+
+	for (ASeatActor* Seat : Seats)
+	{
+		if (!Seat)
+		{
+			continue;
+		}
+
+		if (!GS->SeatChairArray.Contains(Seat))
+		{
+			return Seat;
+		}
+	}
+
+	return nullptr;
+}
+
+void AMainGameMode::StartGameAfterAllReady()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bGameStartRequested)
+	{
+		return;
+	}
+
+	bGameStartRequested = true;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] All players ready. Game starts in 3 seconds."));
+
+	GS->SetGamePhase(EGamePhase::Starting);
+
+	// 각 플레이어 서브 리볼버 초기화
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		AMainPlayerState* MPS = Cast<AMainPlayerState>(PS);
+		if (MPS)
+		{
+			MPS->SetInitSubRevolver();
+		}
+	}
+
+	// 기준 플레이어 초기화
+	CheckPlayer = -1;
+
+	// 카드 매니저 초기화
+	MainCardManager = GetCardManager();
+	if (!MainCardManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] No CardManager"));
+		return;
+	}
+
+	MainCardManager->InitializeDeck();
+
+	// 3초 뒤 게임 시작
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::StartMainGame, 3.0f,false);
 }
 
 void AMainGameMode::PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* SeatedChair)

@@ -25,7 +25,9 @@ public class Indian_Bab : ModuleRules
             "OnlineSubsystemUtils",
             "OnlineSubsystem",
             "HairStrandsCore",
-            "Niagara"
+            "Niagara",
+            "HeadMountedDisplay",
+            "XRBase"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

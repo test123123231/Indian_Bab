@@ -359,6 +359,14 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
     EnterUIMode();
 }
 
+void AMainGamePlayerController::Server_RequestReady_Implementation()
+{
+	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+	if (!GM) return;
+
+	GM->HandlePlayerReady(this);
+}
+
 int AMainGamePlayerController::GetPlayerIdSafe()
 {
     const APlayerState* PS = GetPlayerState<APlayerState>();
