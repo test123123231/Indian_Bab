@@ -1,7 +1,8 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
-#include "PlayerController/MainGamePlayerController.h"
 #include "Character/LobbyCharacter.h"
+#include "PlayerController/MainGamePlayerController.h"
+#include "Character/LobbyVRCharacter.h"
 #include "PlayerState/MainPlayerState.h"
 #include "Actor/Revolver.h"
 #include "Kismet/GameplayStatics.h"
@@ -72,7 +73,7 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 
 	PS->isFold = true;
 
-	ALobbyCharacter* Character = Cast<ALobbyCharacter>(RequestPC->GetPawn());
+	ALobbyVRCharacter* Character = Cast<ALobbyVRCharacter>(RequestPC->GetPawn());
 	if (Character)
 	{
 		Character->SetActiveRevolver(Character->DeskRevolver);
@@ -307,7 +308,7 @@ void AMainGameMode::StartMainRevolverPutBack()
 		return;
 	}
 
-	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+	ALobbyVRCharacter* WinnerCharacter = Cast<ALobbyVRCharacter>(PC->GetPawn());
 	if (!WinnerCharacter)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[GM] StartMainRevolverPutBack failed: WinnerCharacter is NULL"));
@@ -417,7 +418,7 @@ AMainPlayerState* AMainGameMode::GetMainShotTargetByAim(AMainGamePlayerControlle
 	{
 		if (!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* Character = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ALobbyVRCharacter* Character = Cast<ALobbyVRCharacter>(Seat->GetOccupant());
 		if (!Character) continue;
 
 		AMainPlayerState* PS = Character->GetPlayerState<AMainPlayerState>();
@@ -447,7 +448,7 @@ AMainPlayerState* AMainGameMode::GetMainShotTargetByAim(AMainGamePlayerControlle
 
 	UE_LOG(LogTemp, Warning, TEXT("[MainShot] HitActor=%s"), *GetNameSafe(HitActor));
 
-	ALobbyCharacter* HitCharacter = Cast<ALobbyCharacter>(HitActor);
+	ALobbyVRCharacter* HitCharacter = Cast<ALobbyVRCharacter>(HitActor);
 	if (!HitCharacter)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[MainShot] Miss: hit actor is not LobbyCharacter"));

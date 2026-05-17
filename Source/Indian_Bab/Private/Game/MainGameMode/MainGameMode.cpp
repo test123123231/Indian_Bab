@@ -1,10 +1,11 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
 #include "Actor/SeatActor.h"
-#include "Character/LobbyCharacter.h"
 #include "PlayerState/MainPlayerState.h"
-#include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
 #include "CardController/CardManager.h"
+#include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 
 AMainGameMode::AMainGameMode()
 {
@@ -15,8 +16,242 @@ void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
 
+	if (NewPlayer)
+	{
+		FTimerDelegate SeatDelegate;
+		SeatDelegate.BindUObject(this, &AMainGameMode::AssignInitialSeatToPlayer, NewPlayer);
+		GetWorldTimerManager().SetTimerForNextTick(SeatDelegate);
+	}
+
 	// 접속한 플레이어 수 로그 (NumPlayers는 AGameMode 기본 변수)
 	UE_LOG(LogTemp, Warning, TEXT("플레이어 접속 완료. 현재 인원: %d"), NumPlayers);
+}
+
+void AMainGameMode::HandlePlayerReady(APlayerController* ReadyPlayer)
+{
+	if (!HasAuthority() || !ReadyPlayer)
+	{
+		return;
+	}
+
+	if (bGameStartRequested)
+	{
+		return;
+	}
+
+	if (bAutoReadyAllPlayersWhenOneReady)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Test auto ready enabled. Adding all connected players."));
+
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			APlayerController* PC = It->Get();
+			if (!PC)
+			{
+				continue;
+			}
+
+			const bool bWasAlreadyReady = ReadyPlayers.Contains(PC);
+			ReadyPlayers.AddUnique(PC);
+
+			if (!bWasAlreadyReady)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[GM] Ready player added: %s"), *GetNameSafe(PC));
+			}
+		}
+	}
+	else
+	{
+		const bool bWasAlreadyReady = ReadyPlayers.Contains(ReadyPlayer);
+		ReadyPlayers.AddUnique(ReadyPlayer);
+
+		if (!bWasAlreadyReady)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Ready player added: %s"), *GetNameSafe(ReadyPlayer));
+		}
+	}
+
+	if (!IsCurrentPlayerCountInGameRange())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Ready ignored. Connected players = %d, required range = %d-%d"),
+			NumPlayers, MinPlayerCountToStart, MaxPlayerCountToStart);
+		return;
+	}
+
+	if (AMainGameState* GS = GetGameState<AMainGameState>())
+	{
+		GS->ChangeReadyPlayerCount(ReadyPlayers.Num());
+	}
+
+	const int32 Required = GetRequiredReadyPlayerCount();
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Ready count = %d / Required = %d"), ReadyPlayers.Num(), Required);
+
+	if (ReadyPlayers.Num() >= Required)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] All players ready. Start game."));
+		StartGameAfterAllReady();
+	}
+}
+
+int32 AMainGameMode::GetRequiredReadyPlayerCount() const
+{
+	return NumPlayers;
+}
+
+bool AMainGameMode::IsCurrentPlayerCountInGameRange() const
+{
+	return NumPlayers >= MinPlayerCountToStart && NumPlayers <= MaxPlayerCountToStart;
+}
+
+void AMainGameMode::AssignInitialSeatToPlayer(APlayerController* NewPlayer)
+{
+	if (!HasAuthority() || !NewPlayer)
+	{
+		return;
+	}
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(NewPlayer->GetPawn());
+	if (!VRCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Initial auto seating skipped. Pawn is not LobbyVRCharacter."));
+		return;
+	}
+
+	ASeatActor* EmptySeat = FindEmptySeat();
+	if (!EmptySeat)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Initial auto seating failed. Empty seat not found."));
+		return;
+	}
+
+	if (!EmptySeat->SitTarget)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Initial auto seating failed. Seat has no SitTarget."));
+		return;
+	}
+
+	EmptySeat->SetOccupant(VRCharacter);
+
+	if (!GS->SeatChairArray.Contains(EmptySeat))
+	{
+		GS->SeatChairArray.Add(EmptySeat);
+		GS->SeatChairArray.Sort([](const ASeatActor& A, const ASeatActor& B)
+		{
+			return A.SeatOrder < B.SeatOrder;
+		});
+	}
+
+	VRCharacter->InitSeatedAtSeat(EmptySeat);
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] LobbyVRCharacter was initially seated at SeatOrder %d."), EmptySeat->SeatOrder);
+}
+
+ASeatActor* AMainGameMode::FindEmptySeat()
+{
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS)
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> FoundActors;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		ASeatActor::StaticClass(),
+		FoundActors
+	);
+
+	TArray<ASeatActor*> Seats;
+
+	for (AActor* Actor : FoundActors)
+	{
+		ASeatActor* Seat = Cast<ASeatActor>(Actor);
+		if (!Seat)
+		{
+			continue;
+		}
+
+		Seats.Add(Seat);
+	}
+
+	Seats.Sort([](const ASeatActor& A, const ASeatActor& B)
+	{
+		return A.SeatOrder < B.SeatOrder;
+	});
+
+	for (ASeatActor* Seat : Seats)
+	{
+		if (!Seat)
+		{
+			continue;
+		}
+
+		if (!GS->SeatChairArray.Contains(Seat) && !Seat->GetOccupant())
+		{
+			return Seat;
+		}
+	}
+
+	return nullptr;
+}
+
+void AMainGameMode::StartGameAfterAllReady()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bGameStartRequested)
+	{
+		return;
+	}
+
+	bGameStartRequested = true;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] All players ready. Game starts in 3 seconds."));
+
+	GS->SetGamePhase(EGamePhase::Starting);
+
+	// 각 플레이어 서브 리볼버 초기화
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		AMainPlayerState* MPS = Cast<AMainPlayerState>(PS);
+		if (MPS)
+		{
+			MPS->SetInitSubRevolver();
+		}
+	}
+
+	// 기준 플레이어 초기화
+	CheckPlayer = -1;
+
+	// 카드 매니저 초기화
+	MainCardManager = GetCardManager();
+	if (!MainCardManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] No CardManager"));
+		return;
+	}
+
+	MainCardManager->InitializeDeck();
+
+	// 3초 뒤 게임 시작
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::StartMainGame, 3.0f,false);
 }
 
 void AMainGameMode::PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* SeatedChair)
@@ -47,12 +282,16 @@ void AMainGameMode::CheckGameStart()
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
+	if (bGameStartRequested) return;
+	if (!IsCurrentPlayerCountInGameRange()) return;
 
 	// 기획 상 3~4인 플레이. 테스트를 위해 1인 이상으로 할 수도 있음.
 	// 여기서는 현재 접속한 인원이 모두 앉았는지(Ready) 검사
-	if (GS->ReadyPlayerCount >= 3 && GS->ReadyPlayerCount == NumPlayers) // TODO: 실제 서비스 시 >= 3으로 변경
+	const int32 Required = GetRequiredReadyPlayerCount();
+	if (GS->ReadyPlayerCount >= Required && GS->ReadyPlayerCount == NumPlayers)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("모든 플레이어가 착석했습니다. 3초 후 게임을 시작합니다."));
+		bGameStartRequested = true;
 
 		GS->SetGamePhase(EGamePhase::Starting);
 
@@ -101,7 +340,7 @@ void AMainGameMode::StartMainGame()
 	
 	DistributeCard();
 	
-	StartTurnTimer(20.0f);
+	StartTurnTimer(10.0f);
 
 	return;
 }

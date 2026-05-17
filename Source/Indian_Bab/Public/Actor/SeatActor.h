@@ -41,6 +41,8 @@ public:
 
 	TObjectPtr<AActor> GetOccupant();
 
+	void SetOccupant(AActor* NewOccupant);
+
 protected:
 	virtual void BeginPlay() override;
 

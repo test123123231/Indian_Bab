@@ -43,7 +43,7 @@ public:
 
 	// 서버/클라이언트 모두에서 앉기 상태가 변할 때 시각적, 조작적 처리를 할 함수
 	UFUNCTION()
-	void OnRep_IsSitting();
+	virtual void OnRep_IsSitting();
 
 	// 서버가 몽타주 종료 후 클라이언트에게 최종 카메라 세팅을 지시하는 함수
 	UFUNCTION(Client, Reliable)
@@ -199,6 +199,8 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual void OnRep_PlayerState() override;
+
+	virtual void UpdateAimYawFromView();
 
 	// 상호작용 입력 처리 함수
 	void OnInteract(const FInputActionValue& Value);
