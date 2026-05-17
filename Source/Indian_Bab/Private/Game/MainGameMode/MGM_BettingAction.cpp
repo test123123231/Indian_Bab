@@ -1,5 +1,6 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
+#include "Character/LobbyCharacter.h"
 #include "PlayerController/MainGamePlayerController.h"
 #include "Character/LobbyVRCharacter.h"
 #include "PlayerState/MainPlayerState.h"
@@ -140,7 +141,7 @@ void AMainGameMode::HandleMainRevolverShotAction(AMainGamePlayerController* Requ
 }
 
 // 폴드 애니메이션 끝났을 때 호출
-void AMainGameMode::HandleFoldMontageFinished(ALobbyVRCharacter* Character)
+void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 {
     if (!HasAuthority()) return;
     if (!Character) return;
@@ -152,7 +153,7 @@ void AMainGameMode::HandleFoldMontageFinished(ALobbyVRCharacter* Character)
 }
 
 // 메인 리볼버 줍는 애니메이션 끝났을 때 호출
-void AMainGameMode::HandleMainMontageFinished(ALobbyVRCharacter* Character)
+void AMainGameMode::HandleMainMontageFinished(ALobbyCharacter* Character)
 {
 	if (!HasAuthority()) return;
 	if (!Character) return;
@@ -164,7 +165,7 @@ void AMainGameMode::HandleMainMontageFinished(ALobbyVRCharacter* Character)
 }
 
 // 리볼버 격발 끝난 후(폴드나 게임 후)
-void AMainGameMode::HandlePutBackGunMontageFinished(ALobbyVRCharacter* Character, EGunHoldReason Reason)
+void AMainGameMode::HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason)
 {
 	if (!HasAuthority()) return;
 	if (!Character) return;

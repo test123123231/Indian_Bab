@@ -506,14 +506,14 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 		if (!GM) return;
 
-		//GM->HandleFoldMontageFinished(this);
+		GM->HandleFoldMontageFinished(this);
 	}
 	else if(GunHoldReason == EGunHoldReason::Win)
 	{
 		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 		if (!GM) return;
 
-		//GM->HandleMainMontageFinished(this);
+		GM->HandleMainMontageFinished(this);
 	}
 }
 
@@ -527,7 +527,7 @@ void ALobbyCharacter::OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInte
 	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
-	//GM->HandlePutBackGunMontageFinished(this, FinishedReason);
+	GM->HandlePutBackGunMontageFinished(this, FinishedReason);
 }
 
 void ALobbyCharacter::OnRep_IsSitting()

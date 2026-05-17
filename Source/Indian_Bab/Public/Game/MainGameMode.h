@@ -45,13 +45,13 @@ public:
 	void HandleMainRevolverShotAction(AMainGamePlayerController* RequestPC);
 
 	// 자기 머리에 겨냥했을 때
-	void HandleFoldMontageFinished(ALobbyVRCharacter* Character);
+	void HandleFoldMontageFinished(ALobbyCharacter* Character);
 
 	// 메인 리볼버 가져오는 애니메이션 끝났을 때
-	void HandleMainMontageFinished(ALobbyVRCharacter* Character);
+	void HandleMainMontageFinished(ALobbyCharacter* Character);
 
 	// 자기 머리에 쏜 이후
-	void HandlePutBackGunMontageFinished(ALobbyVRCharacter* Character, EGunHoldReason Reason);
+	void HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason);
 
 protected:
 	// 기존 착석 기반 게임 시작 체크

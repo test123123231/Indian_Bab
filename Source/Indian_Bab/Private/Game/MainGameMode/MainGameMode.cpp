@@ -340,7 +340,7 @@ void AMainGameMode::StartMainGame()
 	
 	DistributeCard();
 	
-	StartTurnTimer(20.0f);
+	StartTurnTimer(10.0f);
 
 	return;
 }
