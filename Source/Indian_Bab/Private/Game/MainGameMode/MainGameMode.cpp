@@ -5,6 +5,7 @@
 #include "Character/LobbyVRCharacter.h"
 #include "CardController/CardManager.h"
 #include "Kismet/GameplayStatics.h"
+#include "TimerManager.h"
 
 AMainGameMode::AMainGameMode()
 {
@@ -15,38 +16,25 @@ void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
 
+	if (NewPlayer)
+	{
+		FTimerDelegate SeatDelegate;
+		SeatDelegate.BindUObject(this, &AMainGameMode::AssignInitialSeatToPlayer, NewPlayer);
+		GetWorldTimerManager().SetTimerForNextTick(SeatDelegate);
+	}
+
 	// 접속한 플레이어 수 로그 (NumPlayers는 AGameMode 기본 변수)
 	UE_LOG(LogTemp, Warning, TEXT("플레이어 접속 완료. 현재 인원: %d"), NumPlayers);
-	
-	FTimerDelegate SeatDelegate;
-	SeatDelegate.BindUObject(this, &AMainGameMode::AssignInitialSeatToPlayer, NewPlayer);
-
-	GetWorldTimerManager().SetTimerForNextTick(SeatDelegate);
 }
 
 void AMainGameMode::HandlePlayerReady(APlayerController* ReadyPlayer)
 {
-	if (!HasAuthority() || !ReadyPlayer)
+	if (!ReadyPlayer)
 	{
 		return;
 	}
 
-	if (bGameStartRequested)
-	{
-		return;
-	}
-
-	ReadyPlayers.AddUnique(ReadyPlayer);
-
-	UE_LOG(LogTemp, Warning, TEXT("[GM] ReadyCount = %d / Expected = %d"),
-		ReadyPlayers.Num(),
-		ExpectedPlayerCount
-	);
-
-	if (ReadyPlayers.Num() >= ExpectedPlayerCount)
-	{
-		StartGameAfterAllReady();
-	}
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Ready flow is disabled. Use chair seating to start the game."));
 }
 
 void AMainGameMode::AssignInitialSeatToPlayer(APlayerController* NewPlayer)
@@ -65,28 +53,28 @@ void AMainGameMode::AssignInitialSeatToPlayer(APlayerController* NewPlayer)
 	ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(NewPlayer->GetPawn());
 	if (!VRCharacter)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Pawn is not ALobbyVRCharacter"));
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Initial auto seating skipped. Pawn is not LobbyVRCharacter."));
 		return;
 	}
 
 	ASeatActor* EmptySeat = FindEmptySeat();
 	if (!EmptySeat)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] EmptySeat is null"));
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Initial auto seating failed. Empty seat not found."));
 		return;
 	}
 
 	if (!EmptySeat->SitTarget)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] EmptySeat SitTarget is null"));
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Initial auto seating failed. Seat has no SitTarget."));
 		return;
 	}
 
-	// 같은 의자가 중복 배정되지 않도록 먼저 등록
+	EmptySeat->SetOccupant(VRCharacter);
+
 	if (!GS->SeatChairArray.Contains(EmptySeat))
 	{
 		GS->SeatChairArray.Add(EmptySeat);
-
 		GS->SeatChairArray.Sort([](const ASeatActor& A, const ASeatActor& B)
 		{
 			return A.SeatOrder < B.SeatOrder;
@@ -95,10 +83,7 @@ void AMainGameMode::AssignInitialSeatToPlayer(APlayerController* NewPlayer)
 
 	VRCharacter->InitSeatedAtSeat(EmptySeat);
 
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Initial seated player: %s / Seat: %s"),
-		*GetNameSafe(VRCharacter),
-		*GetNameSafe(EmptySeat)
-	);
+	UE_LOG(LogTemp, Warning, TEXT("[GM] LobbyVRCharacter was initially seated at SeatOrder %d."), EmptySeat->SeatOrder);
 }
 
 ASeatActor* AMainGameMode::FindEmptySeat()
@@ -142,7 +127,7 @@ ASeatActor* AMainGameMode::FindEmptySeat()
 			continue;
 		}
 
-		if (!GS->SeatChairArray.Contains(Seat))
+		if (!GS->SeatChairArray.Contains(Seat) && !Seat->GetOccupant())
 		{
 			return Seat;
 		}

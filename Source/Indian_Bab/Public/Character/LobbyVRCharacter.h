@@ -1,158 +1,28 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
-#include "Game/MainGameTypes.h"
+#include "Character/LobbyCharacter.h"
 #include "LobbyVRCharacter.generated.h"
 
-class UInputAction;
-class AMainGamePlayerController;
-struct FInputActionValue;
-class UCameraComponent;
+class ASeatActor;
+class UMotionControllerComponent;
+class UReadyWidget;
+class USceneComponent;
 class USkeletalMeshComponent;
 class UWidgetComponent;
-class ASeatActor;
-class ARevolver;
-class UWidgetComponent;
-class UReadyWidget;
+class UWidgetInteractionComponent;
 
 UCLASS()
-class INDIAN_BAB_API ALobbyVRCharacter : public ACharacter
+class INDIAN_BAB_API ALobbyVRCharacter : public ALobbyCharacter
 {
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	ALobbyVRCharacter();
 
-	// Called every frame
+	virtual void BeginPlay() override;
+	virtual void PawnClientRestart() override;
 	virtual void Tick(float DeltaTime) override;
-
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	// ������ ��� Ŭ���̾�Ʈ���� �ִϸ��̼��� ����϶�� �����ϴ� �Լ�
-	UFUNCTION(NetMulticast, Reliable)
-	void MulticastPlaySitAnimation();
-
-	// ���� ��ȣ�ۿ� �� ȣ��Ǿ� ��Ÿ�� ���Ḧ ��ٸ��ϴ�.
-	void StartSitTransition(ASeatActor* TargetSeat);
-
-	// ����/Ŭ���̾�Ʈ ��ο��� �ɱ� ���°� ���� �� �ð���, ������ ó���� �� �Լ�
-	UFUNCTION()
-	void OnRep_IsSitting();
-
-	void SetSittingState(bool bSitting);
-
-	UFUNCTION(Client, Unreliable)
-	void Client_PrepareSit(FVector TargetLocation, FRotator TargetRotation);
-
-	// ������ ��Ÿ�� ���� �� Ŭ���̾�Ʈ���� ���� ī�޶� ������ �����ϴ� �Լ�
-	UFUNCTION(Client, Reliable)
-	void Client_LockCameraAfterSit(FRotator FinalSitRotation);
-
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	TObjectPtr<UAnimMontage> SitMontage;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	TObjectPtr<UAnimMontage> AimMyselfMontage;
-
-	// Fold �ݹ� ������ �����δ� �ִϸ��̼� ��Ÿ�� (BP���� �Ҵ�)
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	TObjectPtr<UAnimMontage> EndAimMyselfMontage;
-
-	// �¸� �� ���� �ܳ��ϴ� �ִϸ��̼� ��Ÿ�� (BP���� �Ҵ�)
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	TObjectPtr<UAnimMontage> WinAimMontage;
-
-	// �¸� �� ���� �ݹ� �� �ǵ����� �ִϸ��̼� ��Ÿ�� (BP���� �Ҵ�)
-	UPROPERTY(EditDefaultsOnly, Category = "Animation")
-	TObjectPtr<UAnimMontage> WinEndMontage;
-
-	// ���� ����� ���� - ABP ������Ʈ �ӽ� Ʈ������ �Ǻ��� (Replicated)
-	UPROPERTY(ReplicatedUsing = OnRep_GunHoldReason, BlueprintReadOnly, Category = "State")
-	EGunHoldReason GunHoldReason;
-
-	// ABP�� �Ѱ��� ���� �¿� �� ���� ���� (��� ������� ����ȭ��)
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
-	float ReplicatedAimYaw = 0.0f;
-
-	// �������� ���� �г��� �� ī�� ���ε�
-	virtual void PossessedBy(AController* NewController) override;
-
-	// ���� �г��� �� ī�� ���ε� �Լ�
-	void BindPlayerStateDelegates();
-
-	UFUNCTION()
-	void UpdateNameWidget();
-
-	UFUNCTION()
-	void UpdateCardWidget();
-
-	UFUNCTION(Server, Unreliable)
-	void Server_UpdateAimYaw(float NewYaw);
-
-	UFUNCTION()
-	void OnRep_GunHoldReason();
-
-	// �� ������ ��Ÿ�� ��� (Fold/Win ����)
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_PlayGrabGunMontage(EGunHoldReason Reason);
-
-	// �� ���� ��ġ�� ������ ��Ÿ�� ��� (Fold/Win ����)
-	UFUNCTION(NetMulticast, Reliable)
-	void Multicast_PutBackGunMontage(EGunHoldReason Reason);
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<USkeletalMeshComponent> VRHead;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<USkeletalMeshComponent> VRBody;
-
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<ARevolver> DeskRevolver;
-
-	// ���� �ִϸ��̼ǿ��� �տ� ���� ������
-	// Fold�� ���� �ڸ� �� ���� ������, Win�� ���� �� �߾� ���� ������
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
-	TObjectPtr<ARevolver> ActiveRevolver;
-
-	// UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
-	// UCameraComponent* CameraComponent;
-
-	// AnimNotify_GrabRevolver ���� ȣ�� - å�� �������� ����� FP/TP �޽ø� ���Ͽ� ����
-	void AttachRevolverToSocket();
-
-	// AnimNotify_ReturnRevolverToDesk���� ȣ�� - �� ������ �޽ø� ����� å�� �������� �ٽ� ���̰� ��
-	void ReturnRevolverToDesk();
-
-	// �� �߰�: ���� ĳ���Ͱ� �ɾ��ִ��� ���� (����ȭ ��)
-	UPROPERTY(ReplicatedUsing = OnRep_IsSitting, BlueprintReadOnly, Category = "State")
-	bool bIsSitting;
-
-	// �ɱ� ��Ÿ�ְ� �������� ���� (���������� ����)
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "State")
-	bool bIsSittingEnded;
-
-	// ��ȣ�ۿ� �Ÿ�
-	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
-	float InteractRange = 250.0f;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PlayerNameWidget")
-	TObjectPtr<UWidgetComponent> PlayerNameWidgetComponent;
-
-	UPROPERTY(BlueprintReadOnly, Category = "State")
-	bool bIsPuttingBackGun = false;
-
-	void SetActiveRevolver(ARevolver* NewRevolver);
-
-	// ���� ������ ���ؼ� ǥ�� ����
-	UPROPERTY(BlueprintReadOnly, Category = "Main Revolver")
-	bool bShowMainShotAimLine = false;
-
-	// ���ؼ� �Ÿ�
-	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")
-	float MainShotAimLineDistance = 5000.0f;
 
 	void InitSeatedAtSeat(ASeatActor* TargetSeat);
 
@@ -165,61 +35,67 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_HideReadyWidget();
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	virtual void OnRep_IsSitting() override;
 
-	virtual void OnRep_PlayerState() override;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<USceneComponent> VROrigin;
 
-	UPROPERTY()
-	TObjectPtr<UCameraComponent> CameraComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<UMotionControllerComponent> MotionControllerRightGrip;
 
-	// ��ȣ�ۿ� �Է� ó�� �Լ�
-	void OnInteract(const FInputActionValue& Value);
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<UMotionControllerComponent> MotionControllerLeftGrip;
 
-	// ������ ��ȣ�ۿ��� ��û�ϴ� RPC
-	UFUNCTION(Server, Reliable)
-	void ServerInteract(AActor* InteractableActor);
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<UMotionControllerComponent> MotionControllerRightAim;
 
-	// ���ø����̼�(����ȭ) ����
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<USkeletalMeshComponent> HandRight;
 
-	// ��Ÿ�ְ� ������ �� �������� ȣ��� �ݹ� �Լ�
-	UFUNCTION()
-	void OnSitMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<USkeletalMeshComponent> HandLeft;
 
-	// �� ��� ��Ÿ�ְ� ������ �� �������� ȣ��� �ݹ� �Լ�
-	UFUNCTION()
-	void OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<UWidgetInteractionComponent> WidgetInteractionRight;
 
-	UFUNCTION()
-	void OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
-
-private:
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> IA_Interact;
-
-	// ���� ��ȣ�ۿ� ���� ���� ĳ��
-	UPROPERTY()
-	TObjectPtr<ASeatActor> CurrentSeat;
-
-	EGunHoldReason FinishedReason;
-
-	// ���ؼ� ǥ��/����
-	void SetMainShotAimLineVisible(bool bVisible);
-
-	// ���ؼ� �׸���
-	void DrawMainShotAimLine();
-
-	void CacheCameraComponentFromBlueprint();
-
-	void ShowReadyWidget();
-	void HideReadyWidget();
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR UI", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR UI")
 	TObjectPtr<UWidgetComponent> ReadyWidgetComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI", meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
 	TSubclassOf<UReadyWidget> ReadyWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat")
+	bool bUseCapsuleHalfHeightSeatOffset = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat")
+	float SeatHeightOffset = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat|Debug")
+	bool bShowSeatDebugCapsule = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat|Debug")
+	float DebugSeatCapsuleDuration = 10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
+	bool bAttachPlayerNameWidgetToHeadSocket = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
+	FName PlayerNameWidgetHeadSocketName = TEXT("head");
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
+	float PlayerNameWidgetHeadSocketHeightOffset = 30.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
+	float PlayerNameWidgetHeightOffset = 180.0f;
+
+protected:
+	virtual void UpdateAimYawFromView() override;
+
+private:
+	void ConfigureVRSeatedState();
+	void ConfigurePlayerNameWidget();
+	void HideLocalPlayerNameWidget();
+	void DrawSeatDebugCapsule() const;
+	void ShowReadyWidget();
+	void HideReadyWidget();
 };

@@ -1,5 +1,6 @@
 #include "Actor/AnimNotify_GrabRevolver.h"
 #include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
 
 void UAnimNotify_GrabRevolver::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
@@ -11,6 +12,13 @@ void UAnimNotify_GrabRevolver::Notify(USkeletalMeshComponent* MeshComp, UAnimSeq
 	if (Character)
 	{
 		Character->AttachRevolverToSocket();
+		return;
+	}
+
+	ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(MeshComp->GetOwner());
+	if (VRCharacter)
+	{
+		VRCharacter->AttachRevolverToSocket();
 	}
 }
 

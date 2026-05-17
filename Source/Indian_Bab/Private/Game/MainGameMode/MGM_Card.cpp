@@ -1,11 +1,14 @@
+
+
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
 #include "Kismet/GameplayStatics.h"
-#include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
 #include "Actor/SeatActor.h"
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
 #include "PlayerController/MainGamePlayerController.h"
+#include "GameFramework/Character.h"
 
 // 카드 매니저 획득
 TObjectPtr<ACardManager> AMainGameMode::GetCardManager()
@@ -38,7 +41,7 @@ void AMainGameMode::DistributeCard()
 	{
 		if(!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
@@ -68,7 +71,13 @@ void AMainGameMode::CheckPlayerCard()
 	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
 	if (!PC) return;
 
-	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+	ALobbyVRCharacter* WinnerCharacter = Cast<ALobbyVRCharacter>(PC->GetPawn());
+	if (!WinnerCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Winner pawn is not ALobbyVRCharacter"));
+		return;
+	}
+
 	ARevolver* Revolver = GetMainRevolver();
 	if (!Revolver) 
 	{
@@ -96,7 +105,7 @@ TObjectPtr<AMainPlayerState> AMainGameMode::MaxCardPlayer()
 	{
 		if(!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
