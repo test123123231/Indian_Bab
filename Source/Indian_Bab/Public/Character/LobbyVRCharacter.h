@@ -21,8 +21,16 @@ public:
 	ALobbyVRCharacter();
 
 	virtual void BeginPlay() override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
 	virtual void PawnClientRestart() override;
 	virtual void Tick(float DeltaTime) override;
+
+	void BindVRPlayerStateDelegates();
+
+	void UpdateNameWidget();
+
+	void UpdateCardWidget();
 
 	void InitSeatedAtSeat(ASeatActor* TargetSeat);
 
@@ -50,6 +58,9 @@ public:
 	TObjectPtr<UMotionControllerComponent> MotionControllerRightAim;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<UMotionControllerComponent> MotionControllerLeftAim;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
 	TObjectPtr<USkeletalMeshComponent> HandRight;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
@@ -57,6 +68,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
 	TObjectPtr<UWidgetInteractionComponent> WidgetInteractionRight;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
+	TObjectPtr<UWidgetInteractionComponent> WidgetInteractionLeft;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR UI")
 	TObjectPtr<UWidgetComponent> ReadyWidgetComponent;
@@ -83,18 +97,51 @@ public:
 	FName PlayerNameWidgetHeadSocketName = TEXT("head");
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
-	float PlayerNameWidgetHeadSocketHeightOffset = 30.0f;
+	FVector PlayerNameWidgetRelativeLocation = FVector(0.0f, 0.0f, 30.0f);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
-	float PlayerNameWidgetHeightOffset = 180.0f;
+	FVector PlayerNameWidgetFallbackRelativeLocation = FVector(0.0f, 0.0f, 190.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|NameWidget")
+	FVector VRNameWidgetWorldOffset = FVector(0.0f, 0.0f, 25.0f);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|NameWidget")
+	float VRNameWidgetHeightOffset = 180.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI|Debug")
+	bool bLogPlayerNameWidgetTransform = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
+	float VRPointerMaxDistance = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
+	float LaserThickness = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
+	bool bShowVRPointer = true;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer|Debug")
+	bool bShowWidgetInteractionDebug = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
+	bool bLogVRPointerHits = false;
 
 protected:
 	virtual void UpdateAimYawFromView() override;
 
 private:
 	void ConfigureVRSeatedState();
+	void ConfigureWidgetInteraction();
 	void ConfigurePlayerNameWidget();
+	void UpdateVRNameWidget();
+	bool ApplyVRNameWidgetVisibility();
+	void UpdateVRNameWidgetTransform();
+	FVector GetVRNameWidgetTargetLocation() const;
+	bool GetLocalCameraLocation(FVector& OutCameraLocation) const;
+	void LogPlayerNameWidgetTransform() const;
 	void HideLocalPlayerNameWidget();
+	void UpdateVRPointers();
+	void UpdateLaserPointer(const UMotionControllerComponent* AimController, const TCHAR* PointerName) const;
 	void DrawSeatDebugCapsule() const;
 	void ShowReadyWidget();
 	void HideReadyWidget();
