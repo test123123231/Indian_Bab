@@ -124,6 +124,10 @@ private:
 	// 모든 플레이어가 Ready를 눌렀을 때 게임 시작 준비
 	void StartGameAfterAllReady();
 
+	int32 GetRequiredReadyPlayerCount() const;
+
+	bool IsCurrentPlayerCountInGameRange() const;
+
 private:
 	FTimerHandle TimerHandle;
 
@@ -131,10 +135,16 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<APlayerController>> ReadyPlayers;
 
-	// 테스트용 기대 인원 수
-	// 실제 게임에서는 3 또는 4로 변경 가능
+	// 게임 시작을 위한 최소/최대 플레이어 수
 	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
-	int32 ExpectedPlayerCount = 1;
+	int32 MinPlayerCountToStart = 3;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
+	int32 MaxPlayerCountToStart = 5;
+
+	// 클라이언트 3개일 때 맞춰줌(테스트용, 출시에는 false로 바꿔야됨)
+	UPROPERTY(EditDefaultsOnly, Category = "Game Start|Test")
+	bool bAutoReadyAllPlayersWhenOneReady = true;
 
 	// 게임 시작 중복 호출 방지
 	bool bGameStartRequested = false;

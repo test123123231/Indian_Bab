@@ -29,12 +29,78 @@ void AMainGameMode::PostLogin(APlayerController* NewPlayer)
 
 void AMainGameMode::HandlePlayerReady(APlayerController* ReadyPlayer)
 {
-	if (!ReadyPlayer)
+	if (!HasAuthority() || !ReadyPlayer)
 	{
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Ready flow is disabled. Use chair seating to start the game."));
+	if (bGameStartRequested)
+	{
+		return;
+	}
+
+	if (bAutoReadyAllPlayersWhenOneReady)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Test auto ready enabled. Adding all connected players."));
+
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			APlayerController* PC = It->Get();
+			if (!PC)
+			{
+				continue;
+			}
+
+			const bool bWasAlreadyReady = ReadyPlayers.Contains(PC);
+			ReadyPlayers.AddUnique(PC);
+
+			if (!bWasAlreadyReady)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[GM] Ready player added: %s"), *GetNameSafe(PC));
+			}
+		}
+	}
+	else
+	{
+		const bool bWasAlreadyReady = ReadyPlayers.Contains(ReadyPlayer);
+		ReadyPlayers.AddUnique(ReadyPlayer);
+
+		if (!bWasAlreadyReady)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Ready player added: %s"), *GetNameSafe(ReadyPlayer));
+		}
+	}
+
+	if (!IsCurrentPlayerCountInGameRange())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Ready ignored. Connected players = %d, required range = %d-%d"),
+			NumPlayers, MinPlayerCountToStart, MaxPlayerCountToStart);
+		return;
+	}
+
+	if (AMainGameState* GS = GetGameState<AMainGameState>())
+	{
+		GS->ChangeReadyPlayerCount(ReadyPlayers.Num());
+	}
+
+	const int32 Required = GetRequiredReadyPlayerCount();
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Ready count = %d / Required = %d"), ReadyPlayers.Num(), Required);
+
+	if (ReadyPlayers.Num() >= Required)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] All players ready. Start game."));
+		StartGameAfterAllReady();
+	}
+}
+
+int32 AMainGameMode::GetRequiredReadyPlayerCount() const
+{
+	return NumPlayers;
+}
+
+bool AMainGameMode::IsCurrentPlayerCountInGameRange() const
+{
+	return NumPlayers >= MinPlayerCountToStart && NumPlayers <= MaxPlayerCountToStart;
 }
 
 void AMainGameMode::AssignInitialSeatToPlayer(APlayerController* NewPlayer)
@@ -216,12 +282,16 @@ void AMainGameMode::CheckGameStart()
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
+	if (bGameStartRequested) return;
+	if (!IsCurrentPlayerCountInGameRange()) return;
 
 	// 기획 상 3~4인 플레이. 테스트를 위해 1인 이상으로 할 수도 있음.
 	// 여기서는 현재 접속한 인원이 모두 앉았는지(Ready) 검사
-	if (GS->ReadyPlayerCount >= 3 && GS->ReadyPlayerCount == NumPlayers) // TODO: 실제 서비스 시 >= 3으로 변경
+	const int32 Required = GetRequiredReadyPlayerCount();
+	if (GS->ReadyPlayerCount >= Required && GS->ReadyPlayerCount == NumPlayers)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("모든 플레이어가 착석했습니다. 3초 후 게임을 시작합니다."));
+		bGameStartRequested = true;
 
 		GS->SetGamePhase(EGamePhase::Starting);
 

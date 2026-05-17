@@ -11,6 +11,7 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
+#include "InputCoreTypes.h"
 #include "MotionControllerComponent.h"
 #include "PlayerController/MainGamePlayerController.h"
 #include "PlayerState/MainPlayerState.h"
@@ -65,14 +66,13 @@ ALobbyVRCharacter::ALobbyVRCharacter()
 
 	ReadyWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("ReadyWidget"));
 	ReadyWidgetComponent->SetupAttachment(CameraComponent);
-	ReadyWidgetComponent->SetRelativeLocation(FVector(120.0f, 0.0f, 0.0f));
-	ReadyWidgetComponent->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
 	ReadyWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
 	ReadyWidgetComponent->SetDrawSize(FVector2D(800.0f, 400.0f));
 	ReadyWidgetComponent->SetPivot(FVector2D(0.5f, 0.5f));
 	ReadyWidgetComponent->SetWorldScale3D(FVector(0.1f));
 	ReadyWidgetComponent->SetTwoSided(true);
-	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	ReadyWidgetComponent->SetGenerateOverlapEvents(false);
 	ReadyWidgetComponent->SetVisibility(false);
 	ReadyWidgetComponent->SetHiddenInGame(true);
@@ -94,6 +94,14 @@ void ALobbyVRCharacter::BeginPlay()
 	if (ReadyWidgetClass && ReadyWidgetComponent)
 	{
 		ReadyWidgetComponent->SetWidgetClass(ReadyWidgetClass);
+	}
+
+	if (!IsLocallyControlled() && ReadyWidgetComponent)
+	{
+		ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+		ReadyWidgetComponent->SetHiddenInGame(true);
+		ReadyWidgetComponent->SetVisibility(false, true);
 	}
 
 	if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController()))
@@ -317,7 +325,7 @@ void ALobbyVRCharacter::Client_InitSeatedAtSeat_Implementation(FVector TargetLoc
 		UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition(0.0f, EOrientPositionSelector::OrientationAndPosition);
 	}
 
-	// Ready UI is intentionally disabled for the current auto-seating pose/camera test.
+	ShowReadyWidget();
 }
 
 void ALobbyVRCharacter::Client_ShowReadyWidget_Implementation()
@@ -328,6 +336,58 @@ void ALobbyVRCharacter::Client_ShowReadyWidget_Implementation()
 void ALobbyVRCharacter::Client_HideReadyWidget_Implementation()
 {
 	HideReadyWidget();
+}
+
+void ALobbyVRCharacter::PressRightWidgetInteraction()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right trigger press"));
+	if (!WidgetInteractionRight)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] WidgetInteractionRight is null"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right hovered widget: %s"), *GetNameSafe(WidgetInteractionRight->GetHoveredWidgetComponent()));
+	WidgetInteractionRight->PressPointerKey(EKeys::LeftMouseButton);
+}
+
+void ALobbyVRCharacter::ReleaseRightWidgetInteraction()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right trigger release"));
+	if (!WidgetInteractionRight)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] WidgetInteractionRight is null"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right hovered widget: %s"), *GetNameSafe(WidgetInteractionRight->GetHoveredWidgetComponent()));
+	WidgetInteractionRight->ReleasePointerKey(EKeys::LeftMouseButton);
+}
+
+void ALobbyVRCharacter::PressLeftWidgetInteraction()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left trigger press"));
+	if (!WidgetInteractionLeft)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] WidgetInteractionLeft is null"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left hovered widget: %s"), *GetNameSafe(WidgetInteractionLeft->GetHoveredWidgetComponent()));
+	WidgetInteractionLeft->PressPointerKey(EKeys::LeftMouseButton);
+}
+
+void ALobbyVRCharacter::ReleaseLeftWidgetInteraction()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left trigger release"));
+	if (!WidgetInteractionLeft)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] WidgetInteractionLeft is null"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left hovered widget: %s"), *GetNameSafe(WidgetInteractionLeft->GetHoveredWidgetComponent()));
+	WidgetInteractionLeft->ReleasePointerKey(EKeys::LeftMouseButton);
 }
 
 void ALobbyVRCharacter::OnRep_IsSitting()
@@ -388,6 +448,21 @@ void ALobbyVRCharacter::ConfigureVRSeatedState()
 
 void ALobbyVRCharacter::ConfigureWidgetInteraction()
 {
+	int32 VirtualUserIndex = 0;
+	int32 RightPointerIndex = 0;
+	int32 LeftPointerIndex = 1;
+
+	if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController()))
+	{
+		const int32 PlayerId = PC->GetPlayerIdSafe();
+		if (PlayerId >= 0)
+		{
+			VirtualUserIndex = PlayerId;
+			RightPointerIndex = PlayerId * 2;
+			LeftPointerIndex = PlayerId * 2 + 1;
+		}
+	}
+
 	if (WidgetInteractionRight)
 	{
 		WidgetInteractionRight->InteractionDistance = VRPointerMaxDistance;
@@ -395,6 +470,8 @@ void ALobbyVRCharacter::ConfigureWidgetInteraction()
 		WidgetInteractionRight->bShowDebug = bShowWidgetInteractionDebug;
 		WidgetInteractionRight->bEnableHitTesting = true;
 		WidgetInteractionRight->InteractionSource = EWidgetInteractionSource::World;
+		WidgetInteractionRight->VirtualUserIndex = VirtualUserIndex;
+		WidgetInteractionRight->PointerIndex = RightPointerIndex;
 	}
 
 	if (WidgetInteractionLeft)
@@ -404,7 +481,15 @@ void ALobbyVRCharacter::ConfigureWidgetInteraction()
 		WidgetInteractionLeft->bShowDebug = bShowWidgetInteractionDebug;
 		WidgetInteractionLeft->bEnableHitTesting = true;
 		WidgetInteractionLeft->InteractionSource = EWidgetInteractionSource::World;
+		WidgetInteractionLeft->VirtualUserIndex = VirtualUserIndex;
+		WidgetInteractionLeft->PointerIndex = LeftPointerIndex;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] WidgetInteraction configured. Character=%s VirtualUser=%d RightPointer=%d LeftPointer=%d"),
+		*GetNameSafe(this),
+		VirtualUserIndex,
+		RightPointerIndex,
+		LeftPointerIndex);
 }
 
 void ALobbyVRCharacter::ConfigurePlayerNameWidget()
@@ -437,6 +522,8 @@ bool ALobbyVRCharacter::ApplyVRNameWidgetVisibility()
 	NameWidgetComponent->SetOwnerNoSee(true);
 	NameWidgetComponent->SetDrawAtDesiredSize(true);
 	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+	NameWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	NameWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 
 	if (IsLocallyControlled())
 	{
@@ -514,23 +601,23 @@ bool ALobbyVRCharacter::GetLocalCameraLocation(FVector& OutCameraLocation) const
 
 void ALobbyVRCharacter::LogPlayerNameWidgetTransform() const
 {
-	if (!bLogPlayerNameWidgetTransform || !NameWidgetComponent)
-	{
-		return;
-	}
+	// if (!bLogPlayerNameWidgetTransform || !NameWidgetComponent)
+	// {
+	// 	return;
+	// }
 
-	const USceneComponent* AttachParent = NameWidgetComponent->GetAttachParent();
-	FVector CameraLocation = FVector::ZeroVector;
-	GetLocalCameraLocation(CameraLocation);
-	UE_LOG(LogTemp, Warning,
-		TEXT("[LobbyVRCharacter] NameWidget Character=%s Local=%s AttachParent=%s RelLoc=%s WorldLoc=%s CameraWorldLoc=%s ActorLoc=%s"),
-		*GetName(),
-		IsLocallyControlled() ? TEXT("true") : TEXT("false"),
-		*GetNameSafe(AttachParent),
-		*NameWidgetComponent->GetRelativeLocation().ToString(),
-		*NameWidgetComponent->GetComponentLocation().ToString(),
-		*CameraLocation.ToString(),
-		*GetActorLocation().ToString());
+	// const USceneComponent* AttachParent = NameWidgetComponent->GetAttachParent();
+	// FVector CameraLocation = FVector::ZeroVector;
+	// GetLocalCameraLocation(CameraLocation);
+	// UE_LOG(LogTemp, Warning,
+	// 	TEXT("[LobbyVRCharacter] NameWidget Character=%s Local=%s AttachParent=%s RelLoc=%s WorldLoc=%s CameraWorldLoc=%s ActorLoc=%s"),
+	// 	*GetName(),
+	// 	IsLocallyControlled() ? TEXT("true") : TEXT("false"),
+	// 	*GetNameSafe(AttachParent),
+	// 	*NameWidgetComponent->GetRelativeLocation().ToString(),
+	// 	*NameWidgetComponent->GetComponentLocation().ToString(),
+	// 	*CameraLocation.ToString(),
+	// 	*GetActorLocation().ToString());
 }
 
 void ALobbyVRCharacter::HideLocalPlayerNameWidget()
@@ -566,6 +653,8 @@ void ALobbyVRCharacter::HideLocalPlayerNameWidget()
 		WidgetComponent->SetHiddenInGame(true);
 		WidgetComponent->SetVisibility(false, true);
 		WidgetComponent->SetDrawAtDesiredSize(false);
+		WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		WidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
 	}
 }
 
@@ -645,21 +734,38 @@ void ALobbyVRCharacter::ShowReadyWidget()
 		return;
 	}
 
+	ConfigureWidgetInteraction();
+
 	if (ReadyWidgetClass)
 	{
 		ReadyWidgetComponent->SetWidgetClass(ReadyWidgetClass);
 	}
 
-	if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController()))
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController());
+	if (PC)
 	{
 		ReadyWidgetComponent->SetOwnerPlayer(PC->GetLocalPlayer());
 	}
 
-	ReadyWidgetComponent->SetRelativeLocation(FVector(120.0f, 0.0f, 0.0f));
-	ReadyWidgetComponent->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
 	ReadyWidgetComponent->InitWidget();
+
+	if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent->GetUserWidgetObject()))
+	{
+		ReadyWidget->SetOwningPlayer(PC);
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget owning player set to %s"), *GetNameSafe(PC));
+	}
+
+	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ReadyWidgetComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
 	ReadyWidgetComponent->SetHiddenInGame(false);
 	ReadyWidgetComponent->SetVisibility(true, true);
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget shown. Local=%s Collision=%d WidgetClass=%s WidgetObject=%s"),
+		IsLocallyControlled() ? TEXT("true") : TEXT("false"),
+		static_cast<int32>(ReadyWidgetComponent->GetCollisionEnabled()),
+		*GetNameSafe(ReadyWidgetComponent->GetWidgetClass()),
+		*GetNameSafe(ReadyWidgetComponent->GetUserWidgetObject()));
 }
 
 void ALobbyVRCharacter::HideReadyWidget()
@@ -671,4 +777,8 @@ void ALobbyVRCharacter::HideReadyWidget()
 
 	ReadyWidgetComponent->SetHiddenInGame(true);
 	ReadyWidgetComponent->SetVisibility(false, true);
+	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget hidden"));
 }

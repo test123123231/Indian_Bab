@@ -10,6 +10,8 @@
 #include "GameFramework/PlayerState.h"
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
+#include "InputCoreTypes.h"
 #include "Interface/InteractableInterface.h"
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
@@ -97,6 +99,38 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnFire);
         }
+
+        if (IA_RightTriggerClick)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick is null"));
+        }
+
+        if (IA_LeftTriggerClick)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnLeftTriggerClickStarted);
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick is null"));
+        }
+
+        if (!IA_RightTriggerClick && IA_Fire)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_Fire is used as temporary right trigger UI click fallback"));
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+        }
     }
 }
 
@@ -104,10 +138,18 @@ void AMainGamePlayerController::SetupInputComponent()
 void AMainGamePlayerController::ApplyLobbyMappingContext()
 {
     ULocalPlayer* LocalPlayer = GetLocalPlayer();
-    if (!LocalPlayer) return;
+    if (!LocalPlayer)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Input] ApplyLobbyMappingContext failed. LocalPlayer is null"));
+        return;
+    }
 
     auto* Subsys = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-    if (!Subsys) return;
+    if (!Subsys)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Input] ApplyLobbyMappingContext failed. EnhancedInput subsystem is null"));
+        return;
+    }
 
     // 나중에 게임 모드 별로 바꾸도록 변경 필요
     if (Subsys->HasMappingContext(MainGameMappingContext))
@@ -118,6 +160,11 @@ void AMainGamePlayerController::ApplyLobbyMappingContext()
     if (LobbyMappingContext)
     {
         Subsys->AddMappingContext(LobbyMappingContext, 0);
+        UE_LOG(LogTemp, Warning, TEXT("[Input] LobbyMappingContext applied: %s"), *GetNameSafe(LobbyMappingContext));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Input] LobbyMappingContext is null"));
     }
 }
 
@@ -361,6 +408,8 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
 
 void AMainGamePlayerController::Server_RequestReady_Implementation()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[PC] Server_RequestReady called"));
+
 	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
@@ -385,4 +434,54 @@ void AMainGamePlayerController::OnMainGameTabPressed(const FInputActionValue& Va
 void AMainGamePlayerController::OnFire(const FInputActionValue& Value)
 {
 	Server_RequestMainRevolverShot();
+}
+
+void AMainGamePlayerController::OnRightTriggerClickStarted(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressRightWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnRightTriggerClickReleased(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseRightWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnLeftTriggerClickStarted(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressLeftWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnLeftTriggerClickReleased(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseLeftWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnDebugRightTriggerPressed()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Debug R press"));
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressRightWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnDebugRightTriggerReleased()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Debug R release"));
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseRightWidgetInteraction();
+	}
 }

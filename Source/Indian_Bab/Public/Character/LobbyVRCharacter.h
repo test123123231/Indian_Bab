@@ -43,6 +43,14 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_HideReadyWidget();
 
+	void PressRightWidgetInteraction();
+	void ReleaseRightWidgetInteraction();
+	void PressLeftWidgetInteraction();
+	void ReleaseLeftWidgetInteraction();
+
+	void ShowReadyWidget();
+	void HideReadyWidget();
+
 	virtual void OnRep_IsSitting() override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR")
@@ -143,6 +151,4 @@ private:
 	void UpdateVRPointers();
 	void UpdateLaserPointer(const UMotionControllerComponent* AimController, const TCHAR* PointerName) const;
 	void DrawSeatDebugCapsule() const;
-	void ShowReadyWidget();
-	void HideReadyWidget();
 };
