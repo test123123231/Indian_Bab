@@ -3,7 +3,7 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
 #include "Kismet/GameplayStatics.h"
-#include "Character/LobbyVRCharacter.h"
+#include "Character/LobbyCharacter.h"
 #include "Actor/SeatActor.h"
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
@@ -71,10 +71,10 @@ void AMainGameMode::CheckPlayerCard()
 	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
 	if (!PC) return;
 
-	ALobbyVRCharacter* WinnerCharacter = Cast<ALobbyVRCharacter>(PC->GetPawn());
+	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
 	if (!WinnerCharacter)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Winner pawn is not ALobbyVRCharacter"));
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Winner pawn is not ALobbyCharacter"));
 		return;
 	}
 
