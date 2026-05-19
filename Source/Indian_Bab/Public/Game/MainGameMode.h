@@ -142,9 +142,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
 	int32 MaxPlayerCountToStart = 5;
 
-	// 클라이언트 3개일 때 맞춰줌(테스트용, 출시에는 false로 바꿔야됨)
+	// 클라이언트 3개일 때 맞춰줌(테스트 시 BP에서 true로 변경하면 1인 클라로 가능)
 	UPROPERTY(EditDefaultsOnly, Category = "Game Start|Test")
-	bool bAutoReadyAllPlayersWhenOneReady = true;
+	bool bAutoReadyAllPlayersWhenOneReady = false;
 
 	// 게임 시작 중복 호출 방지
 	bool bGameStartRequested = false;
