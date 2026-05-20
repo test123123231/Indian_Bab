@@ -137,7 +137,7 @@ private:
 
 	// 게임 시작을 위한 최소/최대 플레이어 수
 	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
-	int32 MinPlayerCountToStart = 3;
+	int32 MinPlayerCountToStart = 2;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
 	int32 MaxPlayerCountToStart = 5;

@@ -348,6 +348,12 @@ void ALobbyVRCharacter::PressRightWidgetInteraction()
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right hovered widget: %s"), *GetNameSafe(WidgetInteractionRight->GetHoveredWidgetComponent()));
+	const FHitResult& LastHitResult = WidgetInteractionRight->GetLastHitResult();
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right last hit actor: %s component: %s blocking: %s distance: %.2f"),
+		*GetNameSafe(LastHitResult.GetActor()),
+		*GetNameSafe(LastHitResult.GetComponent()),
+		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
+		LastHitResult.Distance);
 	WidgetInteractionRight->PressPointerKey(EKeys::LeftMouseButton);
 }
 
@@ -361,6 +367,12 @@ void ALobbyVRCharacter::ReleaseRightWidgetInteraction()
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right hovered widget: %s"), *GetNameSafe(WidgetInteractionRight->GetHoveredWidgetComponent()));
+	const FHitResult& LastHitResult = WidgetInteractionRight->GetLastHitResult();
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right last hit actor: %s component: %s blocking: %s distance: %.2f"),
+		*GetNameSafe(LastHitResult.GetActor()),
+		*GetNameSafe(LastHitResult.GetComponent()),
+		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
+		LastHitResult.Distance);
 	WidgetInteractionRight->ReleasePointerKey(EKeys::LeftMouseButton);
 }
 
@@ -374,6 +386,12 @@ void ALobbyVRCharacter::PressLeftWidgetInteraction()
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left hovered widget: %s"), *GetNameSafe(WidgetInteractionLeft->GetHoveredWidgetComponent()));
+	const FHitResult& LastHitResult = WidgetInteractionLeft->GetLastHitResult();
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left last hit actor: %s component: %s blocking: %s distance: %.2f"),
+		*GetNameSafe(LastHitResult.GetActor()),
+		*GetNameSafe(LastHitResult.GetComponent()),
+		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
+		LastHitResult.Distance);
 	WidgetInteractionLeft->PressPointerKey(EKeys::LeftMouseButton);
 }
 
@@ -387,6 +405,12 @@ void ALobbyVRCharacter::ReleaseLeftWidgetInteraction()
 	}
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left hovered widget: %s"), *GetNameSafe(WidgetInteractionLeft->GetHoveredWidgetComponent()));
+	const FHitResult& LastHitResult = WidgetInteractionLeft->GetLastHitResult();
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Left last hit actor: %s component: %s blocking: %s distance: %.2f"),
+		*GetNameSafe(LastHitResult.GetActor()),
+		*GetNameSafe(LastHitResult.GetComponent()),
+		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
+		LastHitResult.Distance);
 	WidgetInteractionLeft->ReleasePointerKey(EKeys::LeftMouseButton);
 }
 
@@ -697,7 +721,12 @@ void ALobbyVRCharacter::UpdateLaserPointer(const UMotionControllerComponent* Aim
 
 	if (bLogVRPointerHits && bHit)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[LobbyVRCharacter] %s pointer hit: %s"), PointerName, *GetNameSafe(HitResult.GetActor()));
+		UE_LOG(LogTemp, Verbose, TEXT("[LobbyVRCharacter] %s pointer hit actor: %s component: %s blocking: %s distance: %.2f"),
+			PointerName,
+			*GetNameSafe(HitResult.GetActor()),
+			*GetNameSafe(HitResult.GetComponent()),
+			HitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
+			HitResult.Distance);
 	}
 }
 
@@ -775,10 +804,12 @@ void ALobbyVRCharacter::HideReadyWidget()
 		return;
 	}
 
-	ReadyWidgetComponent->SetHiddenInGame(true);
-	ReadyWidgetComponent->SetVisibility(false, true);
 	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ReadyWidgetComponent->SetGenerateOverlapEvents(false);
+	ReadyWidgetComponent->SetVisibility(false);
+	ReadyWidgetComponent->SetHiddenInGame(true);
+
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget hidden"));
 }
