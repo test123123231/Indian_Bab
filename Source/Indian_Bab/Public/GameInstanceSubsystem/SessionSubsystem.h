@@ -5,7 +5,11 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/OnlineSessionInterface.h"
+#include "Logging/LogMacros.h"
 #include "SessionSubsystem.generated.h"
+
+
+DECLARE_LOG_CATEGORY_EXTERN(LogSessionSubsystem, Log, All);
 
 
 // UI에서 결과를 알 수 있도록 블루프린트 델리게이트 선언
@@ -23,8 +27,6 @@ class INDIAN_BAB_API USessionSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-    USessionSubsystem();
-
     // 서브시스템 초기화 및 종료 (생성자/소멸자 역할)
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -72,6 +74,12 @@ protected:
 
     // 세션 설정 키 (초대 코드를 저장할 키 이름)
     const FName Key_InviteCode = FName("RoomCode");
+
+    // ----------------------------------------------------------------
+    // Initialize 분기 헬퍼 — PIE / Standalone·패키지 두 흐름을 명확히 분리
+    // ----------------------------------------------------------------
+    void InitializeForEditor();    // PIE: Steam 미강제, 진단 로그만
+    void InitializeForRuntime();   // Standalone/패키지: Steam 강제, 실패 시 종료
 
     // ----------------------------------------------------------------
     // 내부 콜백 함수 (OnlineSubsystem으로부터 응답을 받음)

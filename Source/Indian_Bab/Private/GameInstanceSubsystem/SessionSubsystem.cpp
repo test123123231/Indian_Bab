@@ -11,36 +11,116 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/PlatformMisc.h"
+
+#if PLATFORM_WINDOWS
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include <Windows.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
+
+DEFINE_LOG_CATEGORY(LogSessionSubsystem);
 
 
 const FName USessionSubsystem::Key_DediEndpoint = FName("DediEndpoint");
 
 
-USessionSubsystem::USessionSubsystem()
+namespace
 {
+    void FatalExitSteamMissing(const TCHAR* Reason)
+    {
+#if PLATFORM_WINDOWS
+        ::MessageBoxW(nullptr,
+            L"Steam 클라이언트가 실행 중인지 확인하세요.\n게임을 종료합니다.",
+            L"Indian_Bab — Steam 초기화 실패",
+            MB_OK | MB_ICONERROR);
+#endif
+        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem] Steam init failed — %s. Exiting."), Reason);
+        FPlatformMisc::RequestExit(false);
+    }
 }
 
 
 void USessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);
-
-    // 온라인 서브시스템(Steam) 가져오기
-    if (IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get())
+    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem] 세션 테스트 로그"));
+    // GIsEditor: PIE 자식 월드에선 true, Standalone 자식 프로세스·패키지 빌드에선 false.
+    // → PIE만 우회, Standalone과 패키지는 Steam 강제.
+    if (GIsEditor)
     {
-        SessionInterface = Subsystem->GetSessionInterface();
-        if (SessionInterface.IsValid())
-        {
-            UE_LOG(LogTemp, Warning, TEXT("SessionSubsystem: Steam Subsystem Found!"));
-        }
+        InitializeForEditor();
     }
+    else
+    {
+        InitializeForRuntime();
+    }
+}
+
+
+void USessionSubsystem::InitializeForEditor()
+{
+    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Editor] OnlineSubsystem 조회 시도."));
+
+    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+    if (Subsystem == nullptr)
+    {
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("[SessionSubsystem][Editor] IOnlineSubsystem::Get() == null — 세션 기능 비활성 상태로 계속 진행."));
+        return;
+    }
+
+    const FName SubsystemName = Subsystem->GetSubsystemName();
+    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Editor] OnlineSubsystem 이름: %s"), *SubsystemName.ToString());
+
+    SessionInterface = Subsystem->GetSessionInterface();
+    if (!SessionInterface.IsValid())
+    {
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("[SessionSubsystem][Editor] SessionInterface 무효 — CreateRoom/JoinRoomByCode 호출 시 즉시 실패 브로드캐스트됨."));
+        return;
+    }
+
+    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Editor] SessionInterface 확보 완료 (%s)."), *SubsystemName.ToString());
+}
+
+
+void USessionSubsystem::InitializeForRuntime()
+{
+    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Runtime] Steam 검사 시작."));
+
+    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+    if (Subsystem == nullptr)
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem][Runtime] IOnlineSubsystem::Get() == null."));
+        FatalExitSteamMissing(TEXT("Steam not detected (OnlineSubsystem null)"));
+        return;
+    }
+
+    const FName SubsystemName = Subsystem->GetSubsystemName();
+    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Runtime] OnlineSubsystem 이름: %s (기대값: STEAM)"), *SubsystemName.ToString());
+
+    if (SubsystemName != FName(TEXT("STEAM")))
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem][Runtime] OnlineSubsystem 이름이 STEAM이 아님: %s"), *SubsystemName.ToString());
+        FatalExitSteamMissing(TEXT("Steam not detected (subsystem name mismatch)"));
+        return;
+    }
+
+    SessionInterface = Subsystem->GetSessionInterface();
+    if (!SessionInterface.IsValid())
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem][Runtime] GetSessionInterface() 반환값 무효."));
+        FatalExitSteamMissing(TEXT("Steam session interface unavailable"));
+        return;
+    }
+
+    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Runtime] Steam SessionInterface 확보 완료."));
 }
 
 
 void USessionSubsystem::Deinitialize()
 {
     Super::Deinitialize();
-    // 필요 시 정리 작업 수행
 }
 
 
@@ -72,13 +152,10 @@ void USessionSubsystem::CreateRoom(int32 MaxPlayers)
     // 세션 설정 구성
     FOnlineSessionSettings SessionSettings;
 
-    // 스팀 설정 핵심
-    SessionSettings.bIsLANMatch = false;        // 스팀은 LAN이 아님
     SessionSettings.bUsesPresence = true;       // Steam 등의 플레이어 존재 여부 기능 사용 (플레이어 상태 표시)
-	SessionSettings.bAllowJoinInProgress = true; // 진행 중인 세션 입장 허용
 	SessionSettings.bAllowJoinViaPresence = true; // 스팀 친구 목록 통해 입장할 수 있도록 허용
+    SessionSettings.bUseLobbiesIfAvailable = true; // 스팀 로비 사용
 	SessionSettings.bShouldAdvertise = true;    // 세션 광고 허용
-	SessionSettings.bUseLobbiesIfAvailable = true; // 스팀 로비 사용
     SessionSettings.NumPublicConnections = MaxPlayers; // 최대 인원
 
     // 초대 코드를 세션 데이터에 심기 (검색 시 필터링용)
@@ -89,7 +166,7 @@ void USessionSubsystem::CreateRoom(int32 MaxPlayers)
     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
     if (LocalPlayer)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Creating Room with Code: %s"), *CurrentInviteCode);
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("Creating Room with Code: %s"), *CurrentInviteCode);
         SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);
     }
 }
@@ -105,12 +182,12 @@ void USessionSubsystem::OnCreateSessionComplete(FName SessionName, bool bWasSucc
 
     if (!bWasSuccessful)
     {
-        UE_LOG(LogTemp, Error, TEXT("Failed to Create Session."));
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Failed to Create Session."));
         OnCreateSessionCompleteEvent.Broadcast(false);
         return;
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("Steam Session OK. Requesting matchmaker..."));
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("Steam Session OK. Requesting matchmaker..."));
     RequestMatchmakerCreateInstance();
 }
 
@@ -147,7 +224,7 @@ void USessionSubsystem::HandleMatchmakerResponse(const FString& JsonBody, bool b
 {
     if (!bOk)
     {
-        UE_LOG(LogTemp, Error, TEXT("Matchmaker request failed."));
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Matchmaker request failed."));
         OnCreateSessionCompleteEvent.Broadcast(false);
         return;
     }
@@ -156,7 +233,7 @@ void USessionSubsystem::HandleMatchmakerResponse(const FString& JsonBody, bool b
     auto Reader = TJsonReaderFactory<>::Create(JsonBody);
     if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid())
     {
-        UE_LOG(LogTemp, Error, TEXT("Matchmaker response parse failed: %s"), *JsonBody);
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Matchmaker response parse failed: %s"), *JsonBody);
         OnCreateSessionCompleteEvent.Broadcast(false);
         return;
     }
@@ -165,7 +242,7 @@ void USessionSubsystem::HandleMatchmakerResponse(const FString& JsonBody, bool b
         *Json->GetStringField(TEXT("host_ip")),
         Json->GetIntegerField(TEXT("port")));
 
-    UE_LOG(LogTemp, Warning, TEXT("Matchmaker response → Dedi: %s"), *DediURL);
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("Matchmaker response → Dedi: %s"), *DediURL);
     FinalizeHostTravel(DediURL);
 }
 
@@ -224,7 +301,7 @@ void USessionSubsystem::JoinRoomByCode(FString InputCode)
     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
     if (LocalPlayer)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Searching for Room Code: %s ..."), *TargetCodeToJoin);
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("Searching for Room Code: %s ..."), *TargetCodeToJoin);
 		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
     }
 }
@@ -239,9 +316,9 @@ void USessionSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
 
     if (bWasSuccessful && SessionSearch.IsValid())
     {
-        UE_LOG(LogTemp, Warning, TEXT("=== 검색 시작 ==="));
-        UE_LOG(LogTemp, Warning, TEXT("총 검색된 세션 수: %d"), SessionSearch->SearchResults.Num());
-        UE_LOG(LogTemp, Warning, TEXT("찾으려는 코드: %s"), *TargetCodeToJoin);
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("=== 검색 시작 ==="));
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("총 검색된 세션 수: %d"), SessionSearch->SearchResults.Num());
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("찾으려는 코드: %s"), *TargetCodeToJoin);
 
         bool bFound = false;
 
@@ -254,16 +331,16 @@ void USessionSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
             // 우리가 심어둔 초대 코드(Key_InviteCode)가 있는지 확인
             if (SearchResult.Session.SessionSettings.Get(Key_InviteCode, ServerCode))
             {
-                UE_LOG(LogTemp, Log, TEXT("[방 발견] 방장: %s | 코드: %s"), *HostName, *ServerCode);
+                UE_LOG(LogSessionSubsystem, Log, TEXT("[방 발견] 방장: %s | 코드: %s"), *HostName, *ServerCode);
 
                 if (ServerCode == TargetCodeToJoin)
                 {
-                    UE_LOG(LogTemp, Warning, TEXT("★★★ 코드 일치! 입장 시도... ★★★"));
+                    UE_LOG(LogSessionSubsystem, Warning, TEXT("★★★ 코드 일치! 입장 시도... ★★★"));
 
                     // 호스트가 SessionSettings에 심어둔 데디 endpoint 추출
                     PendingDediURL.Empty();
                     SearchResult.Session.SessionSettings.Get(Key_DediEndpoint, PendingDediURL);
-                    UE_LOG(LogTemp, Warning, TEXT("Found Dedi endpoint: %s"), *PendingDediURL);
+                    UE_LOG(LogSessionSubsystem, Warning, TEXT("Found Dedi endpoint: %s"), *PendingDediURL);
 
                     JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
                         FOnJoinSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnJoinSessionComplete));
@@ -280,20 +357,20 @@ void USessionSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
             }
             else
             {
-                UE_LOG(LogTemp, Log, TEXT("[방 발견] 방장: %s | 초대 코드 없음 (다른 게임 방일 수 있음)"), *HostName);
+                UE_LOG(LogSessionSubsystem, Log, TEXT("[방 발견] 방장: %s | 초대 코드 없음 (다른 게임 방일 수 있음)"), *HostName);
             }
         }
 
         if (!bFound)
         {
-            UE_LOG(LogTemp, Warning, TEXT("일치하는 코드를 가진 방을 찾지 못했습니다."));
+            UE_LOG(LogSessionSubsystem, Warning, TEXT("일치하는 코드를 가진 방을 찾지 못했습니다."));
             // UI에 실패 알림
             OnJoinSessionCompleteEvent.Broadcast(false);
         }
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("Session Search Failed (Network Error or Timeout)."));
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Session Search Failed (Network Error or Timeout)."));
         OnJoinSessionCompleteEvent.Broadcast(false);
     }
 }
@@ -310,16 +387,16 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
 
     if (bJoinOk)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Joined Session Successfully!"));
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("Joined Session Successfully!"));
 
         if (PendingDediURL.IsEmpty())
         {
-            UE_LOG(LogTemp, Error, TEXT("Join OK but Dedi endpoint missing in SessionSettings."));
+            UE_LOG(LogSessionSubsystem, Error, TEXT("Join OK but Dedi endpoint missing in SessionSettings."));
             OnJoinSessionCompleteEvent.Broadcast(false);
             return;
         }
 
-        UE_LOG(LogTemp, Warning, TEXT("Join OK → ClientTravel %s"), *PendingDediURL);
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("Join OK → ClientTravel %s"), *PendingDediURL);
         if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
         {
             PC->ClientTravel(PendingDediURL, ETravelType::TRAVEL_Absolute);
@@ -327,7 +404,7 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("Join Failed. Code: %d"), (int32)Result);
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Join Failed. Code: %d"), (int32)Result);
     }
 
     // 성공 여부 UI 전송
