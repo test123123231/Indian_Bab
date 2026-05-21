@@ -17,6 +17,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCreateSessionResult, bool, bWasSu
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnJoinSessionResult, bool, bWasSuccessful);
 
 
+// 방 가시성 모드 (Steam 로비 노출 정책)
+UENUM(BlueprintType)
+enum class ERoomVisibility : uint8
+{
+    Public      UMETA(DisplayName = "Public"),
+    FriendsOnly UMETA(DisplayName = "Friends Only")
+};
+
+
 /**
  * 스팀 세션 관리용 서브시스템
  * GameInstance의 수명과 동일하게 자동 관리됩니다.
@@ -35,17 +44,22 @@ public:
     // 블루프린트에서 호출할 함수들 (UI 버튼과 연결)
     // ----------------------------------------------------------------
 
-    // 방 생성 (초대 코드 자동 생성)
+    // 방 생성 — Visibility=Public 이면 Steam 검색에 노출, FriendsOnly 면 친구 초대/Presence 합류만 허용
     UFUNCTION(BlueprintCallable, Category = "Session")
-    void CreateRoom(int32 MaxPlayers);
+    void CreateRoom(int32 MaxPlayers, ERoomVisibility Visibility);
 
-    // 방 찾기 및 입장 (초대 코드 입력)
+    // [Deprecated] 방 목록 위젯으로 교체 예정 — 현재는 즉시 실패 브로드캐스트
     UFUNCTION(BlueprintCallable, Category = "Session")
     void JoinRoomByCode(FString InputCode);
 
-    // 현재 방의 초대 코드를 가져오는 함수 (로비 UI 표시용)
-    UFUNCTION(BlueprintPure, Category = "Session")
-    FString GetCurrentInviteCode() const { return CurrentInviteCode; }
+    // 게임 시작 시점에 호스트가 자기 Steam Lobby를 잠금 (advertise/presence/invites off)
+    // MainGameState OnRep_GamePhase(Starting)에서 모든 클라가 호출해도 안전 — 비호스트는 no-op
+    UFUNCTION(BlueprintCallable, Category = "Session")
+    void LockSessionForInGame();
+
+    // 로비 복귀 시 광고 재개 (시나리오 B 인스턴스 재사용 대비)
+    UFUNCTION(BlueprintCallable, Category = "Session")
+    void UnlockSessionForLobby();
 
     // ----------------------------------------------------------------
     // 델리게이트 (UI 이벤트 바인딩용)
@@ -59,21 +73,22 @@ public:
     // 매치메이커 응답 후 클라이언트가 사용할 데디 endpoint를 SessionSettings에 심는 키
     static const FName Key_DediEndpoint;
 
+    // 게임 진행 중 여부 (0=로비/대기, 1=게임 시작 후). 방 목록 위젯이 읽어 클릭 비활성화에 사용.
+    static const FName Key_GameStarted;
+
 protected:
     // 내부적으로 사용할 변수들
     IOnlineSessionPtr SessionInterface;
     TSharedPtr<class FOnlineSessionSearch> SessionSearch;
 
-    // 생성된 방의 초대 코드
-    FString CurrentInviteCode;
-    // 입장하려는 목표 초대 코드
-    FString TargetCodeToJoin;
-
     // 클라이언트: Join 성공 시 사용할 데디 URL (검색결과 SessionSettings에서 추출)
     FString PendingDediURL;
 
-    // 세션 설정 키 (초대 코드를 저장할 키 이름)
-    const FName Key_InviteCode = FName("RoomCode");
+    // 호스트 여부 — Lock/UnlockSession 가드. CreateRoom 성공 시 true, Destroy/실패 시 false.
+    bool bIsLocalHost = false;
+
+    // 마지막 CreateRoom의 Visibility — UnlockSessionForLobby에서 원상복구용
+    ERoomVisibility LastVisibility = ERoomVisibility::Public;
 
     // ----------------------------------------------------------------
     // Initialize 분기 헬퍼 — PIE / Standalone·패키지 두 흐름을 명확히 분리
@@ -97,9 +112,6 @@ protected:
     void HandleMatchmakerResponse(const FString& JsonBody, bool bOk);
     // 데디 URL 확정 후 SessionSettings 갱신 + 호스트 본인 ClientTravel
     void FinalizeHostTravel(const FString& DediURL);
-
-    // 헬퍼 함수
-    FString GenerateRandomCode(int32 Length);
 
     // 델리게이트 핸들 (바인딩 해제용)
     FDelegateHandle CreateSessionCompleteDelegateHandle;

@@ -15,9 +15,20 @@ void AMainGameMode::PreLogin(const FString& Options, const FString& Address, con
 {
 	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
 	// 서버는 Null OSS, 클라이언트는 Steam ID → OSS 플랫폼 불일치 에러 무시
-	if (ErrorMessage == TEXT("incompatible_unique_net_id"))
+	if (ErrorMessage == TEXT("incompatible_unique_net_id") && GIsEditor)
 	{
 		ErrorMessage = TEXT("");
+	}
+
+	// 백스톱: 게임이 이미 시작된 인스턴스는 신규 합류 거부 (방 목록 UI 비활성화를 뚫고 들어온 경우 차단)
+	if (const AMainGameState* GS = GetGameState<AMainGameState>())
+	{
+		if (GS->CurrentGamePhase != EGamePhase::Lobby)
+		{
+			ErrorMessage = TEXT("game already in progress");
+			UE_LOG(LogTemp, Warning, TEXT("[PreLogin] reject — game already in progress (phase=%d)"),
+				(int32)GS->CurrentGamePhase);
+		}
 	}
 }
 

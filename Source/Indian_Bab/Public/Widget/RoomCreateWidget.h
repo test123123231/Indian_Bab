@@ -8,6 +8,7 @@
 class UButton;
 class UTextBlock;
 class UEditableTextBox;
+class UCheckBox;
 class USessionSubsystem;
 
 
@@ -45,8 +46,11 @@ private:
 	TObjectPtr<UButton> Button_Yes;
 	UPROPERTY(meta = (BindWidget)) 
 	TObjectPtr<UButton> Button_No;
-	UPROPERTY(meta = (BindWidget)) 
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_Status;
+	// 체크 시 FriendsOnly, 미체크 시 Public — 기본 unchecked = Public
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UCheckBox> CheckBox_FriendsOnly;
 	//--- 상태 변수 ---
 	UPROPERTY() 
 	TObjectPtr<APlayerController> PlayerControllerRef;

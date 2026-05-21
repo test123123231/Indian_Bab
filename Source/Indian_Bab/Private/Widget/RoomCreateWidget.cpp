@@ -1,6 +1,7 @@
 ﻿#include "Widget/RoomCreateWidget.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "Components/CheckBox.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Net/UnrealNetwork.h"
@@ -27,8 +28,12 @@ void URoomCreateWidget::OnYesClicked()
 			Text_Status->SetColorAndOpacity(FLinearColor::White); // 흰색
 		}
 
-		// 3. 서브시스템 호출
-		SessionSubsystem->CreateRoom(4);
+		// 3. 서브시스템 호출 — 체크박스로 가시성 결정 (기본 unchecked = Public)
+		const ERoomVisibility Visibility =
+			(CheckBox_FriendsOnly && CheckBox_FriendsOnly->IsChecked())
+			? ERoomVisibility::FriendsOnly
+			: ERoomVisibility::Public;
+		SessionSubsystem->CreateRoom(4, Visibility);
 	}
 }
 

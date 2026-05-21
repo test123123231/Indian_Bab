@@ -24,6 +24,7 @@ DEFINE_LOG_CATEGORY(LogSessionSubsystem);
 
 
 const FName USessionSubsystem::Key_DediEndpoint = FName("DediEndpoint");
+const FName USessionSubsystem::Key_GameStarted = FName("GameStarted");
 
 
 namespace
@@ -127,7 +128,7 @@ void USessionSubsystem::Deinitialize()
 // ---------------------------------------------------------
 // 방 생성
 // ---------------------------------------------------------
-void USessionSubsystem::CreateRoom(int32 MaxPlayers)
+void USessionSubsystem::CreateRoom(int32 MaxPlayers, ERoomVisibility Visibility)
 {
     if (!SessionInterface.IsValid())
     {
@@ -140,33 +141,40 @@ void USessionSubsystem::CreateRoom(int32 MaxPlayers)
     if (ExistingSession != nullptr)
     {
         SessionInterface->DestroySession(NAME_GameSession);
+        bIsLocalHost = false;
     }
 
-    // 델리게이트 바인딩
+    LastVisibility = Visibility;
+
     CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
         FOnCreateSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnCreateSessionComplete));
 
-    // 초대 코드 생성 (4자리 랜덤)
-    CurrentInviteCode = GenerateRandomCode(4);
-
-    // 세션 설정 구성
+    // 공통 설정 — Steam 로비 기반
+    // 주의: Steam OSS의 BuildLobbyType은 bShouldAdvertise=false면 무조건 k_ELobbyTypePrivate 상태
+    //       → Public/FriendsOnly 둘 다 bShouldAdvertise=true 유지, 구분은 PresenceFriendsOnly 플래그로
     FOnlineSessionSettings SessionSettings;
+    SessionSettings.bIsLANMatch = false;
+    SessionSettings.bUsesPresence = true;
+    SessionSettings.bUseLobbiesIfAvailable = true;
+    // 게임 진행 중 신규 합류 차단 — 추가 런타임 락은 LockSessionForInGame()
+    SessionSettings.bAllowJoinInProgress = false;
+    SessionSettings.bAllowInvites = true;
+    SessionSettings.bShouldAdvertise = true;
+    SessionSettings.NumPublicConnections = MaxPlayers;
 
-    SessionSettings.bUsesPresence = true;       // Steam 등의 플레이어 존재 여부 기능 사용 (플레이어 상태 표시)
-	SessionSettings.bAllowJoinViaPresence = true; // 스팀 친구 목록 통해 입장할 수 있도록 허용
-    SessionSettings.bUseLobbiesIfAvailable = true; // 스팀 로비 사용
-	SessionSettings.bShouldAdvertise = true;    // 세션 광고 허용
-    SessionSettings.NumPublicConnections = MaxPlayers; // 최대 인원
+    // 가시성 분기 — Public: 누구나 검색/합류 / FriendsOnly: Steam 친구만 (k_ELobbyTypeFriendsOnly 매핑)
+    const bool bPublic = (Visibility == ERoomVisibility::Public);
+    SessionSettings.bAllowJoinViaPresence = bPublic;
+    SessionSettings.bAllowJoinViaPresenceFriendsOnly = !bPublic;
 
-    // 초대 코드를 세션 데이터에 심기 (검색 시 필터링용)
-    // ViaOnlineService : 스팀 서버를 통해 이 데이터를 전파함
-    SessionSettings.Set(Key_InviteCode, CurrentInviteCode, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
+    // 방 목록 위젯이 읽을 진행 상태 — 초기 0(로비), LockSessionForInGame에서 1로 갱신
+    SessionSettings.Set(Key_GameStarted, (int32)0, EOnlineDataAdvertisementType::ViaOnlineService);
 
-    // 4. 세션 생성 요청 (로컬 유저 ID 필요)
     const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
     if (LocalPlayer)
     {
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("Creating Room with Code: %s"), *CurrentInviteCode);
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("Creating Room: Visibility=%s, MaxPlayers=%d"),
+            bPublic ? TEXT("Public") : TEXT("FriendsOnly"), MaxPlayers);
         SessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SessionSettings);
     }
 }
@@ -183,10 +191,12 @@ void USessionSubsystem::OnCreateSessionComplete(FName SessionName, bool bWasSucc
     if (!bWasSuccessful)
     {
         UE_LOG(LogSessionSubsystem, Error, TEXT("Failed to Create Session."));
+        bIsLocalHost = false;
         OnCreateSessionCompleteEvent.Broadcast(false);
         return;
     }
 
+    bIsLocalHost = true;
     UE_LOG(LogSessionSubsystem, Warning, TEXT("Steam Session OK. Requesting matchmaker..."));
     RequestMatchmakerCreateInstance();
 }
@@ -272,107 +282,75 @@ void USessionSubsystem::FinalizeHostTravel(const FString& DediURL)
 
 
 // ---------------------------------------------------------
-// 2. 방 찾기 및 입장 (Join Room)
+// 게임 시작/종료 시 세션 가시성 토글
 // ---------------------------------------------------------
-void USessionSubsystem::JoinRoomByCode(FString InputCode)
+void USessionSubsystem::LockSessionForInGame()
 {
-    if (!SessionInterface.IsValid())
+    if (!bIsLocalHost || !SessionInterface.IsValid())
     {
-        OnJoinSessionCompleteEvent.Broadcast(false);
         return;
     }
 
-    // 입력된 코드 대문자 변환 및 저장
-    TargetCodeToJoin = InputCode.ToUpper();
-
-    // 검색 델리게이트 바인딩
-    FindSessionsCompleteDelegateHandle = SessionInterface->AddOnFindSessionsCompleteDelegate_Handle(
-        FOnFindSessionsCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnFindSessionsComplete));
-
-    // 검색 설정 (Search Settings)
-    SessionSearch = MakeShareable(new FOnlineSessionSearch());
-    SessionSearch->bIsLanQuery = false;     // 스팀 사용 시 false
-    SessionSearch->MaxSearchResults = 10000; // 최대한 많이 검색해서 코드를 찾아야 함
-
-    // 스팀 로비(Presence) 검색 활성화
-    SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
-
-    // 검색 시작
-    const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-    if (LocalPlayer)
+    FNamedOnlineSession* Named = SessionInterface->GetNamedSession(NAME_GameSession);
+    if (Named == nullptr)
     {
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("Searching for Room Code: %s ..."), *TargetCodeToJoin);
-		SessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("LockSessionForInGame: named session missing."));
+        return;
     }
+
+    // 가시성·합류경로는 유지 — 방 목록에 계속 보이도록.
+    // 방 목록 위젯은 Key_GameStarted=1을 보고 클릭 비활성화한다.
+    // 백스톱은 두 겹: (1) OSS — StartSession + bAllowJoinInProgress=false 조합으로 진행 중 합류 거부
+    //                (2) 데디 MainGameMode::PreLogin — GamePhase != Lobby면 거부
+    Named->SessionSettings.Set(Key_GameStarted, (int32)1, EOnlineDataAdvertisementType::ViaOnlineService);
+
+    SessionInterface->UpdateSession(NAME_GameSession, Named->SessionSettings, /*bShouldRefreshOnlineData=*/true);
+
+    // StartSession을 호출해야 bAllowJoinInProgress=false가 실제 발효 (InProgress 상태 진입)
+    SessionInterface->StartSession(NAME_GameSession);
+
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("Session locked for in-game (GameStarted=1, StartSession fired)."));
 }
 
 
-void USessionSubsystem::OnFindSessionsComplete(bool bWasSuccessful)
+void USessionSubsystem::UnlockSessionForLobby()
 {
-    if (SessionInterface.IsValid())
+    if (!bIsLocalHost || !SessionInterface.IsValid())
     {
-        SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
+        return;
     }
 
-    if (bWasSuccessful && SessionSearch.IsValid())
+    FNamedOnlineSession* Named = SessionInterface->GetNamedSession(NAME_GameSession);
+    if (Named == nullptr)
     {
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("=== 검색 시작 ==="));
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("총 검색된 세션 수: %d"), SessionSearch->SearchResults.Num());
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("찾으려는 코드: %s"), *TargetCodeToJoin);
-
-        bool bFound = false;
-
-        // 검색된 모든 방을 순회하며 로그를 찍어봅니다.
-        for (FOnlineSessionSearchResult& SearchResult : SessionSearch->SearchResults)
-        {
-            FString ServerCode;
-            FString HostName = SearchResult.Session.OwningUserName; // 방장 이름
-
-            // 우리가 심어둔 초대 코드(Key_InviteCode)가 있는지 확인
-            if (SearchResult.Session.SessionSettings.Get(Key_InviteCode, ServerCode))
-            {
-                UE_LOG(LogSessionSubsystem, Log, TEXT("[방 발견] 방장: %s | 코드: %s"), *HostName, *ServerCode);
-
-                if (ServerCode == TargetCodeToJoin)
-                {
-                    UE_LOG(LogSessionSubsystem, Warning, TEXT("★★★ 코드 일치! 입장 시도... ★★★"));
-
-                    // 호스트가 SessionSettings에 심어둔 데디 endpoint 추출
-                    PendingDediURL.Empty();
-                    SearchResult.Session.SessionSettings.Get(Key_DediEndpoint, PendingDediURL);
-                    UE_LOG(LogSessionSubsystem, Warning, TEXT("Found Dedi endpoint: %s"), *PendingDediURL);
-
-                    JoinSessionCompleteDelegateHandle = SessionInterface->AddOnJoinSessionCompleteDelegate_Handle(
-                        FOnJoinSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnJoinSessionComplete));
-
-					SearchResult.Session.SessionSettings.bUseLobbiesIfAvailable = true; // 스팀 로비 사용
-					SearchResult.Session.SessionSettings.bUsesPresence = true; // 스팀 친구 목록 통해 입장할 수 있도록 허용
-
-                    const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
-                    SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, SearchResult);
-
-                    bFound = true;
-                    break; // 찾았으니 종료
-                }
-            }
-            else
-            {
-                UE_LOG(LogSessionSubsystem, Log, TEXT("[방 발견] 방장: %s | 초대 코드 없음 (다른 게임 방일 수 있음)"), *HostName);
-            }
-        }
-
-        if (!bFound)
-        {
-            UE_LOG(LogSessionSubsystem, Warning, TEXT("일치하는 코드를 가진 방을 찾지 못했습니다."));
-            // UI에 실패 알림
-            OnJoinSessionCompleteEvent.Broadcast(false);
-        }
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("UnlockSessionForLobby: named session missing."));
+        return;
     }
-    else
-    {
-        UE_LOG(LogSessionSubsystem, Error, TEXT("Session Search Failed (Network Error or Timeout)."));
-        OnJoinSessionCompleteEvent.Broadcast(false);
-    }
+
+    // 진행 상태 0 복귀 + 세션을 NotStarted로 되돌려 bAllowJoinInProgress 게이트 해제
+    Named->SessionSettings.Set(Key_GameStarted, (int32)0, EOnlineDataAdvertisementType::ViaOnlineService);
+
+    SessionInterface->UpdateSession(NAME_GameSession, Named->SessionSettings, true);
+    SessionInterface->EndSession(NAME_GameSession);
+
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("Session unlocked for lobby (GameStarted=0, EndSession fired)."));
+}
+
+
+// ---------------------------------------------------------
+// 2. 방 입장 — 방 목록 위젯 도입 전까지 stub (즉시 실패 브로드캐스트)
+// ---------------------------------------------------------
+void USessionSubsystem::JoinRoomByCode(FString InputCode)
+{
+    UE_LOG(LogSessionSubsystem, Warning,
+        TEXT("JoinRoomByCode is deprecated — 초대코드 모델이 제거되었습니다. 방 목록 위젯이 도입되면 교체 예정."));
+    OnJoinSessionCompleteEvent.Broadcast(false);
+}
+
+
+void USessionSubsystem::OnFindSessionsComplete(bool /*bWasSuccessful*/)
+{
+    // 후속 작업(방 목록 위젯) 도입 시 구현 — 현재는 호출 경로 없음
 }
 
 
@@ -409,20 +387,4 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
 
     // 성공 여부 UI 전송
     OnJoinSessionCompleteEvent.Broadcast(bJoinOk && !PendingDediURL.IsEmpty());
-}
-
-
-// ---------------------------------------------------------
-// 유틸리티
-// ---------------------------------------------------------
-FString USessionSubsystem::GenerateRandomCode(int32 Length)
-{
-    const FString Chars = TEXT("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
-    FString Result = TEXT("");
-    for (int32 i = 0; i < Length; i++)
-    {
-        int32 Index = FMath::RandRange(0, Chars.Len() - 1);
-        Result += Chars.Mid(Index, 1);
-    }
-    return Result;
 }
