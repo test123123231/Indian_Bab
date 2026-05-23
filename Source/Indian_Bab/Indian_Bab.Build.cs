@@ -28,7 +28,7 @@ public class Indian_Bab : ModuleRules
             "Niagara",
             "HTTP",
             "Json",
-            "JsonUtilities"
+            "JsonUtilities",
             "HeadMountedDisplay",
             "XRBase"
         });
