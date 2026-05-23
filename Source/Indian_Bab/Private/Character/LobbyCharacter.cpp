@@ -126,7 +126,7 @@ void ALobbyCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	if (!IsLocallyControlled()) return;
-	
+
 	//MainGamePC = Cast<AMainGamePlayerController>(GetController());
 }
 
