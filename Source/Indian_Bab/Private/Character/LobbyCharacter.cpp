@@ -126,7 +126,7 @@ void ALobbyCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	if (!IsLocallyControlled()) return;
-	
+
 	//MainGamePC = Cast<AMainGamePlayerController>(GetController());
 }
 
@@ -210,6 +210,13 @@ void ALobbyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	UpdateAimYawFromView();
+
+	DrawMainShotAimLine();
+}
+
+void ALobbyCharacter::UpdateAimYawFromView()
+{
 	// 내가 조종하는 캐릭터이고, 앉아있을 때만 작동
 	if (bIsSitting && IsLocallyControlled())
 	{
@@ -225,8 +232,6 @@ void ALobbyCharacter::Tick(float DeltaTime)
 			Server_UpdateAimYaw(YawDifference);
 		}
 	}
-
-	DrawMainShotAimLine();
 }
 
 

@@ -25,12 +25,23 @@ public class Indian_Bab : ModuleRules
             "OnlineSubsystemUtils",
             "OnlineSubsystem",
             "HairStrandsCore",
-            "Niagara"
+            "Niagara",
+            "HTTP",
+            "Json",
+            "JsonUtilities",
+            "HeadMountedDisplay",
+            "XRBase"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
 
         DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
+
+        if (Target.Platform == UnrealTargetPlatform.Win64)
+        {
+            PublicSystemLibraries.Add("bcrypt.lib");
+            PublicSystemLibraries.Add("ole32.lib"); // INetworkListManager COM (ConnectivitySubsystem)
+        }
 
         PublicIncludePaths.AddRange(new string[] {
             "Indian_Bab",

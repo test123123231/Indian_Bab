@@ -1,6 +1,9 @@
 #include "Game/MainGameState.h"
 #include "Actor/SeatActor.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "GameInstanceSubsystem/SessionSubsystem.h"
 
 AMainGameState::AMainGameState()
 {
@@ -148,10 +151,24 @@ void AMainGameState::OnRep_CurrentTurnPlayerId()
 void AMainGameState::OnRep_GamePhase()
 {
 	// TODO: 페이즈 변경 시 연출 (예: Playing이 되면 로비 UI 숨기고 메인 게임 UI 띄우기, 조명 어둡게 하기 등)
+	if (CurrentGamePhase == EGamePhase::Starting)
+	{
+		// 호스트 클라가 자기 Steam Lobby를 잠금 — 비호스트는 내부 가드로 no-op
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				if (USessionSubsystem* Session = GI->GetSubsystem<USessionSubsystem>())
+				{
+					Session->LockSessionForInGame();
+				}
+			}
+		}
+	}
 	if (CurrentGamePhase == EGamePhase::Playing)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 게임이 시작되었습니다! 장전된 총알 : %d==="), CurrentBulletCount);
-	}	
+	}
 	if (CurrentGamePhase == EGamePhase::Result)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 결과 확인 중!"));
@@ -174,7 +191,8 @@ void AMainGameState::OnRep_CurrentBetInfo()
 void AMainGameState::OnRep_AlivePlayerCount()
 {
 	UE_LOG(LogTemp, Warning, TEXT("현재 생존 인원 : %d"), AlivePlayerCount);
-	if (AlivePlayerCount <= 1)
+	const bool bIsGameInProgress = CurrentGamePhase != EGamePhase::Lobby;
+	if (bIsGameInProgress && AlivePlayerCount <= 1)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GS] 게임 종료, 생존 인원 : %d"), AlivePlayerCount);
 	}

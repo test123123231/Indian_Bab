@@ -9,6 +9,7 @@
 class AMainGamePlayerController;
 class ASeatActor;
 class ALobbyCharacter;
+class ALobbyVRCharacter;
 class AMainGameState;
 class AMainPlayerState;
 class ACardManager;
@@ -22,11 +23,19 @@ class INDIAN_BAB_API AMainGameMode : public AGameMode
 public:
 	AMainGameMode();
 
+	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
+
 	// 플레이어가 서버에 접속 완료했을 때 호출됨
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 
-	// 플레이어가 의자에 앉았을 때 (Controller나 Character에서) 호출됨
+	// 준비 완료 버튼을 눌렀을 때 호출
+	void HandlePlayerReady(APlayerController* ReadyPlayer);
+
+	// 플레이어가 의자에 앉았을 때 호출됨
 	void PlayerSeated(APlayerController* SeatedPlayer, ASeatActor* SeatedChair);
+
+	// 접속한 플레이어를 빈 의자에 자동 배치
+	void AssignInitialSeatToPlayer(APlayerController* NewPlayer);
 
 	// 베팅 액션 관리
 	void HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action, int32 RaiseCount);
@@ -47,10 +56,10 @@ public:
 	void HandlePutBackGunMontageFinished(ALobbyCharacter* Character, EGunHoldReason Reason);
 
 protected:
-	// 전원 준비되었는지 체크하고 게임을 시작하는 함수
+	// 기존 착석 기반 게임 시작 체크
 	void CheckGameStart();
 
-	// 게임 루프 시작점(여기로 안 돌아옴)
+	// 게임 루프 시작점
 	void StartMainGame();
 
 	// 카드 매니저 획득
@@ -71,7 +80,7 @@ protected:
 	// 턴 넘기는 타이머
 	void StartTurnTimer(float Time);
 
-	// 턴 제한시간은 넘겼을 때
+	// 턴 제한시간을 넘겼을 때
 	void OnTurnTimerExpired();
 
 	// 격발 페이즈 관리
@@ -92,15 +101,15 @@ protected:
 	// 활성 인원 업데이트
 	int32 UpdateActivePlayer(AMainGameState* GS);
 
-	// 결과확인 및 승리 플레이어 PS 리턴
+	// 결과 확인 및 승리 플레이어 PS 리턴
 	void CheckPlayerCard();
 
-	// 다음 행동(NextTurn, NextRound, ReStart) 체크 함수
+	// 다음 행동 체크 함수
 	void CheckNext();
 
 	// 다음 플레이어 PS Get
 	TObjectPtr<AMainPlayerState> GetNextPlayerState(int32 CurrentPlayerIndex);
-	
+
 	// 다음 턴
 	void NextTurn(AMainPlayerState* NextPS);
 
@@ -111,10 +120,39 @@ protected:
 	void ResetFoldState();
 
 private:
+	// 빈 의자 찾기
+	ASeatActor* FindEmptySeat();
+
+	// 모든 플레이어가 Ready를 눌렀을 때 게임 시작 준비
+	void StartGameAfterAllReady();
+
+	int32 GetRequiredReadyPlayerCount() const;
+
+	bool IsCurrentPlayerCountInGameRange() const;
+
+private:
 	FTimerHandle TimerHandle;
 
+	// 준비 완료한 플레이어 목록
+	UPROPERTY()
+	TArray<TObjectPtr<APlayerController>> ReadyPlayers;
+
+	// 게임 시작을 위한 최소/최대 플레이어 수
+	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
+	int32 MinPlayerCountToStart = 2;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
+	int32 MaxPlayerCountToStart = 5;
+
+	// 클라이언트 3개일 때 맞춰줌(테스트 시 BP에서 true로 변경하면 1인 클라로 가능)
+	UPROPERTY(EditDefaultsOnly, Category = "Game Start|Test")
+	bool bAutoReadyAllPlayersWhenOneReady = false;
+
+	// 게임 시작 중복 호출 방지
+	bool bGameStartRequested = false;
+
 	// 베팅 기준점 플레이어
-	int32 CheckPlayer;
+	int32 CheckPlayer = -1;
 
 	// 카드 관리
 	UPROPERTY()
@@ -146,7 +184,7 @@ private:
 	// 메인 리볼버 탄창 칸 수
 	int32 MainRevolverChamberCount = 8;
 
-	// 앞으로 몇 번 당기면 실탄이 나가는지(1이면 다음 격발이 실탄)
+	// 앞으로 몇 번 당기면 실탄이 나가는지
 	int32 MainLiveShotOffset = -1;
 
 	// 실탄 위치 초기화
@@ -167,5 +205,4 @@ private:
 
 	// 조준한 대상 판정
 	AMainPlayerState* GetMainShotTargetByAim(AMainGamePlayerController* ShooterPC, FHitResult& OutHit);
-
 };

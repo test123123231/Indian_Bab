@@ -1,3 +1,5 @@
+
+
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
 #include "Kismet/GameplayStatics.h"
@@ -6,6 +8,7 @@
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
 #include "PlayerController/MainGamePlayerController.h"
+#include "GameFramework/Character.h"
 
 // 카드 매니저 획득
 TObjectPtr<ACardManager> AMainGameMode::GetCardManager()
@@ -38,7 +41,7 @@ void AMainGameMode::DistributeCard()
 	{
 		if(!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
@@ -69,6 +72,12 @@ void AMainGameMode::CheckPlayerCard()
 	if (!PC) return;
 
 	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+	if (!WinnerCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Winner pawn is not ALobbyCharacter"));
+		return;
+	}
+
 	ARevolver* Revolver = GetMainRevolver();
 	if (!Revolver) 
 	{
@@ -96,7 +105,7 @@ TObjectPtr<AMainPlayerState> AMainGameMode::MaxCardPlayer()
 	{
 		if(!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();

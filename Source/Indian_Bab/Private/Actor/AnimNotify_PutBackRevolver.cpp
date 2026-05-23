@@ -1,5 +1,6 @@
 #include "Actor/AnimNotify_PutBackRevolver.h"
 #include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
 
 void UAnimNotify_PutBackRevolver::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
@@ -11,6 +12,13 @@ void UAnimNotify_PutBackRevolver::Notify(USkeletalMeshComponent* MeshComp, UAnim
 	if (Character)
 	{
 		Character->ReturnRevolverToDesk();
+		return;
+	}
+
+	ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(MeshComp->GetOwner());
+	if (VRCharacter)
+	{
+		VRCharacter->ReturnRevolverToDesk();
 	}
 }
 
