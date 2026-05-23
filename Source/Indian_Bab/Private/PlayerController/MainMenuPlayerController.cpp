@@ -2,10 +2,8 @@
 #include "EnhancedInputSubsystems.h"
 #include "Widget/MainMenuWidget.h"
 #include "GameInstanceSubsystem/ConnectivitySubsystem.h"
-#include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
-#include "Components/TextBlock.h"
 
 void AMainMenuPlayerController::BeginPlay()
 {
@@ -28,13 +26,6 @@ void AMainMenuPlayerController::BeginPlay()
 
 			Connectivity->StartPolling();
 		}
-
-		// 모든 세션/매치메이커/데디 거부 에러 단일 채널 구독
-		if (USessionSubsystem* Session = GI->GetSubsystem<USessionSubsystem>())
-		{
-			Session->OnSessionErrorEvent.AddDynamic(
-				this, &AMainMenuPlayerController::HandleSessionError);
-		}
 	}
 }
 
@@ -48,12 +39,6 @@ void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 			Connectivity->OnConnectivityLost.Remove(LostHandle);
 			Connectivity->OnConnectivityRestored.Remove(RestoredHandle);
 			Connectivity->StopPolling();
-		}
-
-		if (USessionSubsystem* Session = GI->GetSubsystem<USessionSubsystem>())
-		{
-			Session->OnSessionErrorEvent.RemoveDynamic(
-				this, &AMainMenuPlayerController::HandleSessionError);
 		}
 	}
 
@@ -115,62 +100,16 @@ void AMainMenuPlayerController::HandleConnectivityLost()
 	}
 }
 
-// 모달이 자기 자신을 닫은 뒤 호출 — MainMenuWidget으로 입력 포커스 복원.
-// 모달 lifecycle(RemoveFromParent)은 호출 측 BP 책임. 여기서는 포커스만 다룬다.
+// [Shim] 기존 BP 호환용 — MainMenuWidget으로 위임.
 void AMainMenuPlayerController::RefocusMainMenu()
 {
-	if (!MainMenuWidgetInstance)
+	if (MainMenuWidgetInstance)
+	{
+		MainMenuWidgetInstance->RefocusSelf();
+	}
+	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("MainMenuPC: RefocusMainMenu — MainMenuWidget 없음, 입력 모드 미변경."));
-		return;
-	}
-
-	FInputModeUIOnly InputModeData;
-	InputModeData.SetWidgetToFocus(MainMenuWidgetInstance->TakeWidget());
-	InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-	SetInputMode(InputModeData);
-}
-
-
-// 매치메이커 실패 / 데디 거부 공용 모달.
-// 위젯 BP는 "MessageText"라는 TextBlock을 BindWidget으로 노출해야 사유가 주입됨.
-// 위젯 클래스가 미지정이면 로그만 남기고 무시 — 게임 흐름은 막지 않음(메인메뉴 잔류).
-void AMainMenuPlayerController::HandleSessionError(const FString& Reason)
-{
-	UE_LOG(LogTemp, Warning, TEXT("MainMenuPC: session error — %s"), *Reason);
-
-	if (!SessionErrorWidgetClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("MainMenuPC: SessionErrorWidgetClass 미지정 — 사유 로그만 남깁니다."));
-		return;
-	}
-
-	if (!SessionErrorWidgetInstance)
-	{
-		SessionErrorWidgetInstance = CreateWidget<UUserWidget>(this, SessionErrorWidgetClass);
-		if (SessionErrorWidgetInstance)
-		{
-			SessionErrorWidgetInstance->SetIsFocusable(true);
-		}
-	}
-
-	if (!SessionErrorWidgetInstance) return;
-
-	// 위젯 내부 TextBlock 주입 — BindWidget 미적용 시 nullptr이라 nullptr 체크 필수
-	if (UTextBlock* Msg = Cast<UTextBlock>(
-		SessionErrorWidgetInstance->GetWidgetFromName(TEXT("Text_Message"))))
-	{
-		Msg->SetText(FText::FromString(Reason));
-	}
-
-	if (!SessionErrorWidgetInstance->IsInViewport())
-	{
-		SessionErrorWidgetInstance->AddToViewport(100);
-
-		FInputModeUIOnly InputModeData;
-		InputModeData.SetWidgetToFocus(SessionErrorWidgetInstance->TakeWidget());
-		InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		SetInputMode(InputModeData);
 	}
 }
 

@@ -11,11 +11,14 @@
 
 void UMainGameWidget::NativeDestruct()
 {
-    // 위젯 제거될 때 이벤트 정리
+    // 자기 자신의 BindWidget UObject들 — 재오픈 대비 일괄 해제.
+    if (Minus_Button)     Minus_Button->OnClicked.RemoveAll(this);
+    if (Plus_Button)      Plus_Button->OnClicked.RemoveAll(this);
     if (Button_Raise)     Button_Raise->OnClicked.RemoveAll(this);
     if (Button_CheckCall) Button_CheckCall->OnClicked.RemoveAll(this);
     if (Button_Fold)      Button_Fold->OnClicked.RemoveAll(this);
 
+    // 외부 객체 구독 해제
     if (MainPS)
     {
         MainPS->OnTriggerCountChanged.RemoveAll(this);
@@ -46,19 +49,17 @@ void UMainGameWidget::NativeConstruct()
 		Plus_Button->OnClicked.AddDynamic(this, &UMainGameWidget::PlusButtonClicked);
 	}
 
+	// 정리는 NativeDestruct에서 일괄 — Construct는 Add만.
 	if (Button_Raise)
 	{
-		Button_Raise->OnClicked.RemoveAll(this);
 		Button_Raise->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonRaise);
 	}
 	if (Button_CheckCall)
 	{
-		Button_CheckCall->OnClicked.RemoveAll(this);
 		Button_CheckCall->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonCheckCall);
 	}
 	if (Button_Fold)
 	{
-		Button_Fold->OnClicked.RemoveAll(this);
 		Button_Fold->OnClicked.AddDynamic(this, &UMainGameWidget::OnButtonFold);
 	}
 	MainGamePC = Cast<AMainGamePlayerController>(GetOwningPlayer());

@@ -9,6 +9,7 @@ class UButton;
 class UOptionMenuWidget;
 class URoomCreateWidget;
 class URoomJoinWidget;
+class USessionSubsystem;
 
 
 /**
@@ -29,6 +30,12 @@ protected:
 	 * 버튼 이벤트를 C++ 함수에 바인딩
 	 */
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+public:
+	// SessionErrorWidget의 확인 버튼 BP가 RemoveFromParent 후 호출 — 메인메뉴로 입력 포커스 복원.
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void RefocusSelf();
 
 private:
 	//--- BP 위젯 변수 바인딩 ---
@@ -59,6 +66,11 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<URoomJoinWidget> RoomJoinWidgetClass;
 
+	// 매치메이커 실패·데디 PreLogin 거부 등 모든 세션 에러 사유 모달 (BP에서 WBP_SessionErrorNotice 지정)
+	// 위젯은 BindWidget으로 TextBlock(Text_Message) 노출 필요.
+	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UUserWidget> SessionErrorWidgetClass;
+
 	//--- 위젯 인스턴스 캐시 ---
 
 	UPROPERTY()
@@ -69,6 +81,19 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UOptionMenuWidget> OptionMenuInstance;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> SessionErrorInstance;
+
+	// 현재 메인메뉴 위에 떠있는 자식 모달(RoomCreate/RoomJoin/Option 중 하나).
+	// SessionErrorWidget 닫힘 시 RefocusSelf가 이 모달이 살아있으면 그쪽으로 포커스를 돌려준다.
+	// 자식이 RemoveFromParent로 사라져도 별도 clear는 안 함 — RefocusSelf에서 IsInViewport로 검증.
+	UPROPERTY()
+	TObjectPtr<UUserWidget> TopmostChildModal;
+
+	// OnSessionErrorEvent 구독/해제용 캐시
+	UPROPERTY()
+	TObjectPtr<USessionSubsystem> SessionSubsystem;
 
 	// --- 기타 캐시된 참조 ---
 	UPROPERTY()
@@ -87,4 +112,8 @@ private:
 
 	UFUNCTION()
 	void OnExitClicked();
+
+	// 매치메이커 사유 / 데디 거부 공용 핸들러 — SessionErrorWidget 모달 표시.
+	UFUNCTION()
+	void OnSessionError(const FString& Reason);
 };

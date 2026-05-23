@@ -76,7 +76,7 @@ void URoomCreateWidget::NativeConstruct()
 		}
 	}
 
-	// --- 버튼 이벤트 바인딩 ---
+	// --- 버튼 이벤트 바인딩 --- (정리는 NativeDestruct에서 일괄)
 	if (Button_Yes)
 	{
 		Button_Yes->OnClicked.AddDynamic(this, &URoomCreateWidget::OnYesClicked);
@@ -91,18 +91,29 @@ void URoomCreateWidget::NativeConstruct()
 	{
 		Text_Status->SetText(FText::GetEmpty());
 	}
+
+	// 캐시 인스턴스 재오픈 대비 — 이전 세션에서 OnYesClicked로 disable된 채 박제되는 것 방지.
+	// 닫힘 트리거(OnNoClicked/OnSessionError)마다 흩지 말고 재진입 시점에서 idempotent하게 리셋.
+	if (Button_Yes) Button_Yes->SetIsEnabled(true);
+	if (Button_No) Button_No->SetIsEnabled(true);
 }
 
 
 void URoomCreateWidget::NativeDestruct()
 {
-	Super::NativeDestruct();
+	// [중요] BindWidget UButton은 UUserWidget(=this)이 살아있는 한 GC 대상이 아니므로
+	// OnClicked 바인딩이 누적된다. 캐시 인스턴스 재오픈 시 NativeConstruct 재진입으로
+	// 중복 AddDynamic ensure가 발생하므로 여기서 일괄 해제.
+	if (Button_Yes) Button_Yes->OnClicked.RemoveAll(this);
+	if (Button_No)  Button_No->OnClicked.RemoveAll(this);
 
-	// [중요] 위젯이 파괴될 때 델리게이트 연결 해제 (안전장치)
+	// 외부 객체 구독 해제 (dangling 방지)
 	if (SessionSubsystem)
 	{
 		SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &URoomCreateWidget::OnSessionError);
 	}
+
+	Super::NativeDestruct();
 }
 
 

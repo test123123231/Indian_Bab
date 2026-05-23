@@ -1,9 +1,12 @@
 #include "Widget/MainMenuWidget.h"
 
 #include "Components/Button.h"
+#include "Components/TextBlock.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/GameInstance.h"
+#include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Widget/OptionMenuWidget.h"
 #include "Widget/RoomCreateWidget.h"
 #include "Widget/RoomJoinWidget.h"
@@ -39,6 +42,98 @@ void UMainMenuWidget::NativeConstruct()
 	}
 
 	PlayerControllerRef = GetOwningPlayer();
+
+	// 모든 세션/매치메이커/데디 거부 에러 단일 채널 구독 — 자식 모달과 동일 패턴.
+	if (UGameInstance* GI = GetGameInstance())
+	{
+		SessionSubsystem = GI->GetSubsystem<USessionSubsystem>();
+		if (SessionSubsystem)
+		{
+			SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &UMainMenuWidget::OnSessionError);
+			SessionSubsystem->OnSessionErrorEvent.AddDynamic(this, &UMainMenuWidget::OnSessionError);
+		}
+	}
+}
+
+
+void UMainMenuWidget::NativeDestruct()
+{
+	// 자기 자신의 BindWidget UObject들 — 일관성 위해 정리 (현재 1회 생성이라 누적 우려는 없음).
+	if (Button_Room_Creation) Button_Room_Creation->OnClicked.RemoveAll(this);
+	if (Button_Room_Join)     Button_Room_Join->OnClicked.RemoveAll(this);
+	if (Button_Option)        Button_Option->OnClicked.RemoveAll(this);
+	if (Button_Exit)          Button_Exit->OnClicked.RemoveAll(this);
+
+	if (SessionSubsystem)
+	{
+		SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &UMainMenuWidget::OnSessionError);
+	}
+
+	Super::NativeDestruct();
+}
+
+
+// 모달이 자기 자신을 닫은 뒤 호출 — 떠있는 자식 모달이 있으면 그쪽, 없으면 자신으로 포커스 복원.
+// 자식 모달의 lifecycle은 자체 관리이므로 IsInViewport로 살아있는지만 검증.
+void UMainMenuWidget::RefocusSelf()
+{
+	if (!PlayerControllerRef) return;
+
+	UUserWidget* FocusTarget = this;
+	if (TopmostChildModal && TopmostChildModal->IsInViewport())
+	{
+		FocusTarget = TopmostChildModal;
+	}
+
+	FInputModeUIOnly InputModeData;
+	InputModeData.SetWidgetToFocus(FocusTarget->TakeWidget());
+	InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	PlayerControllerRef->SetInputMode(InputModeData);
+}
+
+
+// 매치메이커 실패 / 데디 거부 공용 모달.
+// 위젯 BP는 BindWidget으로 "Text_Message" TextBlock 노출 시 사유 주입됨.
+void UMainMenuWidget::OnSessionError(const FString& Reason)
+{
+	UE_LOG(LogTemp, Warning, TEXT("MainMenuWidget: session error — %s"), *Reason);
+
+	if (!SessionErrorWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("MainMenuWidget: SessionErrorWidgetClass 미지정 — 사유 로그만 남깁니다."));
+		return;
+	}
+
+	if (!SessionErrorInstance)
+	{
+		SessionErrorInstance = CreateWidget<UUserWidget>(this, SessionErrorWidgetClass);
+		if (SessionErrorInstance)
+		{
+			SessionErrorInstance->SetIsFocusable(true);
+		}
+	}
+
+	if (!SessionErrorInstance) return;
+
+	// 위젯 내부 TextBlock 주입 — BindWidget 미적용 시 nullptr이라 nullptr 체크 필수
+	if (UTextBlock* Msg = Cast<UTextBlock>(
+		SessionErrorInstance->GetWidgetFromName(TEXT("Text_Message"))))
+	{
+		Msg->SetText(FText::FromString(Reason));
+	}
+
+	if (!SessionErrorInstance->IsInViewport())
+	{
+		SessionErrorInstance->AddToViewport(100);
+
+		if (PlayerControllerRef)
+		{
+			FInputModeUIOnly InputModeData;
+			InputModeData.SetWidgetToFocus(SessionErrorInstance->TakeWidget());
+			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PlayerControllerRef->SetInputMode(InputModeData);
+		}
+	}
 }
 
 
@@ -64,6 +159,7 @@ void UMainMenuWidget::OnRoomCreationClicked()
 	if (RooomCreateInstance && !RooomCreateInstance->IsInViewport())
 	{
 		RooomCreateInstance->AddToViewport();
+		TopmostChildModal = RooomCreateInstance;
 
 		if (PlayerControllerRef)
 		{
@@ -99,6 +195,7 @@ void UMainMenuWidget::OnRoomJoinClicked()
 	if (RooomJoinInstance && !RooomJoinInstance->IsInViewport())
 	{
 		RooomJoinInstance->AddToViewport();
+		TopmostChildModal = RooomJoinInstance;
 
 		if (PlayerControllerRef)
 		{
@@ -135,6 +232,7 @@ void UMainMenuWidget::OnOptionClicked()
 	if (OptionMenuInstance && !OptionMenuInstance->IsInViewport())
 	{
 		OptionMenuInstance->AddToViewport();
+		TopmostChildModal = OptionMenuInstance;
 
 		if (PlayerControllerRef)
 		{

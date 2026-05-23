@@ -65,5 +65,9 @@ private:
 	UFUNCTION() void OnRoomItemClicked(UObject* Item);
 	UFUNCTION() void OnJoinSessionComplete(bool bWasSuccessful);
 
+	// 세션 에러(매치메이커 실패/검색 실패/Join 즉시 거부 등) — 자기 자신만 닫음.
+	// 사유 표시는 MainMenuWidget의 SessionErrorWidget 단일 채널 담당 (이중 표시 방지).
+	UFUNCTION() void OnSessionError(const FString& Reason);
+
 	void SetStatusText(const FString& Msg, const FLinearColor& Color);
 };

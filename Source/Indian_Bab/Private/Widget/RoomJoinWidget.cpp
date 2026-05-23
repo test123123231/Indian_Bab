@@ -31,8 +31,13 @@ void URoomJoinWidget::NativeConstruct()
 
 		SessionSubsystem->OnRoomsFoundEvent.RemoveDynamic(this, &URoomJoinWidget::OnRoomsFound);
 		SessionSubsystem->OnRoomsFoundEvent.AddDynamic(this, &URoomJoinWidget::OnRoomsFound);
+
+		SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &URoomJoinWidget::OnSessionError);
+		SessionSubsystem->OnSessionErrorEvent.AddDynamic(this, &URoomJoinWidget::OnSessionError);
 	}
 
+	// 바인딩은 Add만, 정리는 NativeDestruct에서 일괄.
+	// 버튼 상태는 매번 깨끗하게 리셋 — OnYesClicked/OnRefreshClicked로 disable된 채 박제 방지.
 	if (Button_Yes)
 	{
 		Button_Yes->OnClicked.AddDynamic(this, &URoomJoinWidget::OnYesClicked);
@@ -42,10 +47,12 @@ void URoomJoinWidget::NativeConstruct()
 	if (Button_No)
 	{
 		Button_No->OnClicked.AddDynamic(this, &URoomJoinWidget::OnNoClicked);
+		Button_No->SetIsEnabled(true);
 	}
 	if (Button_Refresh)
 	{
 		Button_Refresh->OnClicked.AddDynamic(this, &URoomJoinWidget::OnRefreshClicked);
+		Button_Refresh->SetIsEnabled(true);
 	}
 
 	if (ListView_Rooms)
@@ -60,13 +67,21 @@ void URoomJoinWidget::NativeConstruct()
 
 void URoomJoinWidget::NativeDestruct()
 {
-	Super::NativeDestruct();
+	// 자기 자신의 BindWidget UObject들 — 누적 방지 위해 RemoveAll로 일괄 해제.
+	if (Button_Yes)     Button_Yes->OnClicked.RemoveAll(this);
+	if (Button_No)      Button_No->OnClicked.RemoveAll(this);
+	if (Button_Refresh) Button_Refresh->OnClicked.RemoveAll(this);
+	if (ListView_Rooms) ListView_Rooms->OnItemClicked().RemoveAll(this);
 
+	// 외부 객체 구독 해제 (dangling 방지)
 	if (SessionSubsystem)
 	{
 		SessionSubsystem->OnJoinSessionCompleteEvent.RemoveDynamic(this, &URoomJoinWidget::OnJoinSessionComplete);
 		SessionSubsystem->OnRoomsFoundEvent.RemoveDynamic(this, &URoomJoinWidget::OnRoomsFound);
+		SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &URoomJoinWidget::OnSessionError);
 	}
+
+	Super::NativeDestruct();
 }
 
 
@@ -212,6 +227,22 @@ void URoomJoinWidget::OnNoClicked()
 		PlayerControllerRef->SetInputMode(InputModeData);
 	}
 	RemoveFromParent();
+}
+
+
+// 세션 에러 수신 — 위젯은 닫지 않고 버튼만 재활성화 (사용자가 재시도/취소 선택 가능).
+// 사유 표시는 MainMenuWidget의 SessionErrorWidget 모달이 위에 떠서 담당. 모달 닫히면
+// MainMenuWidget::RefocusSelf가 TopmostChildModal(=이 위젯)로 포커스 되돌려줌.
+void URoomJoinWidget::OnSessionError(const FString& Reason)
+{
+	UE_LOG(LogTemp, Warning, TEXT("RoomJoinWidget: session error received, keeping widget open. reason=%s"), *Reason);
+
+	// OnYesClicked/OnRefreshClicked에서 disable된 버튼 복원.
+	if (Button_No) Button_No->SetIsEnabled(true);
+	if (Button_Refresh) Button_Refresh->SetIsEnabled(true);
+	if (Button_Yes) Button_Yes->SetIsEnabled(SelectedSearchIndex != INDEX_NONE);
+
+	SetStatusText(TEXT("Session error."), FLinearColor::Red);
 }
 
 
