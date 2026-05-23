@@ -107,6 +107,23 @@ void UIndianBabGameInstance::OnNetworkFailure(UWorld* /*World*/, UNetDriver* /*N
         return;
     }
 
+    // 활성 NamedSession 보유 = 우리가 데디로 트래블 시도(중)인 흐름.
+    // ConnectionTimeout/ConnectionLost/PendingConnectionFailure(ErrorString 빈 케이스 포함)는
+    // 데디 미응답/사망이지 인터넷 단절이 아니므로 세션 오류 채널로 라우팅.
+    USessionSubsystem* Session = GetSubsystem<USessionSubsystem>();
+    const bool bDediUnreachable =
+        FailureType == ENetworkFailure::ConnectionTimeout ||
+        FailureType == ENetworkFailure::ConnectionLost ||
+        FailureType == ENetworkFailure::PendingConnectionFailure;
+
+    if (Session && Session->IsInActiveSession() && bDediUnreachable)
+    {
+        UE_LOG(LogIndianBabGI, Warning,
+            TEXT("[GI] Dedi unreachable (NetworkFailure:%s) — routing to session error."), *TypeStr);
+        Session->CleanupHostSession(TEXT("게임 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."));
+        return;
+    }
+
     // 진짜 단절(NLA 사각지대 백스톱 포함) — 기존 경로
     if (UConnectivitySubsystem* Conn = GetSubsystem<UConnectivitySubsystem>())
     {
@@ -120,6 +137,23 @@ void UIndianBabGameInstance::OnTravelFailure(UWorld* /*World*/,
     const FString TypeStr = TravelFailureToString(FailureType);
     UE_LOG(LogIndianBabGI, Error,
         TEXT("[GI] TravelFailure: type=%s err=%s"), *TypeStr, *ErrorString);
+
+    // 활성 NamedSession 보유 = 데디 트래블 시도 중. PendingNetGameCreateFailure/TravelFailure 등
+    // 어떤 사유든 "데디 응답 없음/트래블 실패"로 통일해 세션 오류 채널로 라우팅 +
+    // 좀비 Steam Lobby 청소까지 CleanupHostSession이 일괄 처리.
+    if (USessionSubsystem* Session = GetSubsystem<USessionSubsystem>())
+    {
+        if (Session->IsInActiveSession())
+        {
+            const FString Reason = ErrorString.IsEmpty()
+                ? FString(TEXT("게임 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."))
+                : ErrorString;
+            UE_LOG(LogIndianBabGI, Warning,
+                TEXT("[GI] TravelFailure during active session — routing to session error: %s"), *Reason);
+            Session->CleanupHostSession(Reason);
+            return;
+        }
+    }
 
     if (UConnectivitySubsystem* Conn = GetSubsystem<UConnectivitySubsystem>())
     {

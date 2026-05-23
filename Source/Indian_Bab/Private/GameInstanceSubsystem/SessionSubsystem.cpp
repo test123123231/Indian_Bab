@@ -334,6 +334,13 @@ void USessionSubsystem::OnDestroySessionAfterCleanup(FName /*SessionName*/, bool
 }
 
 
+bool USessionSubsystem::IsInActiveSession() const
+{
+    return SessionInterface.IsValid() &&
+        SessionInterface->GetNamedSession(NAME_GameSession) != nullptr;
+}
+
+
 void USessionSubsystem::FinalizeHostTravel(const FString& DediURL)
 {
     // 1) SessionSettings에 데디 URL 심기 → 클라이언트가 검색 시 읽음

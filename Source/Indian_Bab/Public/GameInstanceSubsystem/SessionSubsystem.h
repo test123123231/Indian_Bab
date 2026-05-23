@@ -113,6 +113,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Session")
     void CleanupHostSession(const FString& Reason);
 
+    // 활성 NAME_GameSession 보유 여부 — GameInstance가 NetworkFailure/TravelFailure를
+    // 데디 트래블 실패로 해석할지(세션 오류) 인터넷 단절로 해석할지(오프라인 모달) 분기에 사용.
+    bool IsInActiveSession() const;
+
     // 매치메이커 응답 후 클라이언트가 사용할 데디 endpoint를 SessionSettings에 심는 키
     static const FName Key_DediEndpoint;
 
