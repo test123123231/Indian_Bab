@@ -29,11 +29,11 @@ void URoomCreateWidget::OnYesClicked()
 		}
 
 		// 3. 서브시스템 호출 — 체크박스로 가시성 결정 (기본 unchecked = Public)
-		const ERoomVisibility Visibility =
+		const ERoomVisibility RoomVisibility =
 			(CheckBox_FriendsOnly && CheckBox_FriendsOnly->IsChecked())
 			? ERoomVisibility::FriendsOnly
 			: ERoomVisibility::Public;
-		SessionSubsystem->CreateRoom(4, Visibility);
+		SessionSubsystem->CreateRoom(4, RoomVisibility);
 	}
 }
 
@@ -71,8 +71,8 @@ void URoomCreateWidget::NativeConstruct()
 		if (SessionSubsystem)
 		{
 			// 이미 바인딩 되어 있는지 확인 후 추가 (혹은 Remove 후 Add)
-			SessionSubsystem->OnCreateSessionCompleteEvent.RemoveDynamic(this, &URoomCreateWidget::OnCreateSessionComplete);
-			SessionSubsystem->OnCreateSessionCompleteEvent.AddDynamic(this, &URoomCreateWidget::OnCreateSessionComplete);
+			SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &URoomCreateWidget::OnSessionError);
+			SessionSubsystem->OnSessionErrorEvent.AddDynamic(this, &URoomCreateWidget::OnSessionError);
 		}
 	}
 
@@ -101,7 +101,7 @@ void URoomCreateWidget::NativeDestruct()
 	// [중요] 위젯이 파괴될 때 델리게이트 연결 해제 (안전장치)
 	if (SessionSubsystem)
 	{
-		SessionSubsystem->OnCreateSessionCompleteEvent.RemoveDynamic(this, &URoomCreateWidget::OnCreateSessionComplete);
+		SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &URoomCreateWidget::OnSessionError);
 	}
 }
 
@@ -162,30 +162,11 @@ FReply URoomCreateWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 }
 
 
-// [추가] 방 생성 결과 처리
-void URoomCreateWidget::OnCreateSessionComplete(bool bWasSuccessful)
+// 세션 에러 수신 — 자기 자신만 닫고 끝.
+// 사유 표시는 MainMenuPC의 SessionErrorWidget 모달이 단일 채널로 담당 (이중 표시 방지).
+// OnNoClicked과 동일하게 부모 메뉴로 입력 모드 복원 + RemoveFromParent.
+void URoomCreateWidget::OnSessionError(const FString& Reason)
 {
-	if (bWasSuccessful)
-	{
-		// [상태 업데이트] 성공 시
-		if (Text_Status)
-		{
-			Text_Status->SetText(FText::FromString(TEXT("생성 성공! 데디 서버로 이동합니다...")));
-			Text_Status->SetColorAndOpacity(FLinearColor::Green); // 초록색
-		}
-		// 실제 ClientTravel은 SessionSubsystem이 매치메이커 응답 후 수행 (FinalizeHostTravel)
-	}
-	else
-	{
-		// [상태 업데이트] 실패 시
-		if (Text_Status)
-		{
-			Text_Status->SetText(FText::FromString(TEXT("생성 실패. 다시 시도해주세요.")));
-			Text_Status->SetColorAndOpacity(FLinearColor::Red); // 빨간색
-		}
-
-		// 실패했으므로 버튼 다시 활성화
-		Button_Yes->SetIsEnabled(true);
-		Button_No->SetIsEnabled(true);
-	}
+	UE_LOG(LogTemp, Warning, TEXT("RoomCreateWidget: session error received, auto-closing. reason=%s"), *Reason);
+	OnNoClicked();
 }

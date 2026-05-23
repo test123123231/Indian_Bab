@@ -66,7 +66,8 @@ private:
 	UFUNCTION() 
 	void OnNoClicked();
 
-	// [추가] 서브시스템으로부터 방 생성 결과를 받을 콜백 함수
-	UFUNCTION() 
-	void OnCreateSessionComplete(bool bWasSuccessful);
+	// 에러 발생 시 자기 자신을 닫는 콜백 — 실제 사유 표시는 MainMenuPC의 모달이 담당.
+	// 성공 케이스는 ClientTravel로 위젯이 자동 소멸하므로 별도 처리 불필요.
+	UFUNCTION()
+	void OnSessionError(const FString& Reason);
 };

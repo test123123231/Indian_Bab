@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "Engine/NetDriver.h"
 #include "GameInstanceSubsystem/ConnectivitySubsystem.h"
+#include "GameInstanceSubsystem/SessionSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIndianBabGI, Log, All);
 
@@ -83,6 +84,30 @@ void UIndianBabGameInstance::OnNetworkFailure(UWorld* /*World*/, UNetDriver* /*N
     UE_LOG(LogIndianBabGI, Error,
         TEXT("[GI] NetworkFailure: type=%s err=%s"), *TypeStr, *ErrorString);
 
+    // 데디 PreLogin 거부 분기:
+    //   - PendingConnectionFailure: ClientTravel 후 PendingNetGame 단계에서 NMT_Failure 수신 (만석/AC 미검증/게임 진행 중)
+    //   - FailureReceived: 이미 접속한 상태에서 서버가 NMT_Failure 발사 (예외 케이스)
+    // 두 경우 모두 ErrorString이 데디 PreLogin의 ErrorMessage 그대로
+    // → 인터넷 단절(NLA/ConnectionLost/Timeout)과 구분해 모달 채널로 분리.
+    const bool bIsRejection =
+        (FailureType == ENetworkFailure::PendingConnectionFailure) ||
+        (FailureType == ENetworkFailure::FailureReceived);
+
+    if (bIsRejection && !ErrorString.IsEmpty())
+    {
+        UE_LOG(LogIndianBabGI, Warning,
+            TEXT("[GI] Dedi rejection — reason=%s"), *ErrorString);
+
+        // 호스트/클라 모두 Steam Lobby 정리 + OnSessionErrorEvent broadcast가 CleanupHostSession에서 일괄 처리됨.
+        // (호스트: 매치메이커 인스턴스/Lobby 폐기, 클라: 호스트 Lobby에서 leave → 슬롯 즉시 반환)
+        if (USessionSubsystem* Session = GetSubsystem<USessionSubsystem>())
+        {
+            Session->CleanupHostSession(ErrorString);
+        }
+        return;
+    }
+
+    // 진짜 단절(NLA 사각지대 백스톱 포함) — 기존 경로
     if (UConnectivitySubsystem* Conn = GetSubsystem<UConnectivitySubsystem>())
     {
         Conn->ForceTriggerLost(FString::Printf(TEXT("NetworkFailure:%s"), *TypeStr));
