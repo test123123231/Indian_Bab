@@ -69,6 +69,35 @@ void UOptionMenuWidget::NativeConstruct()
 }
 
 
+// 캐시 인스턴스 재오픈 대비 — BindWidget UObject들의 누적 바인딩 일괄 해제.
+void UOptionMenuWidget::NativeDestruct()
+{
+	// 슬라이더
+	if (Slider_MasterVolume)     Slider_MasterVolume->OnValueChanged.RemoveAll(this);
+	if (Slider_MouseSensitivity) Slider_MouseSensitivity->OnValueChanged.RemoveAll(this);
+	if (Slider_ScreenBrightness) Slider_ScreenBrightness->OnValueChanged.RemoveAll(this);
+
+	// 콤보박스
+	if (ComboBoxString_ScreenResolution) ComboBoxString_ScreenResolution->OnSelectionChanged.RemoveAll(this);
+	if (ComboBoxString_WindowMode)       ComboBoxString_WindowMode->OnSelectionChanged.RemoveAll(this);
+
+	// 메인 버튼
+	if (Button_Apply)    Button_Apply->OnClicked.RemoveAll(this);
+	if (Button_ResetAll) Button_ResetAll->OnClicked.RemoveAll(this);
+	if (Button_OK)       Button_OK->OnClicked.RemoveAll(this);
+	if (Button_Cancel)   Button_Cancel->OnClicked.RemoveAll(this);
+
+	// 개별 리셋 버튼
+	if (Button_ResetMasterVolume)     Button_ResetMasterVolume->OnClicked.RemoveAll(this);
+	if (Button_ResetMouseSensitivity) Button_ResetMouseSensitivity->OnClicked.RemoveAll(this);
+	if (Button_ResetScreenBrightness) Button_ResetScreenBrightness->OnClicked.RemoveAll(this);
+	if (Button_ResetScreenResolution) Button_ResetScreenResolution->OnClicked.RemoveAll(this);
+	if (Button_ResetWindowMode)       Button_ResetWindowMode->OnClicked.RemoveAll(this);
+
+	Super::NativeDestruct();
+}
+
+
 /**
  * ESC 키 입력을 처리하는 함수
  */

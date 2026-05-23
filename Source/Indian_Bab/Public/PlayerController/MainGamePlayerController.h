@@ -19,6 +19,7 @@ public:
 	AMainGamePlayerController();
 
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     void ApplyLobbyMappingContext();
 
@@ -159,6 +160,19 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_MainGameTab;
 
+    //--- 연결성(인터넷/데디 끊김) ---
+    // 끊김 시 모달로 띄울 위젯 클래스 (BP에서 WBP_OfflineNotice 지정)
+    UPROPERTY(EditDefaultsOnly, Category = "Connectivity")
+    TSubclassOf<UUserWidget> OfflineWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UUserWidget> OfflineWidgetInstance;
+
+    void HandleConnectivityLost();
+    void HandleConnectivityRestored();
+
+    FDelegateHandle LostHandle;
+    FDelegateHandle RestoredHandle;
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_Fire;
 

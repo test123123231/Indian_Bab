@@ -1,6 +1,7 @@
 ﻿#include "Widget/RoomCreateWidget.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "Components/CheckBox.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Net/UnrealNetwork.h"
@@ -27,8 +28,12 @@ void URoomCreateWidget::OnYesClicked()
 			Text_Status->SetColorAndOpacity(FLinearColor::White); // 흰색
 		}
 
-		// 3. 서브시스템 호출
-		SessionSubsystem->CreateRoom(4);
+		// 3. 서브시스템 호출 — 체크박스로 가시성 결정 (기본 unchecked = Public)
+		const ERoomVisibility RoomVisibility =
+			(CheckBox_FriendsOnly && CheckBox_FriendsOnly->IsChecked())
+			? ERoomVisibility::FriendsOnly
+			: ERoomVisibility::Public;
+		SessionSubsystem->CreateRoom(4, RoomVisibility);
 	}
 }
 
@@ -66,12 +71,12 @@ void URoomCreateWidget::NativeConstruct()
 		if (SessionSubsystem)
 		{
 			// 이미 바인딩 되어 있는지 확인 후 추가 (혹은 Remove 후 Add)
-			SessionSubsystem->OnCreateSessionCompleteEvent.RemoveDynamic(this, &URoomCreateWidget::OnCreateSessionComplete);
-			SessionSubsystem->OnCreateSessionCompleteEvent.AddDynamic(this, &URoomCreateWidget::OnCreateSessionComplete);
+			SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &URoomCreateWidget::OnSessionError);
+			SessionSubsystem->OnSessionErrorEvent.AddDynamic(this, &URoomCreateWidget::OnSessionError);
 		}
 	}
 
-	// --- 버튼 이벤트 바인딩 ---
+	// --- 버튼 이벤트 바인딩 --- (정리는 NativeDestruct에서 일괄)
 	if (Button_Yes)
 	{
 		Button_Yes->OnClicked.AddDynamic(this, &URoomCreateWidget::OnYesClicked);
@@ -86,18 +91,29 @@ void URoomCreateWidget::NativeConstruct()
 	{
 		Text_Status->SetText(FText::GetEmpty());
 	}
+
+	// 캐시 인스턴스 재오픈 대비 — 이전 세션에서 OnYesClicked로 disable된 채 박제되는 것 방지.
+	// 닫힘 트리거(OnNoClicked/OnSessionError)마다 흩지 말고 재진입 시점에서 idempotent하게 리셋.
+	if (Button_Yes) Button_Yes->SetIsEnabled(true);
+	if (Button_No) Button_No->SetIsEnabled(true);
 }
 
 
 void URoomCreateWidget::NativeDestruct()
 {
-	Super::NativeDestruct();
+	// [중요] BindWidget UButton은 UUserWidget(=this)이 살아있는 한 GC 대상이 아니므로
+	// OnClicked 바인딩이 누적된다. 캐시 인스턴스 재오픈 시 NativeConstruct 재진입으로
+	// 중복 AddDynamic ensure가 발생하므로 여기서 일괄 해제.
+	if (Button_Yes) Button_Yes->OnClicked.RemoveAll(this);
+	if (Button_No)  Button_No->OnClicked.RemoveAll(this);
 
-	// [중요] 위젯이 파괴될 때 델리게이트 연결 해제 (안전장치)
+	// 외부 객체 구독 해제 (dangling 방지)
 	if (SessionSubsystem)
 	{
-		SessionSubsystem->OnCreateSessionCompleteEvent.RemoveDynamic(this, &URoomCreateWidget::OnCreateSessionComplete);
+		SessionSubsystem->OnSessionErrorEvent.RemoveDynamic(this, &URoomCreateWidget::OnSessionError);
 	}
+
+	Super::NativeDestruct();
 }
 
 
@@ -157,47 +173,11 @@ FReply URoomCreateWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 }
 
 
-// [추가] 방 생성 결과 처리
-void URoomCreateWidget::OnCreateSessionComplete(bool bWasSuccessful)
+// 세션 에러 수신 — 자기 자신만 닫고 끝.
+// 사유 표시는 MainMenuPC의 SessionErrorWidget 모달이 단일 채널로 담당 (이중 표시 방지).
+// OnNoClicked과 동일하게 부모 메뉴로 입력 모드 복원 + RemoveFromParent.
+void URoomCreateWidget::OnSessionError(const FString& Reason)
 {
-	if (bWasSuccessful)
-	{
-		// [상태 업데이트] 성공 시
-		if (Text_Status)
-		{
-			Text_Status->SetText(FText::FromString(TEXT("생성 성공! 로비로 이동합니다...")));
-			Text_Status->SetColorAndOpacity(FLinearColor::Green); // 초록색
-		}
-
-
-		// ★ 리슨 서버 시작 (레벨 이동)
-		// "?listen" 옵션이 있어야 호스트가 됩니다.
-		UGameplayStatics::OpenLevel(GetWorld(), LobbyLevelName, true, FString(L"listen"));
-		/*UWorld* World = GetWorld();
-		if (World)
-		{
-			FString Options = FString(TEXT("listen"));
-			World->ServerTravel(FString("/Game/Maps/Test_Map/Test_Map_Noh?listen"));
-		}*/
-
-		if (PlayerControllerRef->HasAuthority()) {
-			UE_LOG(LogTemp, Warning, TEXT("You are the Host!"));
-		}
-		else {
-			UE_LOG(LogTemp, Warning, TEXT("You are a Client!"));
-		}
-	}
-	else
-	{
-		// [상태 업데이트] 실패 시
-		if (Text_Status)
-		{
-			Text_Status->SetText(FText::FromString(TEXT("생성 실패. 다시 시도해주세요.")));
-			Text_Status->SetColorAndOpacity(FLinearColor::Red); // 빨간색
-		}
-
-		// 실패했으므로 버튼 다시 활성화
-		Button_Yes->SetIsEnabled(true);
-		Button_No->SetIsEnabled(true);
-	}
+	UE_LOG(LogTemp, Warning, TEXT("RoomCreateWidget: session error received, auto-closing. reason=%s"), *Reason);
+	OnNoClicked();
 }

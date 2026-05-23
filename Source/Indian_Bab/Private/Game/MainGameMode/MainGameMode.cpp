@@ -4,12 +4,47 @@
 #include "PlayerState/MainPlayerState.h"
 #include "Character/LobbyVRCharacter.h"
 #include "CardController/CardManager.h"
+#include "GameFramework/GameSession.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
 AMainGameMode::AMainGameMode()
 {
 	GameStateClass = AMainGameState::StaticClass();
+}
+
+void AMainGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
+{
+	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
+	// 서버는 Null OSS, 클라이언트는 Steam ID → OSS 플랫폼 불일치 에러 무시
+	if (ErrorMessage == TEXT("incompatible_unique_net_id") && GIsEditor)
+	{
+		ErrorMessage = TEXT("");
+	}
+
+	// 백스톱: 게임이 이미 시작된 인스턴스는 신규 합류 거부 (방 목록 UI 비활성화를 뚫고 들어온 경우 차단)
+	// ErrorMessage는 NMT_Failure 채널로 클라에 전달되어 GameInstance::OnNetworkFailure(ErrorString)로 노출됨
+	if (const AMainGameState* GS = GetGameState<AMainGameState>())
+	{
+		if (GS->CurrentGamePhase != EGamePhase::Lobby)
+		{
+			ErrorMessage = TEXT("게임이 이미 진행 중인 방입니다.");
+			UE_LOG(LogTemp, Warning, TEXT("[PreLogin] reject — game already in progress (phase=%d)"),
+				(int32)GS->CurrentGamePhase);
+			return;
+		}
+	}
+
+	// 만석 체크 — GameSession->MaxPlayers (Engine.ini의 [/Script/Engine.GameSession] MaxPlayers) 기준.
+	// NumPlayers는 이미 PostLogin 된 인원이므로 신규 1명 합류 후 초과하면 거부.
+	if (GameSession && GameSession->MaxPlayers > 0 && NumPlayers >= GameSession->MaxPlayers)
+	{
+		ErrorMessage = FString::Printf(TEXT("방이 가득 찼습니다. (%d/%d)"),
+			NumPlayers, GameSession->MaxPlayers);
+		UE_LOG(LogTemp, Warning, TEXT("[PreLogin] reject — server full (%d/%d)"),
+			NumPlayers, GameSession->MaxPlayers);
+		return;
+	}
 }
 
 void AMainGameMode::PostLogin(APlayerController* NewPlayer)
