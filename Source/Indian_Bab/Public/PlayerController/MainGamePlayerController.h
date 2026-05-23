@@ -40,6 +40,9 @@ public:
     UFUNCTION(Client, Reliable)
     void ClientOnSeated();
 
+    UFUNCTION(Server, Reliable)
+    void Server_RequestReady();
+
     int GetPlayerIdSafe();
 
 private:
@@ -49,6 +52,9 @@ private:
 
     UFUNCTION(Server, Reliable)
     void Server_SetSteamNickname(const FString& NewNickname);
+
+    UFUNCTION(Server, Reliable)
+    void Server_RequestMainRevolverShot();
 
 	// 입력 모드 전환 함수
     void EnterUIMode();     // 커서 보이기
@@ -82,6 +88,20 @@ private:
     void OnLobbyLook(const FInputActionValue& Value);
 
     void OnMainGameTabPressed(const FInputActionValue& Value);
+
+    void OnFire(const FInputActionValue& Value);
+
+    void OnRightTriggerClickStarted(const FInputActionValue& Value);
+
+    void OnRightTriggerClickReleased(const FInputActionValue& Value);
+
+    void OnLeftTriggerClickStarted(const FInputActionValue& Value);
+
+    void OnLeftTriggerClickReleased(const FInputActionValue& Value);
+
+    void OnDebugRightTriggerPressed();
+
+    void OnDebugRightTriggerReleased();
 
 
     // 플레이어 스테이트 변화 발생 시 실행(위젯에서 플레이어 스테이트 등록 실패 시 재등록)
@@ -141,7 +161,6 @@ private:
     TObjectPtr<UInputAction> IA_MainGameTab;
 
     //--- 연결성(인터넷/데디 끊김) ---
-
     // 끊김 시 모달로 띄울 위젯 클래스 (BP에서 WBP_OfflineNotice 지정)
     UPROPERTY(EditDefaultsOnly, Category = "Connectivity")
     TSubclassOf<UUserWidget> OfflineWidgetClass;
@@ -154,4 +173,12 @@ private:
 
     FDelegateHandle LostHandle;
     FDelegateHandle RestoredHandle;
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_Fire;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input|VR")
+    TObjectPtr<UInputAction> IA_RightTriggerClick;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input|VR")
+    TObjectPtr<UInputAction> IA_LeftTriggerClick;
 };

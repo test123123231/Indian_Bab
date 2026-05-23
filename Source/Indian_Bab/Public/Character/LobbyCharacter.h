@@ -43,7 +43,7 @@ public:
 
 	// 서버/클라이언트 모두에서 앉기 상태가 변할 때 시각적, 조작적 처리를 할 함수
 	UFUNCTION()
-	void OnRep_IsSitting();
+	virtual void OnRep_IsSitting();
 
 	// 서버가 몽타주 종료 후 클라이언트에게 최종 카메라 세팅을 지시하는 함수
 	UFUNCTION(Client, Reliable)
@@ -97,9 +97,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<UAnimMontage> AimMyselfMontage;
 
+	// Fold 격발 끝나고 돌려두는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> EndAimMyselfMontage;
+
 	// 승리 시 총을 겨냥하는 애니메이션 몽타주 (BP에서 할당)
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<UAnimMontage> WinAimMontage;
+
+	// 승리 후 총을 격발 후 되돌리는 애니메이션 몽타주 (BP에서 할당)
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> WinEndMontage;
 
 	// 총을 집어든 이유 - ABP 스테이트 머신 트랜지션 판별용 (Replicated)
 	UPROPERTY(ReplicatedUsing = OnRep_GunHoldReason, BlueprintReadOnly, Category = "State")
@@ -131,9 +139,18 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_PlayGrabGunMontage(EGunHoldReason Reason);
 
+	// 총 원래 위치로 보내는 몽타주 재생 (Fold/Win 공통)
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PutBackGunMontage(EGunHoldReason Reason);
+
 	// 이 캐릭터 자리에 놓인 리볼버 (SeatActor 착석 시 할당, Replicated)
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<ARevolver> DeskRevolver;
+	
+	// 현재 애니메이션에서 손에 붙일 리볼버
+	// Fold일 때는 자리 앞 서브 리볼버, Win일 때는 맵 중앙 메인 리볼버
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Weapon")
+	TObjectPtr<ARevolver> ActiveRevolver;
 
 	// 1인칭 리볼버 메시 (FirstPersonMetaHumanBody의 Revolver 소켓에 부착, 본인만 보임)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
@@ -145,6 +162,9 @@ public:
 
 	// AnimNotify_GrabRevolver 에서 호출 - 책상 리볼버를 숨기고 FP/TP 메시를 소켓에 부착
 	void AttachRevolverToSocket();
+
+	// AnimNotify_ReturnRevolverToDesk에서 호출 - 손 리볼버 메시를 숨기고 책상 리볼버를 다시 보이게 함
+	void ReturnRevolverToDesk();
 
 	// ★ 추가: 현재 캐릭터가 앉아있는지 여부 (동기화 됨)
 	UPROPERTY(ReplicatedUsing = OnRep_IsSitting, BlueprintReadOnly, Category = "State")
@@ -161,11 +181,26 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "PlayerNameWidget")
 	TObjectPtr<UWidgetComponent> NameWidgetComponent;
 
+	UPROPERTY(BlueprintReadOnly, Category = "State")
+	bool bIsPuttingBackGun = false;
+
+	void SetActiveRevolver(ARevolver* NewRevolver);
+
+	// 메인 리볼버 조준선 표시 여부
+	UPROPERTY(BlueprintReadOnly, Category = "Main Revolver")
+	bool bShowMainShotAimLine = false;
+
+	// 조준선 거리
+	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")
+	float MainShotAimLineDistance = 5000.0f;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 	virtual void OnRep_PlayerState() override;
+
+	virtual void UpdateAimYawFromView();
 
 	// 상호작용 입력 처리 함수
 	void OnInteract(const FInputActionValue& Value);
@@ -185,13 +220,22 @@ protected:
 	UFUNCTION()
 	void OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-private:
-	//TObjectPtr<AMainGamePlayerController> MainGamePC;
+	UFUNCTION()
+	void OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
 
 	// 현재 상호작용 중인 의자 캐싱
 	UPROPERTY()
 	TObjectPtr<ASeatActor> CurrentSeat;
+
+	EGunHoldReason FinishedReason;
+
+	// 조준선 표시/숨김
+	void SetMainShotAimLineVisible(bool bVisible);
+
+	// 조준선 그리기
+	void DrawMainShotAimLine();
 };

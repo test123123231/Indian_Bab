@@ -15,6 +15,7 @@
 #include "PlayerState/MainPlayerState.h"
 #include "Widget/PlayerNameWidget.h"
 #include "Components/WidgetComponent.h"
+#include "DrawDebugHelpers.h"
 
 
 // Sets default values
@@ -209,6 +210,13 @@ void ALobbyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	UpdateAimYawFromView();
+
+	DrawMainShotAimLine();
+}
+
+void ALobbyCharacter::UpdateAimYawFromView()
+{
 	// 내가 조종하는 캐릭터이고, 앉아있을 때만 작동
 	if (bIsSitting && IsLocallyControlled())
 	{
@@ -216,7 +224,7 @@ void ALobbyCharacter::Tick(float DeltaTime)
 		{
 			// (현재 마우스 좌우 방향) - (의자에 안착한 캡슐의 고정된 방향) = 순수하게 목이 돌아간 각도
 			float YawDifference = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, PC->GetControlRotation().Yaw);
-			UE_LOG(LogTemp, Log, TEXT("YawDifference: %f"), YawDifference);
+			//UE_LOG(LogTemp, Log, TEXT("YawDifference: %f"), YawDifference);
 			// 내 화면을 위해 로컬 변수 즉시 업데이트
 			ReplicatedAimYaw = YawDifference;
 
@@ -251,6 +259,7 @@ void ALobbyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(ALobbyCharacter, GunHoldReason);
 	DOREPLIFETIME(ALobbyCharacter, DeskRevolver);
 	DOREPLIFETIME(ALobbyCharacter, ReplicatedAimYaw);
+	DOREPLIFETIME(ALobbyCharacter, ActiveRevolver);
 }
 
 
@@ -329,9 +338,43 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 	if (MontageToPlay)
 	{
 		AnimInstance->Montage_Play(MontageToPlay, 1.0f);
-
 		FOnMontageEnded EndDelegate;
 		EndDelegate.BindUObject(this, &ALobbyCharacter::OnGrabGunMontageEnded);
+		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
+	}
+}
+
+void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason Reason)
+{
+    UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+    if (!AnimInstance) return;
+
+	bIsPuttingBackGun = true;
+	
+	// 메인 리볼버를 내려놓기 시작하면 조준선 숨김
+	if (Reason == EGunHoldReason::Win)
+	{
+		SetMainShotAimLineVisible(false);
+	}
+    UAnimMontage* MontageToPlay = nullptr;
+
+    if (Reason == EGunHoldReason::Fold)
+    {
+        MontageToPlay = EndAimMyselfMontage;
+    }
+    else if (Reason == EGunHoldReason::Win)
+    {
+        MontageToPlay = WinEndMontage;
+    }
+
+	AnimInstance->Montage_Play(MontageToPlay, 1.0f);
+	FinishedReason = GunHoldReason;
+	GunHoldReason = EGunHoldReason::None;
+
+	if (HasAuthority())
+	{
+		FOnMontageEnded EndDelegate;
+		EndDelegate.BindUObject(this, &ALobbyCharacter::OnPutBackGunMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
 	}
 }
@@ -343,14 +386,23 @@ void ALobbyCharacter::OnRep_GunHoldReason()
 
 void ALobbyCharacter::AttachRevolverToSocket()
 {
-	if (!DeskRevolver) return;
+	ARevolver* RevolverToAttach = ActiveRevolver ? ActiveRevolver.Get() : DeskRevolver.Get();
+	// UE_LOG(LogTemp, Warning,
+	// 	TEXT("[AttachRevolverToSocket] Char=%s Active=%s Desk=%s Attach=%s"),
+	// 	*GetName(),
+	// 	*GetNameSafe(ActiveRevolver),
+	// 	*GetNameSafe(DeskRevolver),
+	// 	*GetNameSafe(RevolverToAttach)
+	// );
+
+	if (!RevolverToAttach) return;
 
 	// 1) 책상 위 리볼버 Prop 숨기기 + 콜리전 제거
-	DeskRevolver->SetActorHiddenInGame(true);
-	DeskRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	RevolverToAttach->SetActorHiddenInGame(true);
+	RevolverToAttach->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	// 2) 책상 리볼버와 동일한 스켈레탈 메시 에셋을 FP/TP 컴포넌트에 복사
-	USkeletalMesh* RevolverMeshAsset = DeskRevolver->WeaponMesh->GetSkeletalMeshAsset();
+	USkeletalMesh* RevolverMeshAsset = RevolverToAttach->WeaponMesh->GetSkeletalMeshAsset();
 	FP_RevolverMesh->SetSkeletalMeshAsset(RevolverMeshAsset);
 	TP_RevolverMesh->SetSkeletalMeshAsset(RevolverMeshAsset);
 
@@ -369,8 +421,37 @@ void ALobbyCharacter::AttachRevolverToSocket()
 		FName("Revolver")
 	);
 	TP_RevolverMesh->SetVisibility(true);
+
+	if (GunHoldReason == EGunHoldReason::Win)
+	{
+		SetMainShotAimLineVisible(true);
+	}
 }
 
+void ALobbyCharacter::ReturnRevolverToDesk()
+{
+	ARevolver* RevolverToReturn = ActiveRevolver ? ActiveRevolver.Get() : DeskRevolver.Get();
+
+	if (FP_RevolverMesh)
+	{
+		FP_RevolverMesh->SetVisibility(false);
+		FP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	if (TP_RevolverMesh)
+	{
+		TP_RevolverMesh->SetVisibility(false);
+		TP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	if (!RevolverToReturn) return;
+	RevolverToReturn->SetActorHiddenInGame(false);
+
+	if (RevolverToReturn->CollisionSphere)
+	{
+		RevolverToReturn->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+}
 
 void ALobbyCharacter::StartSitTransition(ASeatActor* TargetSeat)
 {
@@ -427,8 +508,27 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 
 		GM->HandleFoldMontageFinished(this);
 	}
+	else if(GunHoldReason == EGunHoldReason::Win)
+	{
+		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+		if (!GM) return;
+
+		GM->HandleMainMontageFinished(this);
+	}
 }
 
+void ALobbyCharacter::OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (bInterrupted) return;
+	if (!HasAuthority()) return;
+
+	bIsPuttingBackGun = false;
+
+	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+	if (!GM) return;
+
+	GM->HandlePutBackGunMontageFinished(this, FinishedReason);
+}
 
 void ALobbyCharacter::OnRep_IsSitting()
 {
@@ -515,4 +615,49 @@ void ALobbyCharacter::Client_PrepareSit_Implementation(FVector TargetLocation, F
 void ALobbyCharacter::Server_UpdateAimYaw_Implementation(float NewYaw)
 {
 	ReplicatedAimYaw = NewYaw; // 서버가 값을 받아서 모든 클라이언트에게 자동 전파
+}
+
+void ALobbyCharacter::SetActiveRevolver(ARevolver* NewRevolver)
+{
+	if (!HasAuthority()) return;
+
+	ActiveRevolver = NewRevolver;
+	ForceNetUpdate();
+}
+
+void ALobbyCharacter::SetMainShotAimLineVisible(bool bVisible)
+{
+	bShowMainShotAimLine = bVisible;
+}
+
+void ALobbyCharacter::DrawMainShotAimLine()
+{
+	// 자기 화면에서만 보이게
+	if (!IsLocallyControlled()) return;
+
+	// 메인 리볼버 조준 중일 때만
+	if (!bShowMainShotAimLine) return;
+	if (GunHoldReason != EGunHoldReason::Win) return;
+
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC) return;
+
+	FVector ViewLocation;
+	FRotator ViewRotation;
+	PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+	const FVector Forward = ViewRotation.Vector();
+	const FVector Start = ViewLocation + Forward * 80.0f;
+	const FVector End = Start + Forward * 2500.0f;
+
+	DrawDebugLine(
+		GetWorld(),
+		Start,
+		End,
+		FColor::Red,
+		false,
+		0.0f,
+		0,
+		2.0f 
+	);
 }

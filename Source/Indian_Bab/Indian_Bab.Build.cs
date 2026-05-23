@@ -29,6 +29,8 @@ public class Indian_Bab : ModuleRules
             "HTTP",
             "Json",
             "JsonUtilities"
+            "HeadMountedDisplay",
+            "XRBase"
         });
 
         PrivateDependencyModuleNames.AddRange(new string[] { });

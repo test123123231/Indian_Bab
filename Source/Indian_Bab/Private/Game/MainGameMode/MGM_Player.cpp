@@ -1,8 +1,8 @@
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
-#include "Character/LobbyCharacter.h"
 #include "Actor/SeatActor.h"
 #include "PlayerState/MainPlayerState.h"
+#include "GameFramework/Character.h"
 
 // 플레이어 선택
 void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
@@ -42,7 +42,7 @@ void AMainGameMode::PickRandomPlayer()
 	ASeatActor* CurrentChair = GS -> SeatChairArray[CurrentPlayerIndex];
 	if(!CurrentChair || !CurrentChair -> GetOccupant()) return;
 
-	ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(CurrentChair->GetOccupant());
+	ACharacter* OccupantCharacter = Cast<ACharacter>(CurrentChair->GetOccupant());
 	if (!OccupantCharacter) return;
 	AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
 	if(!PS) return;
@@ -67,7 +67,7 @@ void AMainGameMode::PickByResult()
         ASeatActor* Seat = GS->SeatChairArray[i];
         if(!Seat || !Seat->GetOccupant()) continue;
 
-        ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+        ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
         if(!OccupantCharacter) continue;
 
         AMainPlayerState* PS = OccupantCharacter->GetPlayerState<AMainPlayerState>();
@@ -96,7 +96,7 @@ int32 AMainGameMode::UpdateActivePlayer(AMainGameState* GS)
 	{
 		if(!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
@@ -111,7 +111,7 @@ int32 AMainGameMode::UpdateActivePlayer(AMainGameState* GS)
 
 // 다음 플레이어 Get
 // MainPlayerState* 리턴 및 GS의 CurrentPlayerIndex 업데이트
-AMainPlayerState* AMainGameMode::GetNextPlayerState(int32 CurrentPlayerIndex)
+TObjectPtr<AMainPlayerState> AMainGameMode::GetNextPlayerState(int32 CurrentPlayerIndex)
 {
 	if (!HasAuthority()) return nullptr;
 
@@ -129,7 +129,7 @@ AMainPlayerState* AMainGameMode::GetNextPlayerState(int32 CurrentPlayerIndex)
 		ASeatActor* NextChair = GS -> SeatChairArray[NextPlayerIndex];
 		if(!NextChair || !NextChair -> GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(NextChair->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(NextChair->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* NextPS = OccupantCharacter->GetPlayerState<AMainPlayerState>();

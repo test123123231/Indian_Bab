@@ -1,14 +1,17 @@
+
+
 #include "Game/MainGameMode.h"
 #include "Game/MainGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Character/LobbyCharacter.h"
 #include "Actor/SeatActor.h"
-#include "Kismet/GameplayStatics.h"
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
+#include "PlayerController/MainGamePlayerController.h"
+#include "GameFramework/Character.h"
 
 // 카드 매니저 획득
-ACardManager* AMainGameMode::GetCardManager()
+TObjectPtr<ACardManager> AMainGameMode::GetCardManager()
 {
     if (!MainCardManager)
     {
@@ -38,7 +41,7 @@ void AMainGameMode::DistributeCard()
 	{
 		if(!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
@@ -52,6 +55,7 @@ void AMainGameMode::DistributeCard()
 }
 
 // 게임 결과 확인
+// CurrentWinnerPS 업데이트
 void AMainGameMode::CheckPlayerCard()
 {
 	AMainGameState* GS = GetGameState<AMainGameState>();
@@ -59,14 +63,35 @@ void AMainGameMode::CheckPlayerCard()
 
 	GS->SetGamePhase(EGamePhase::Result);
 
-    AMainPlayerState* WinPS = MaxCardPlayer();
-    UE_LOG(LogTemp, Warning, TEXT("Winner : %d[%d, %s]"), WinPS -> GetPlayerId(), WinPS->GetMyCard().Value, *WinPS->GetMyCard().Suit);
+    CurrentWinnerPS = MaxCardPlayer();
+	if(!CurrentWinnerPS) return;
 
-    return;
+    UE_LOG(LogTemp, Warning, TEXT("[GM] Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
+	
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
+	if (!PC) return;
+
+	ALobbyCharacter* WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+	if (!WinnerCharacter)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Winner pawn is not ALobbyCharacter"));
+		return;
+	}
+
+	ARevolver* Revolver = GetMainRevolver();
+	if (!Revolver) 
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is NULL"));
+		return;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
+
+	WinnerCharacter->SetActiveRevolver(Revolver);
+	WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
 }
 
 // 활성 인원 중에서 가장 큰 값을 가진 플레이어
-AMainPlayerState* AMainGameMode::MaxCardPlayer()
+TObjectPtr<AMainPlayerState> AMainGameMode::MaxCardPlayer()
 {
     AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return nullptr;
@@ -80,7 +105,7 @@ AMainPlayerState* AMainGameMode::MaxCardPlayer()
 	{
 		if(!Seat || !Seat->GetOccupant()) continue;
 
-		ALobbyCharacter* OccupantCharacter = Cast<ALobbyCharacter>(Seat->GetOccupant());
+		ACharacter* OccupantCharacter = Cast<ACharacter>(Seat->GetOccupant());
 		if (!OccupantCharacter) continue;
 
 		AMainPlayerState* PS = OccupantCharacter -> GetPlayerState<AMainPlayerState>();
