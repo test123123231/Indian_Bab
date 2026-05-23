@@ -10,6 +10,7 @@ void UReadyWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
+	bReadySubmitted = false;
 	SetVisibility(ESlateVisibility::Visible);
 
 	if (Button_Ready)
@@ -29,6 +30,16 @@ void UReadyWidget::NativeConstruct()
 
 void UReadyWidget::OnReadyButtonClicked()
 {
+	ConfirmReady();
+}
+
+void UReadyWidget::ConfirmReady()
+{
+	if (bReadySubmitted)
+	{
+		return;
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("[ReadyWidget] Ready button clicked"));
 
 	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetOwningPlayer());
@@ -40,6 +51,7 @@ void UReadyWidget::OnReadyButtonClicked()
 
 	UE_LOG(LogTemp, Warning, TEXT("[ReadyWidget] OwningPlayer=%s"), *GetNameSafe(PC));
 
+	bReadySubmitted = true;
 	PC->Server_RequestReady();
 
 	if (Button_Ready)

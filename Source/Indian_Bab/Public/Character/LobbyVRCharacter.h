@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/LobbyCharacter.h"
+#include "TimerManager.h"
 #include "LobbyVRCharacter.generated.h"
 
 class ASeatActor;
@@ -134,6 +135,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
 	bool bLogVRPointerHits = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
+	float ReadyWidgetDelaySeconds = 2.0f;
+
 protected:
 	virtual void UpdateAimYawFromView() override;
 
@@ -141,6 +145,7 @@ private:
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
 	void ConfigurePlayerNameWidget();
+	void ShowReadyWidgetAfterDelay();
 	void UpdateVRNameWidget();
 	bool ApplyVRNameWidgetVisibility();
 	void UpdateVRNameWidgetTransform();
@@ -151,4 +156,6 @@ private:
 	void UpdateVRPointers();
 	void UpdateLaserPointer(const UMotionControllerComponent* AimController, const TCHAR* PointerName) const;
 	void DrawSeatDebugCapsule() const;
+
+	FTimerHandle ReadyWidgetDelayTimerHandle;
 };
