@@ -15,6 +15,7 @@ class INDIAN_BAB_API UAntiCheatSubsystem : public UGameInstanceSubsystem
     GENERATED_BODY()
 
 public:
+    virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
@@ -31,9 +32,6 @@ private:
 
     // EXE 파일 SHA-256 해시(64자 lowercase hex). 부팅 시 1회 계산.
     FString ComputeExeSha256() const;
-
-    // Steam OSS 에서 Auth Ticket 과 SteamID 를 동기 획득. 실패 시 빈 문자열.
-    bool TryGetSteamCredentials(FString& OutTicketHex, FString& OutSteamId) const;
 
     void SendVerifyRequest(const FString& ExeHashHex,
                            const FString& SteamTicketHex,

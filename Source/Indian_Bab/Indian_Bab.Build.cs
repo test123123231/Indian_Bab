@@ -17,6 +17,9 @@ public class Indian_Bab : ModuleRules
             "AIModule",
             "StateTreeModule",
             "GameplayStateTreeModule",
+            "HTTP",
+            "Json",
+            "JsonUtilities",
             "UMG",
             "Slate",
             "SlateCore",
@@ -26,21 +29,20 @@ public class Indian_Bab : ModuleRules
             "OnlineSubsystem",
             "HairStrandsCore",
             "Niagara",
-            "HTTP",
-            "Json",
-            "JsonUtilities",
             "HeadMountedDisplay",
             "XRBase"
         });
 
-        PrivateDependencyModuleNames.AddRange(new string[] { });
-
         DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
 
+        PrivateDependencyModuleNames.AddRange(new string[] { });
+
+        //   bcrypt.lib: AntiCheatSubsystem SHA-256 (클라 부팅 verify)
+        //   ole32.lib : ConnectivitySubsystem INetworkListManager COM (클라 NLM 폴링)
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             PublicSystemLibraries.Add("bcrypt.lib");
-            PublicSystemLibraries.Add("ole32.lib"); // INetworkListManager COM (ConnectivitySubsystem)
+            PublicSystemLibraries.Add("ole32.lib");
         }
 
         PublicIncludePaths.AddRange(new string[] {

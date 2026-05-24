@@ -1,6 +1,7 @@
 #include "GameInstanceSubsystem/AntiCheatSubsystem.h"
 
 #include "Network/AntiCheatConfig.h"
+#include "Network/SteamCredentials.h"
 
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
@@ -14,9 +15,6 @@
 #include "Misc/Paths.h"
 #include "HAL/PlatformProcess.h"
 
-#include "OnlineSubsystem.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <bcrypt.h>
@@ -27,6 +25,16 @@
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogAntiCheat, Log, All);
+
+bool UAntiCheatSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+    // 데디 서버는 안티치트 클라이언트 검증을 수행하지 않음 (verify는 클라 부팅 단계 책임)
+    if (IsRunningDedicatedServer())
+    {
+        return false;
+    }
+    return Super::ShouldCreateSubsystem(Outer);
+}
 
 void UAntiCheatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -59,7 +67,7 @@ void UAntiCheatSubsystem::StartVerification()
 
     FString TicketHex;
     FString SteamId;
-    if (!TryGetSteamCredentials(TicketHex, SteamId))
+    if (!FSteamCredentials::TryGet(TicketHex, SteamId))
     {
         UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] Steam 인증 정보 획득 실패. 게임 종료."));
         FPlatformMisc::RequestExit(false);
@@ -122,42 +130,6 @@ FString UAntiCheatSubsystem::ComputeExeSha256() const
     UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] SHA256 not implemented on this platform"));
     return FString();
 #endif
-}
-
-bool UAntiCheatSubsystem::TryGetSteamCredentials(FString& OutTicketHex, FString& OutSteamId) const
-{
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (!OSS)
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] OnlineSubsystem not available"));
-        return false;
-    }
-
-    IOnlineIdentityPtr Identity = OSS->GetIdentityInterface();
-    if (!Identity.IsValid())
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] Identity interface invalid"));
-        return false;
-    }
-
-    constexpr int32 LocalUserNum = 0;
-
-    // Steam OSS 의 GetAuthToken 은 Steam Auth Session Ticket 의 hex 문자열을 동기 반환한다.
-    OutTicketHex = Identity->GetAuthToken(LocalUserNum);
-    if (OutTicketHex.IsEmpty())
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] auth token empty (Steam not logged in?)"));
-        return false;
-    }
-
-    FUniqueNetIdPtr NetId = Identity->GetUniquePlayerId(LocalUserNum);
-    if (!NetId.IsValid())
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] unique net id invalid"));
-        return false;
-    }
-    OutSteamId = NetId->ToString();
-    return true;
 }
 
 void UAntiCheatSubsystem::SendVerifyRequest(const FString& ExeHashHex,

@@ -12,6 +12,16 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogConnectivity, Log, All);
 
+bool UConnectivitySubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+    // 데디 서버는 NLM 폴링·종료 모달 대상이 아님 (클라 전용 연결 감시).
+    if (IsRunningDedicatedServer())
+    {
+        return false;
+    }
+    return Super::ShouldCreateSubsystem(Outer);
+}
+
 void UConnectivitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     Super::Initialize(Collection);

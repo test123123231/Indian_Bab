@@ -8,6 +8,11 @@
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 
+// 서버 전용 코드 — 클라 EXE(Type=Client, WITH_SERVER_CODE=0)에서는 통째로 컴파일되지 않음.
+// 에디터/데디 빌드(WITH_SERVER_CODE=1)에서만 메서드 정의가 살아남는다.
+// 외부 호출처(PlayerController, LobbyCharacter, SeatActor)도 동일 가드 필요.
+#if WITH_SERVER_CODE
+
 AMainGameMode::AMainGameMode()
 {
 	GameStateClass = AMainGameState::StaticClass();
@@ -536,3 +541,5 @@ void AMainGameMode::ResetFoldState()
 		MPS->isFold = false;
 	}
 }
+
+#endif // WITH_SERVER_CODE
