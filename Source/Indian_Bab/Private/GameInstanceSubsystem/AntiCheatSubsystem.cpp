@@ -1,7 +1,9 @@
 #include "GameInstanceSubsystem/AntiCheatSubsystem.h"
 
 #include "Network/AntiCheatConfig.h"
-#include "Network/SteamCredentials.h"
+#include "GameInstanceSubsystem/SteamCredentialsSubsystem.h"
+
+#include "Engine/GameInstance.h"
 
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
@@ -38,6 +40,9 @@ bool UAntiCheatSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 
 void UAntiCheatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+    // SteamCredentialsSubsystem이 부팅 가드 + ticket SSoT — 우리는 그 위에 올라탐.
+    // 의존성 선언으로 SteamCreds가 먼저 init되도록 보장 (서브시스템 등록 순서 비결정성 회피).
+    Collection.InitializeDependency(USteamCredentialsSubsystem::StaticClass());
     Super::Initialize(Collection);
 
 #if UE_BUILD_SHIPPING
@@ -65,18 +70,30 @@ void UAntiCheatSubsystem::StartVerification()
     }
     UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] exe_hash=%s"), *ExeHash);
 
-    FString TicketHex;
-    FString SteamId;
-    if (!FSteamCredentials::TryGet(TicketHex, SteamId))
+    USteamCredentialsSubsystem* SteamCreds =
+        GetGameInstance() ? GetGameInstance()->GetSubsystem<USteamCredentialsSubsystem>() : nullptr;
+    if (!SteamCreds)
     {
-        UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] Steam 인증 정보 획득 실패. 게임 종료."));
+        UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] SteamCredentialsSubsystem 없음. 게임 종료."));
         FPlatformMisc::RequestExit(false);
         return;
     }
-    UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] steam ticket received (len=%d), steam_id=%s"),
-        TicketHex.Len(), *SteamId);
 
-    SendVerifyRequest(ExeHash, TicketHex, SteamId);
+    TWeakObjectPtr<UAntiCheatSubsystem> WeakThis(this);
+    SteamCreds->RequestTicket(
+        [WeakThis, ExeHash](bool bOk, FString TicketHex, FString SteamId)
+        {
+            if (!WeakThis.IsValid()) return;
+            if (!bOk)
+            {
+                UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] Steam 인증 정보 획득 실패. 게임 종료."));
+                FPlatformMisc::RequestExit(false);
+                return;
+            }
+            UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] steam ticket received (len=%d), steam_id=%s"),
+                TicketHex.Len(), *SteamId);
+            WeakThis->SendVerifyRequest(ExeHash, TicketHex, SteamId);
+        });
 }
 
 FString UAntiCheatSubsystem::ComputeExeSha256() const

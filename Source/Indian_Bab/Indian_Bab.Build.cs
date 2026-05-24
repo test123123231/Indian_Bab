@@ -37,6 +37,10 @@ public class Indian_Bab : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
 
+        // Steamworks SDK: SteamCredentials가 GetAuthSessionTicket 콜백 동기화를 위해 직접 호출.
+        // 엔진 동봉 SDK 사용
+        AddEngineThirdPartyPrivateStaticDependencies(Target, "Steamworks");
+
         //   bcrypt.lib: AntiCheatSubsystem SHA-256 (클라 부팅 verify)
         //   ole32.lib : ConnectivitySubsystem INetworkListManager COM (클라 NLM 폴링)
         if (Target.Platform == UnrealTargetPlatform.Win64)
