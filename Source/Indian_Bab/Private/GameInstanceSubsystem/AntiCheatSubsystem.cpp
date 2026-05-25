@@ -1,6 +1,6 @@
 #include "GameInstanceSubsystem/AntiCheatSubsystem.h"
 
-#include "Network/AntiCheatConfig.h"
+#include "Network/NetworkEndpoints.h"
 #include "GameInstanceSubsystem/SteamCredentialsSubsystem.h"
 
 #include "Engine/GameInstance.h"
@@ -168,7 +168,7 @@ void UAntiCheatSubsystem::SendVerifyRequest(const FString& ExeHashHex,
     FJsonSerializer::Serialize(Body, Writer);
 
     auto Req = FHttpModule::Get().CreateRequest();
-    Req->SetURL(AntiCheatConfig::BaseURL + AntiCheatConfig::VerifyPath);
+    Req->SetURL(NetworkEndpoints::AC::External::Verify());
     Req->SetVerb(TEXT("POST"));
     Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
     Req->SetContentAsString(Payload);

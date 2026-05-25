@@ -4,7 +4,7 @@
 #include "OnlineSessionSettings.h"
 #include "Online/OnlineSessionNames.h"
 #include "Engine/LocalPlayer.h"
-#include "Network/DediServerConfig.h"
+#include "Network/NetworkEndpoints.h"
 #include "GameInstanceSubsystem/SteamCredentialsSubsystem.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
@@ -180,7 +180,7 @@ void USessionSubsystem::RequestMatchmakerCreateInstance()
                 *HostSteamId, *SteamTicketHex);
 
             auto Req = FHttpModule::Get().CreateRequest();
-            Req->SetURL(MatchmakerConfig::BaseURL + MatchmakerConfig::CreateMatchPath);
+            Req->SetURL(NetworkEndpoints::MM::External::CreateMatch());
             Req->SetVerb(TEXT("POST"));
             Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
             Req->SetContentAsString(Body);
@@ -657,7 +657,7 @@ void USessionSubsystem::RequestDediAddress(const FString& MatchId)
                 *JoinerSteamId, *SteamTicketHex);
 
             auto Req = FHttpModule::Get().CreateRequest();
-            Req->SetURL(MatchmakerConfig::BaseURL + FString::Printf(TEXT("/api/match/%s/address"), *CapturedMatchId));
+            Req->SetURL(NetworkEndpoints::MM::External::MatchAddress(CapturedMatchId));
             Req->SetVerb(TEXT("POST"));
             Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
             Req->SetContentAsString(Body);

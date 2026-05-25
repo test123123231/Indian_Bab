@@ -16,6 +16,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
+#include "Network/NetworkEndpoints.h"
 
 
 
@@ -23,13 +24,6 @@
 // 에디터/데디 빌드(WITH_SERVER_CODE=1)에서만 메서드 정의가 살아남는다.
 // 외부 호출처(PlayerController, LobbyCharacter, SeatActor)도 동일 가드 필요.
 #if WITH_SERVER_CODE
-
-namespace
-{
-	// loopback only — 같은 머신에서 MM/AC FastAPI 운영.
-	const FString MMInternalBase = TEXT("http://127.0.0.1:8000/internal/match");
-	const FString ACInternalBase = TEXT("http://127.0.0.1:9000/internal/anc");
-}
 
 AMainGameMode::AMainGameMode()
 {
@@ -53,7 +47,7 @@ void AMainGameMode::InitGame(const FString& MapName, const FString& Options, FSt
 
 void AMainGameMode::FetchCachedHostSteamId()
 {
-	const FString URL = FString::Printf(TEXT("%s/%s/host"), *MMInternalBase, *CachedMatchId);
+	const FString URL = NetworkEndpoints::MM::Internal::Host(CachedMatchId);
 
 	auto Req = FHttpModule::Get().CreateRequest();
 	Req->SetURL(URL);
@@ -94,7 +88,7 @@ void AMainGameMode::NotifyACLeave(const FString& SteamId)
 #else
 	if (SteamId.IsEmpty()) return;
 
-	const FString URL = ACInternalBase + TEXT("/leave");
+	const FString URL = NetworkEndpoints::AC::Internal::Leave();
 	const FString Payload = FString::Printf(TEXT("{\"user_id\":\"%s\"}"), *SteamId);
 
 	auto Req = FHttpModule::Get().CreateRequest();
@@ -110,7 +104,7 @@ void AMainGameMode::NotifyMatchClose()
 {
 	if (CachedMatchId.IsEmpty()) return;
 
-	const FString URL = FString::Printf(TEXT("%s/%s/close"), *MMInternalBase, *CachedMatchId);
+	const FString URL = NetworkEndpoints::MM::Internal::Close(CachedMatchId);
 
 	auto Req = FHttpModule::Get().CreateRequest();
 	Req->SetURL(URL);
@@ -125,7 +119,7 @@ void AMainGameMode::NotifyMatchClearHost()
 {
 	if (CachedMatchId.IsEmpty()) return;
 
-	const FString URL = FString::Printf(TEXT("%s/%s/clear_host"), *MMInternalBase, *CachedMatchId);
+	const FString URL = NetworkEndpoints::MM::Internal::ClearHost(CachedMatchId);
 
 	auto Req = FHttpModule::Get().CreateRequest();
 	Req->SetURL(URL);
@@ -231,7 +225,7 @@ void AMainGameMode::PreLoginAsync(const FString& Options, const FString& Address
 		return;
 	}
 
-	const FString URL = ACInternalBase + TEXT("/prelogin");
+	const FString URL = NetworkEndpoints::AC::Internal::PreLogin();
 	const FString Payload = FString::Printf(
 		TEXT("{\"user_id\":\"%s\",\"match_id\":\"%s\"}"),
 		*SteamId, *CachedMatchId);
