@@ -454,10 +454,12 @@ void AMainGamePlayerController::OnRep_PlayerState()
 
 void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
 {
+#if WITH_SERVER_CODE
     AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
     if(!GM) return;
 
     GM -> HandleBetAction(this, Action);
+#endif
 }
 
 void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FString& NewNickname)
@@ -470,10 +472,12 @@ void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FSt
 
 void AMainGamePlayerController::Server_RequestMainRevolverShot_Implementation()
 {
+#if WITH_SERVER_CODE
     AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
 	GM->HandleMainRevolverShotAction(this);
+#endif
 }
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()
@@ -485,12 +489,14 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
 
 void AMainGamePlayerController::Server_RequestReady_Implementation()
 {
+#if WITH_SERVER_CODE
 	UE_LOG(LogTemp, Warning, TEXT("[PC] Server_RequestReady called"));
 
 	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
 	GM->HandlePlayerReady(this);
+#endif
 }
 
 int AMainGamePlayerController::GetPlayerIdSafe()

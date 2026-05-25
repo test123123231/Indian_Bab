@@ -501,6 +501,7 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 {
 	if (bInterrupted) return;
 	if (!HasAuthority()) return;
+#if WITH_SERVER_CODE
 	if (GunHoldReason == EGunHoldReason::Fold)
 	{
 		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
@@ -515,6 +516,7 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 
 		GM->HandleMainMontageFinished(this);
 	}
+#endif
 }
 
 void ALobbyCharacter::OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -524,10 +526,12 @@ void ALobbyCharacter::OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInte
 
 	bIsPuttingBackGun = false;
 
+#if WITH_SERVER_CODE
 	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
 	GM->HandlePutBackGunMontageFinished(this, FinishedReason);
+#endif
 }
 
 void ALobbyCharacter::OnRep_IsSitting()

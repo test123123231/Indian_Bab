@@ -75,6 +75,7 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 	// 서버가 아니거나, 이미 누가 앉아있다면 무시
 	if (!HasAuthority() || bIsOccupied) return;
 
+#if WITH_SERVER_CODE
 	ALobbyCharacter* PlayerCharacter = Cast<ALobbyCharacter>(Interactor);
 	if (PlayerCharacter)
 	{
@@ -118,6 +119,7 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 			PC->ClientOnSeated();
 		}
 	}
+#endif
 }
 
 
