@@ -49,6 +49,20 @@ public class Indian_Bab : ModuleRules
             PublicSystemLibraries.Add("ole32.lib");
         }
 
+        // 전역 빌드 플래그 — Dev/Debug에서 켜고 끄는 mock 토글.
+        // Shipping은 강제 0(실통신)으로 잠궈 사고 방지.
+        int MatchmakerUseMock = 0;
+        int AntiCheatUseMock  = 1;
+
+        if (Target.Configuration == UnrealTargetConfiguration.Shipping)
+        {
+            MatchmakerUseMock = 0;
+            AntiCheatUseMock  = 0;
+        }
+
+        PublicDefinitions.Add("MATCHMAKER_USE_MOCK=" + MatchmakerUseMock);
+        PublicDefinitions.Add("ANTICHEAT_USE_MOCK=" + AntiCheatUseMock);
+
         PublicIncludePaths.AddRange(new string[] {
             "Indian_Bab",
             "Indian_Bab/TP_FirstPerson",

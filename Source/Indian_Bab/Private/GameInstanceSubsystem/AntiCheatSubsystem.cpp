@@ -30,12 +30,17 @@ DEFINE_LOG_CATEGORY_STATIC(LogAntiCheat, Log, All);
 
 bool UAntiCheatSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
+#if ANTICHEAT_USE_MOCK
+    // AC 서버 미사용 모드 — 서브시스템 자체 생성 X (Initialize/StartVerification 도달 불가)
+    return false;
+#else
     // 데디 서버는 안티치트 클라이언트 검증을 수행하지 않음 (verify는 클라 부팅 단계 책임)
     if (IsRunningDedicatedServer())
     {
         return false;
     }
     return Super::ShouldCreateSubsystem(Outer);
+#endif
 }
 
 void UAntiCheatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -205,12 +210,10 @@ void UAntiCheatSubsystem::HandleVerifyResponse(const FString& Body, int32 Status
         return;
     }
 
-    Token      = Json->GetStringField(TEXT("token"));
     SessionKey = Json->GetStringField(TEXT("session_key"));
     DllKey     = Json->GetStringField(TEXT("dll_key"));
     ExpiresAt  = static_cast<int64>(Json->GetNumberField(TEXT("expires_at")));
-    bVerified  = !Token.IsEmpty();
+    bVerified  = !SessionKey.IsEmpty() && !DllKey.IsEmpty();
 
-    UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] verified token=%s expires_at=%lld"),
-        *Token, ExpiresAt);
+    UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] verified expires_at=%lld"), ExpiresAt);
 }

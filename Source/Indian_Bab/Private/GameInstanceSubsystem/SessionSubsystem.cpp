@@ -17,8 +17,6 @@
 
 DEFINE_LOG_CATEGORY(LogSessionSubsystem);
 
-#define MATCHMAKER_USE_MOCK 0
-
 const FName USessionSubsystem::Key_MatchId = FName("MatchId");
 const FName USessionSubsystem::Key_GameStarted = FName("GameStarted");
 const FName USessionSubsystem::Key_GameTag = FName("INDIANBABID");
@@ -38,8 +36,7 @@ bool USessionSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 
 void USessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-    // Steam 부팅 가드(OSS 로드 확인 / Runtime의 STEAM 강제 / 로그인 검증)는
-    // SteamCredentialsSubsystem이 단독 SSoT. 의존성 명시로 그 결정이 먼저 끝나도록 강제.
+    // Steam 부팅 가드(OSS 로드 확인 / Runtime의 STEAM 강제 / 로그인 검증)는 SteamCredentialsSubsystem
     Collection.InitializeDependency(USteamCredentialsSubsystem::StaticClass());
     Super::Initialize(Collection);
 
@@ -333,6 +330,7 @@ void USessionSubsystem::FinalizeHostTravel(const FString& DediURL, const FString
     }
 
     // 2) 호스트 본인 데디로 이동 (호스트는 /create 응답으로 이미 ip:port 보유 — 별도 /address 불필요)
+    //    ACToken은 URL에 부착하지 않음 — 데디가 UniqueId(SteamID)로 AC 검증.
     if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
     {
         PC->ClientTravel(DediURL, ETravelType::TRAVEL_Absolute);

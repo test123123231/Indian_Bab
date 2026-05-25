@@ -6,7 +6,8 @@
 
 /**
  * 게임 클라이언트 부팅 시 안티치트 서버에 검증 요청을 보내는 서브시스템.
- * POST /api/verify 호출 후 token / session_key / dll_key / expires_at 을 캐싱한다.
+ * POST /api/verify 호출 후 session_key / dll_key / expires_at 을 캐싱한다.
+ * 세션 식별은 SteamID(SteamCredentialsSubsystem에서 회수)로 통일 — ACToken 보관 안 함.
  * 워치독 WebSocket 연결은 후속 작업에서 추가.
  */
 UCLASS()
@@ -22,7 +23,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "AntiCheat")
     bool IsVerified() const { return bVerified; }
 
-    const FString& GetToken() const      { return Token; }
     const FString& GetSessionKey() const { return SessionKey; }
     const FString& GetDllKey() const     { return DllKey; }
     int64 GetExpiresAt() const           { return ExpiresAt; }
@@ -39,7 +39,6 @@ private:
 
     void HandleVerifyResponse(const FString& Body, int32 StatusCode, bool bConnectionOk);
 
-    FString Token;
     FString SessionKey;   // base64 그대로 보관 (HMAC 사용 시 FBase64::Decode)
     FString DllKey;       // base64 그대로 보관, 메모리에만 둔다
     int64   ExpiresAt = 0;

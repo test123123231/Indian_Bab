@@ -158,37 +158,15 @@ void USteamCredentialsSubsystem::Initialize(FSubsystemCollectionBase& Collection
 {
     Super::Initialize(Collection);
 
-    // GIsEditor: PIE 자식 월드 true / Standalone·패키지 false.
-    // PIE는 NULL OSS로 떨어질 수 있으므로 lenient(bAvailable=false), Standalone/패키지는 Steam 강제.
+    // Editor(PIE)는 Steam ticket 발급을 쓸 일이 없음 — 기본값 bAvailable=false 유지하고 즉시 종료.
+    // Standalone/패키지(Runtime)만 Steam 부팅 가드 실행.
     if (GIsEditor)
     {
-        InitializeForEditor();
-    }
-    else
-    {
-        InitializeForRuntime();
-    }
-}
-
-void USteamCredentialsSubsystem::InitializeForEditor()
-{
-    // PIE는 OSS 모듈 자체는 떠있되 이름이 "NULL"(NULL OSS)로 떨어지는 게 본 프로젝트의 정책.
-    // → bAvailable=false로 Steam ticket 발급은 차단(NULL OSS는 SteamWorks 없음)하되,
-    //    OSS::Get() 자체는 정상 호출 여부 검증해 둠 (모듈 로드 실패는 PIE에서도 비정상).
-    // SessionSubsystem은 NULL OSS의 SessionInterface stub을 그대로 가져다 쓸 수 있음.
-    bAvailable = false;
-
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (OSS == nullptr)
-    {
-        UE_LOG(LogSteamCredentials, Error,
-            TEXT("[Editor] IOnlineSubsystem::Get() == null — OSS 모듈 로드 실패"));
+        UE_LOG(LogSteamCredentials, Log, TEXT("[Editor] Steam ticket 발급 비활성 (Editor 모드)"));
         return;
     }
 
-    UE_LOG(LogSteamCredentials, Log,
-        TEXT("[Editor] OSS 로드 확인 (이름=%s). Steam ticket 발급 비활성"),
-        *OSS->GetSubsystemName().ToString());
+    InitializeForRuntime();
 }
 
 void USteamCredentialsSubsystem::InitializeForRuntime()

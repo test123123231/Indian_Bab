@@ -35,7 +35,6 @@ public:
     bool IsAvailable() const { return bAvailable; }
 
 private:
-    void InitializeForEditor();
     void InitializeForRuntime();
 
     bool bAvailable = false;
