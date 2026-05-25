@@ -419,11 +419,14 @@ void USessionSubsystem::FindRooms()
 
     SessionSearch = MakeShared<FOnlineSessionSearch>();
     SessionSearch->bIsLanQuery = false;
-    SessionSearch->MaxSearchResults = 10000;
-    // SEARCH_LOBBIES — Steam OSS lobby 검색의 핵심 키. 이전 작동 코드 기준 복원.
-    //                   (UE5.5+ deprecated 정보는 오인이었음 — Steam OSS는 여전히 이 키로 lobby 검색 트리거.)
+    // 작은 limit + 서버측 GameTag 필터 조합으로 480 풀을 우리 lobby로 좁힘.
+    // (큰 limit은 메타데이터 fetch가 15s timeout; 작은 limit 단독은 sampling miss로 0건)
+    SessionSearch->MaxSearchResults = 100;
+    // SEARCH_LOBBIES — Steam OSS lobby 검색의 핵심 키.
     SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
-    // QuerySettings로 GameTag 필터링은 OSS 변환 버그로 0개 반환 → 클라측 SessionSettings.Get으로 필터링.
+    // 서버측 GameTag 필터 — Steam OSS의 AddRequestLobbyListNumericalFilter 경로.
+    // 클라측 SessionSettings.Get(Key_GameTag) 필터는 백스톱으로 유지(서버 필터 우회 lobby 차단).
+    SessionSearch->QuerySettings.Set(Key_GameTag, GameTagMagic, EOnlineComparisonOp::Equals);
 
     // 이전 핸들 정리 후 재바인딩
     SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
