@@ -1,46 +1,33 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/CommandLine.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/Parse.h"
 
 /**
  * MM(매치메이커)·AC(안티치트) 엔드포인트 단일 소스.
  *
- * BaseURL 해석 우선순위 (최초 접근 시 1회 해석, 함수-로컬 static 캐시):
- *   1) 커맨드라인: -MMBaseURL=http://host:port / -ACBaseURL=...
- *   2) GGameIni `[Network]` 섹션: MMBaseURL=... / ACBaseURL=...
- *   3) 기본값: http://127.0.0.1:8000 (MM) / :9000 (AC) — 단일 머신 운영 기준
+ * BaseURL은 빌드타임 하드코딩 — 값은 Indian_Bab.Build.cs의
+ *   INDIANBAB_MM_BASE_URL / INDIANBAB_AC_BASE_URL
+ * PublicDefinitions에서 주입됨. 운영 IP 변경 시 Build.cs 한 줄 수정 후 재빌드.
  *
- * 운영 IP 변경 시 재빌드 불필요 — 데디 실행 인자나 Game.ini 한 줄로 교체.
  * 경로는 모두 여기서 관리. 외부(클라/데디) 호출처는 URL 조립 책임 없음.
+ * 내부 S2S 경로(Internal 네임스페이스)는 WITH_SERVER_CODE 가드로
+ * 클라 EXE(Type=Client)에는 컴파일조차 되지 않음.
  */
+
+#ifndef INDIANBAB_MM_BASE_URL
+    #error "INDIANBAB_MM_BASE_URL must be defined by Indian_Bab.Build.cs"
+#endif
+#ifndef INDIANBAB_AC_BASE_URL
+    #error "INDIANBAB_AC_BASE_URL must be defined by Indian_Bab.Build.cs"
+#endif
+
 namespace NetworkEndpoints
 {
-namespace Detail
-{
-    inline FString ResolveBase(const TCHAR* CmdToken, const TCHAR* IniKey, const TCHAR* DefaultURL)
-    {
-        FString Out;
-        if (FParse::Value(FCommandLine::Get(), CmdToken, Out) && !Out.IsEmpty())
-        {
-            return Out;
-        }
-        if (GConfig && GConfig->GetString(TEXT("Network"), IniKey, Out, GGameIni) && !Out.IsEmpty())
-        {
-            return Out;
-        }
-        return FString(DefaultURL);
-    }
-}
-
 namespace MM
 {
     inline const FString& BaseURL()
     {
-        static const FString V = Detail::ResolveBase(
-            TEXT("MMBaseURL="), TEXT("MMBaseURL"), TEXT("http://127.0.0.1:8000"));
+        static const FString V = TEXT(INDIANBAB_MM_BASE_URL);
         return V;
     }
 
@@ -82,8 +69,7 @@ namespace AC
 {
     inline const FString& BaseURL()
     {
-        static const FString V = Detail::ResolveBase(
-            TEXT("ACBaseURL="), TEXT("ACBaseURL"), TEXT("http://127.0.0.1:9000"));
+        static const FString V = TEXT(INDIANBAB_AC_BASE_URL);
         return V;
     }
 

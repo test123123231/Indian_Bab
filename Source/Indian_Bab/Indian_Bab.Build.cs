@@ -63,6 +63,18 @@ public class Indian_Bab : ModuleRules
         PublicDefinitions.Add("MATCHMAKER_USE_MOCK=" + MatchmakerUseMock);
         PublicDefinitions.Add("ANTICHEAT_USE_MOCK=" + AntiCheatUseMock);
 
+        // ─────────────────────────────────────────────────────────────
+        // MM/AC 엔드포인트 base URL — 운영 IP 변경 시 여기서 한 줄 수정 후 재빌드.
+        // 헤더(Public/Network/NetworkEndpoints.h)가 이 매크로를 읽어 BaseURL로 사용.
+        // 값은 따옴표 escape 필요 — PublicDefinitions는 raw 문자열로 전처리기에 주입됨.
+        // 타겟별/Configuration별 분기가 필요해지면 여기서 분기.
+        // ─────────────────────────────────────────────────────────────
+        string MMBaseURL = "http://127.0.0.1:8000";
+        string ACBaseURL = "http://127.0.0.1:9000";
+
+        PublicDefinitions.Add("INDIANBAB_MM_BASE_URL=\"" + MMBaseURL + "\"");
+        PublicDefinitions.Add("INDIANBAB_AC_BASE_URL=\"" + ACBaseURL + "\"");
+
         PublicIncludePaths.AddRange(new string[] {
             "Indian_Bab",
             "Indian_Bab/TP_FirstPerson",
