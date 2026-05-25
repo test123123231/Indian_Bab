@@ -150,6 +150,10 @@ protected:
     // 마지막 CreateRoom의 Visibility — UnlockSessionForLobby에서 원상복구용
     ERoomVisibility LastVisibility = ERoomVisibility::Public;
 
+    // 마지막 CreateRoom의 MaxPlayers — MM /create body에 동봉(데디 PreLogin 만석 게이트 기준).
+    // 호스트 UI에서 호출 시 전달한 값을 그대로 통과. MM은 ge=2/le=4 검증, 데디는 -MaxPlayers=N로 받음.
+    int32 LastMaxPlayers = 4;
+
     // ----------------------------------------------------------------
     // 내부 콜백 함수 (OnlineSubsystem으로부터 응답을 받음)
     // ----------------------------------------------------------------

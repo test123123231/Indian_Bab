@@ -91,6 +91,7 @@ void USessionSubsystem::CreateRoom(int32 MaxPlayers, ERoomVisibility Visibility)
     }
 
     LastVisibility = Visibility;
+    LastMaxPlayers = MaxPlayers;
 
     CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
         FOnCreateSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnCreateSessionComplete));
@@ -164,8 +165,9 @@ void USessionSubsystem::RequestMatchmakerCreateInstance()
     }
 
     TWeakObjectPtr<USessionSubsystem> WeakThis(this);
+    const int32 MaxPlayersToSend = LastMaxPlayers;
     SteamCreds->RequestTicket(
-        [WeakThis](bool bOk, FString SteamTicketHex, FString HostSteamId)
+        [WeakThis, MaxPlayersToSend](bool bOk, FString SteamTicketHex, FString HostSteamId)
         {
             if (!WeakThis.IsValid()) return;
             if (!bOk)
@@ -175,9 +177,11 @@ void USessionSubsystem::RequestMatchmakerCreateInstance()
                 return;
             }
 
+            // CreateRoom 호출 시 받은 MaxPlayers를 그대로 MM에 통과.
+            // MM은 받은 값을 dedi에 -MaxPlayers=N CLI로 주입, dedi MainGameMode가 PreLogin 게이트에서 사용.
             const FString Body = FString::Printf(
-                TEXT("{\"host_steam_id\":\"%s\",\"steam_session_ticket\":\"%s\"}"),
-                *HostSteamId, *SteamTicketHex);
+                TEXT("{\"host_steam_id\":\"%s\",\"steam_session_ticket\":\"%s\",\"max_players\":%d}"),
+                *HostSteamId, *SteamTicketHex, MaxPlayersToSend);
 
             auto Req = FHttpModule::Get().CreateRequest();
             Req->SetURL(NetworkEndpoints::MM::External::CreateMatch());

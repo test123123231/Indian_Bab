@@ -38,9 +38,11 @@ void AMainGameMode::InitGame(const FString& MapName, const FString& Options, FSt
 	// 없으면 빈 문자열(스탠드얼론 PIE 등).
 	FParse::Value(FCommandLine::Get(), TEXT("MatchId="), CachedMatchId);
 	FParse::Value(FCommandLine::Get(), TEXT("HostSteamId="), CachedHostSteamId);
-	UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] InitGame CachedMatchId=%s CachedHostSteamId=%s"),
+	FParse::Value(FCommandLine::Get(), TEXT("MaxPlayers="), CachedMaxPlayers);
+	UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] InitGame CachedMatchId=%s CachedHostSteamId=%s CachedMaxPlayers=%d"),
 		CachedMatchId.IsEmpty() ? TEXT("(none)") : *CachedMatchId,
-		CachedHostSteamId.IsEmpty() ? TEXT("(none)") : *CachedHostSteamId);
+		CachedHostSteamId.IsEmpty() ? TEXT("(none)") : *CachedHostSteamId,
+		CachedMaxPlayers);
 }
 
 void AMainGameMode::NotifyACLeave(const FString& SteamId)
@@ -150,14 +152,15 @@ void AMainGameMode::PreLogin(const FString& Options, const FString& Address, con
 		}
 	}
 
-	// 만석 체크 — GameSession->MaxPlayers (Engine.ini의 [/Script/Engine.GameSession] MaxPlayers) 기준.
+	// 만석 체크 — MM이 dedi spawn 시 주입한 -MaxPlayers=N 캐시값 기준.
 	// NumPlayers는 이미 PostLogin 된 인원이므로 신규 1명 합류 후 초과하면 거부.
-	if (GameSession && GameSession->MaxPlayers > 0 && NumPlayers >= GameSession->MaxPlayers)
+	// CachedMaxPlayers==0(CLI 미주입, 스탠드얼론 PIE 등)이면 만석 체크 스킵.
+	if (CachedMaxPlayers > 0 && NumPlayers >= CachedMaxPlayers)
 	{
 		ErrorMessage = FString::Printf(TEXT("방이 가득 찼습니다. (%d/%d)"),
-			NumPlayers, GameSession->MaxPlayers);
+			NumPlayers, CachedMaxPlayers);
 		UE_LOG(LogTemp, Warning, TEXT("[PreLogin] reject — server full (%d/%d)"),
-			NumPlayers, GameSession->MaxPlayers);
+			NumPlayers, CachedMaxPlayers);
 		return;
 	}
 }
