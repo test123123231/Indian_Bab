@@ -33,7 +33,10 @@ public class Indian_Bab : ModuleRules
             "XRBase"
         });
 
-        DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
+        if (Target.Type != TargetType.Server)
+        {
+            DynamicallyLoadedModuleNames.Add("OnlineSubsystemSteam");
+        }
 
         PrivateDependencyModuleNames.AddRange(new string[] { });
 
