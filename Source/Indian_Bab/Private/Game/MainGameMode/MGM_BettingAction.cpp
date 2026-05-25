@@ -7,6 +7,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 
+#if WITH_SERVER_CODE
+
 void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action)
 {
     if (!HasAuthority()) return;
@@ -487,3 +489,5 @@ AMainPlayerState* AMainGameMode::GetMainShotTargetByAim(AMainGamePlayerControlle
 
 	return TargetPS;
 }
+
+#endif // WITH_SERVER_CODE

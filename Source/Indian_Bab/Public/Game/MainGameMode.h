@@ -23,10 +23,22 @@ class INDIAN_BAB_API AMainGameMode : public AGameMode
 public:
 	AMainGameMode();
 
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
+
+	// 동기 합류 조건(phase·만석·incompatible_net_id)만 검사. 안티치트 의존 0.
 	virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage) override;
 
-	// 플레이어가 서버에 접속 완료했을 때 호출됨
+	// 안티치트 게이트 — UniqueId(SteamID)로 AC /internal/anc/prelogin 비동기 호출.
+	// PreLogin이 동기 함수라 HTTP 응답을 기다릴 수 없어 비동기 콜백 버전 사용.
+	// AC 미운영(서버 다운) 시 fail-closed로 거부 — 단독 운영하려면 AC 호출 자체를
+	// 컴파일/런타임 분기로 토글하는 게 옳음(현재 미적용, 후속 작업).
+	virtual void PreLoginAsync(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, const FOnPreLoginCompleteDelegate& OnComplete) override;
+
+	// 플레이어가 서버에 접속 완료했을 때 호출됨.
 	virtual void PostLogin(APlayerController* NewPlayer) override;
+
+	// 플레이어가 데디 NetConnection을 끊었을 때 — 정상 이탈/강제종료/timeout 공통 SSoT
+	virtual void Logout(AController* Exiting) override;
 
 	// 준비 완료 버튼을 눌렀을 때 호출
 	void HandlePlayerReady(APlayerController* ReadyPlayer);
@@ -131,6 +143,24 @@ private:
 	bool IsCurrentPlayerCountInGameRange() const;
 
 private:
+	// MM dedi_manager.spawn이 주입한 -MatchId=<uuid>. InitGame에서 캐싱.
+	FString CachedMatchId;
+
+	// 방 생성 호스트 SteamID. MM dedi_manager.spawn이 주입한 -HostSteamId=<id>를 InitGame에서 캐싱.
+	// 호스트 이탈 시 clear_host 발사 후 비움(재발사 방지 멱등).
+	FString CachedHostSteamId;
+
+	// 인스턴스 만석 기준. MM dedi_manager.spawn이 주입한 -MaxPlayers=N을 InitGame에서 캐싱.
+	int32 CachedMaxPlayers = 0;
+
+	// 토큰/SteamID 매핑 자료구조는 보관하지 않음 — 게임모드는 SteamID만 다룸.
+	// Logout의 Exiting 인자에서 SteamID 추출 → AC가 SteamID로 verify_session 조회·리셋.
+	// (CLAUDE.md "단일 활성 토큰" 정책상 SteamID → row 1:1 매칭)
+
+	void NotifyACLeave(const FString& SteamId);
+	void NotifyMatchClose();
+	void NotifyMatchClearHost();
+
 	FTimerHandle TimerHandle;
 
 	// 준비 완료한 플레이어 목록

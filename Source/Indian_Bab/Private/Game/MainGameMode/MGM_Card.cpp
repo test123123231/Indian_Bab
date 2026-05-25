@@ -10,6 +10,8 @@
 #include "PlayerController/MainGamePlayerController.h"
 #include "GameFramework/Character.h"
 
+#if WITH_SERVER_CODE
+
 // 카드 매니저 획득
 TObjectPtr<ACardManager> AMainGameMode::GetCardManager()
 {
@@ -125,3 +127,5 @@ TObjectPtr<AMainPlayerState> AMainGameMode::MaxCardPlayer()
 
     return MaxPS;
 }
+
+#endif // WITH_SERVER_CODE

@@ -1,6 +1,9 @@
 #include "GameInstanceSubsystem/AntiCheatSubsystem.h"
 
-#include "Network/AntiCheatConfig.h"
+#include "Network/NetworkEndpoints.h"
+#include "GameInstanceSubsystem/SteamCredentialsSubsystem.h"
+
+#include "Engine/GameInstance.h"
 
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
@@ -14,9 +17,6 @@
 #include "Misc/Paths.h"
 #include "HAL/PlatformProcess.h"
 
-#include "OnlineSubsystem.h"
-#include "Interfaces/OnlineIdentityInterface.h"
-
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <bcrypt.h>
@@ -28,8 +28,26 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogAntiCheat, Log, All);
 
+bool UAntiCheatSubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+#if ANTICHEAT_USE_MOCK
+    // AC 서버 미사용 모드 — 서브시스템 자체 생성 X (Initialize/StartVerification 도달 불가)
+    return false;
+#else
+    // 데디 서버는 안티치트 클라이언트 검증을 수행하지 않음 (verify는 클라 부팅 단계 책임)
+    if (IsRunningDedicatedServer())
+    {
+        return false;
+    }
+    return Super::ShouldCreateSubsystem(Outer);
+#endif
+}
+
 void UAntiCheatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+    // SteamCredentialsSubsystem이 부팅 가드 + ticket SSoT — 우리는 그 위에 올라탐.
+    // 의존성 선언으로 SteamCreds가 먼저 init되도록 보장 (서브시스템 등록 순서 비결정성 회피).
+    Collection.InitializeDependency(USteamCredentialsSubsystem::StaticClass());
     Super::Initialize(Collection);
 
 #if UE_BUILD_SHIPPING
@@ -57,18 +75,30 @@ void UAntiCheatSubsystem::StartVerification()
     }
     UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] exe_hash=%s"), *ExeHash);
 
-    FString TicketHex;
-    FString SteamId;
-    if (!TryGetSteamCredentials(TicketHex, SteamId))
+    USteamCredentialsSubsystem* SteamCreds =
+        GetGameInstance() ? GetGameInstance()->GetSubsystem<USteamCredentialsSubsystem>() : nullptr;
+    if (!SteamCreds)
     {
-        UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] Steam 인증 정보 획득 실패. 게임 종료."));
+        UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] SteamCredentialsSubsystem 없음. 게임 종료."));
         FPlatformMisc::RequestExit(false);
         return;
     }
-    UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] steam ticket received (len=%d), steam_id=%s"),
-        TicketHex.Len(), *SteamId);
 
-    SendVerifyRequest(ExeHash, TicketHex, SteamId);
+    TWeakObjectPtr<UAntiCheatSubsystem> WeakThis(this);
+    SteamCreds->RequestTicket(
+        [WeakThis, ExeHash](bool bOk, FString TicketHex, FString SteamId)
+        {
+            if (!WeakThis.IsValid()) return;
+            if (!bOk)
+            {
+                UE_LOG(LogAntiCheat, Error, TEXT("[AntiCheat] Steam 인증 정보 획득 실패. 게임 종료."));
+                FPlatformMisc::RequestExit(false);
+                return;
+            }
+            UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] steam ticket received (len=%d), steam_id=%s"),
+                TicketHex.Len(), *SteamId);
+            WeakThis->SendVerifyRequest(ExeHash, TicketHex, SteamId);
+        });
 }
 
 FString UAntiCheatSubsystem::ComputeExeSha256() const
@@ -124,42 +154,6 @@ FString UAntiCheatSubsystem::ComputeExeSha256() const
 #endif
 }
 
-bool UAntiCheatSubsystem::TryGetSteamCredentials(FString& OutTicketHex, FString& OutSteamId) const
-{
-    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
-    if (!OSS)
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] OnlineSubsystem not available"));
-        return false;
-    }
-
-    IOnlineIdentityPtr Identity = OSS->GetIdentityInterface();
-    if (!Identity.IsValid())
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] Identity interface invalid"));
-        return false;
-    }
-
-    constexpr int32 LocalUserNum = 0;
-
-    // Steam OSS 의 GetAuthToken 은 Steam Auth Session Ticket 의 hex 문자열을 동기 반환한다.
-    OutTicketHex = Identity->GetAuthToken(LocalUserNum);
-    if (OutTicketHex.IsEmpty())
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] auth token empty (Steam not logged in?)"));
-        return false;
-    }
-
-    FUniqueNetIdPtr NetId = Identity->GetUniquePlayerId(LocalUserNum);
-    if (!NetId.IsValid())
-    {
-        UE_LOG(LogAntiCheat, Warning, TEXT("[AntiCheat] unique net id invalid"));
-        return false;
-    }
-    OutSteamId = NetId->ToString();
-    return true;
-}
-
 void UAntiCheatSubsystem::SendVerifyRequest(const FString& ExeHashHex,
                                             const FString& SteamTicketHex,
                                             const FString& SteamId)
@@ -174,7 +168,7 @@ void UAntiCheatSubsystem::SendVerifyRequest(const FString& ExeHashHex,
     FJsonSerializer::Serialize(Body, Writer);
 
     auto Req = FHttpModule::Get().CreateRequest();
-    Req->SetURL(AntiCheatConfig::BaseURL + AntiCheatConfig::VerifyPath);
+    Req->SetURL(NetworkEndpoints::AC::External::Verify());
     Req->SetVerb(TEXT("POST"));
     Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
     Req->SetContentAsString(Payload);
@@ -216,12 +210,10 @@ void UAntiCheatSubsystem::HandleVerifyResponse(const FString& Body, int32 Status
         return;
     }
 
-    Token      = Json->GetStringField(TEXT("token"));
     SessionKey = Json->GetStringField(TEXT("session_key"));
     DllKey     = Json->GetStringField(TEXT("dll_key"));
     ExpiresAt  = static_cast<int64>(Json->GetNumberField(TEXT("expires_at")));
-    bVerified  = !Token.IsEmpty();
+    bVerified  = !SessionKey.IsEmpty() && !DllKey.IsEmpty();
 
-    UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] verified token=%s expires_at=%lld"),
-        *Token, ExpiresAt);
+    UE_LOG(LogAntiCheat, Log, TEXT("[AntiCheat] verified expires_at=%lld"), ExpiresAt);
 }

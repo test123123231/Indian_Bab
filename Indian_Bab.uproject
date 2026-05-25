@@ -33,7 +33,8 @@
 		},
 		{
 			"Name": "OnlineSubsystemSteam",
-			"Enabled": true
+			"Enabled": true,
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "OnlineSubsystemGooglePlay",
@@ -52,7 +53,7 @@
 		},
 		{
 			"Name": "OnlineSubsystemNull",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "meshy",

@@ -7,17 +7,134 @@
 #include "GameFramework/GameSession.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonWriter.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "Network/NetworkEndpoints.h"
+
+
+
+// 서버 전용 코드 — 클라 EXE(Type=Client, WITH_SERVER_CODE=0)에서는 통째로 컴파일되지 않음.
+// 에디터/데디 빌드(WITH_SERVER_CODE=1)에서만 메서드 정의가 살아남는다.
+// 외부 호출처(PlayerController, LobbyCharacter, SeatActor)도 동일 가드 필요.
+#if WITH_SERVER_CODE
 
 AMainGameMode::AMainGameMode()
 {
 	GameStateClass = AMainGameState::StaticClass();
 }
 
+void AMainGameMode::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
+{
+	Super::InitGame(MapName, Options, ErrorMessage);
+
+	// MM이 dedi spawn 시 주입한 -MatchId=<uuid>, -HostSteamId=<id>를 캐싱.
+	// 없으면 빈 문자열(스탠드얼론 PIE 등).
+	FParse::Value(FCommandLine::Get(), TEXT("MatchId="), CachedMatchId);
+	FParse::Value(FCommandLine::Get(), TEXT("HostSteamId="), CachedHostSteamId);
+	FParse::Value(FCommandLine::Get(), TEXT("MaxPlayers="), CachedMaxPlayers);
+	UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] InitGame CachedMatchId=%s CachedHostSteamId=%s CachedMaxPlayers=%d"),
+		CachedMatchId.IsEmpty() ? TEXT("(none)") : *CachedMatchId,
+		CachedHostSteamId.IsEmpty() ? TEXT("(none)") : *CachedHostSteamId,
+		CachedMaxPlayers);
+}
+
+void AMainGameMode::NotifyACLeave(const FString& SteamId)
+{
+#if ANTICHEAT_USE_MOCK
+	// AC 서버 미사용 — leave 통보 스킵
+	return;
+#else
+	if (SteamId.IsEmpty()) return;
+
+	const FString URL = NetworkEndpoints::AC::Internal::Leave();
+	const FString Payload = FString::Printf(TEXT("{\"user_id\":\"%s\"}"), *SteamId);
+
+	auto Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(URL);
+	Req->SetVerb(TEXT("POST"));
+	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+	Req->SetContentAsString(Payload);
+	Req->ProcessRequest();
+#endif
+}
+
+void AMainGameMode::NotifyMatchClose()
+{
+	if (CachedMatchId.IsEmpty()) return;
+
+	const FString URL = NetworkEndpoints::MM::Internal::Close(CachedMatchId);
+
+	auto Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(URL);
+	Req->SetVerb(TEXT("POST"));
+	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+	Req->ProcessRequest();
+
+	UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] /close 발사 match=%s"), *CachedMatchId);
+}
+
+void AMainGameMode::NotifyMatchClearHost()
+{
+	if (CachedMatchId.IsEmpty()) return;
+
+	const FString URL = NetworkEndpoints::MM::Internal::ClearHost(CachedMatchId);
+
+	auto Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(URL);
+	Req->SetVerb(TEXT("POST"));
+	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+	Req->ProcessRequest();
+
+	UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] /clear_host 발사 match=%s"), *CachedMatchId);
+}
+
+void AMainGameMode::Logout(AController* Exiting)
+{
+	// 떠나는 SteamID 추출 — Super 호출 전(PlayerState 정리되기 전).
+	FString LeavingSteamId;
+	if (Exiting && Exiting->PlayerState)
+	{
+		const FUniqueNetIdRepl& NetId = Exiting->PlayerState->GetUniqueId();
+		if (NetId.IsValid())
+		{
+			LeavingSteamId = NetId->ToString();
+		}
+	}
+
+	// 1) AC waiting 리셋 — AC가 SteamID로 verify_session 조회·리셋(단일 활성 토큰 정책).
+	//    AC 미운영 시 HTTP fail-and-forget — 정상 입장(토큰 없는) 유저에게도 호출되지만
+	//    AC 측 row 없으면 no-op.
+	NotifyACLeave(LeavingSteamId);
+
+	// 2) Super::Logout — 엔진이 NumPlayers를 1 감소시킴.
+	Super::Logout(Exiting);
+
+	// 3) MM 분기.
+	if (NumPlayers <= 0)
+	{
+		// 마지막 플레이어 — 인스턴스 종료. MM이 데디 kill까지 처리.
+		NotifyMatchClose();
+	}
+	else if (!CachedHostSteamId.IsEmpty() && LeavingSteamId == CachedHostSteamId)
+	{
+		// 호스트만 떠남, 남은 유저 있음 — host_steam_id NULL로 비우고 방 유지.
+		NotifyMatchClearHost();
+		CachedHostSteamId.Empty();  // 재발사 방지 (멱등은 백엔드도 보장하지만 짝 보강).
+	}
+}
+
 void AMainGameMode::PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {
 	Super::PreLogin(Options, Address, UniqueId, ErrorMessage);
 	// 서버는 Null OSS, 클라이언트는 Steam ID → OSS 플랫폼 불일치 에러 무시
-	if (ErrorMessage == TEXT("incompatible_unique_net_id") && GIsEditor)
+	if (ErrorMessage == TEXT("incompatible_unique_net_id"))
 	{
 		ErrorMessage = TEXT("");
 	}
@@ -35,16 +152,85 @@ void AMainGameMode::PreLogin(const FString& Options, const FString& Address, con
 		}
 	}
 
-	// 만석 체크 — GameSession->MaxPlayers (Engine.ini의 [/Script/Engine.GameSession] MaxPlayers) 기준.
+	// 만석 체크 — MM이 dedi spawn 시 주입한 -MaxPlayers=N 캐시값 기준.
 	// NumPlayers는 이미 PostLogin 된 인원이므로 신규 1명 합류 후 초과하면 거부.
-	if (GameSession && GameSession->MaxPlayers > 0 && NumPlayers >= GameSession->MaxPlayers)
+	// CachedMaxPlayers==0(CLI 미주입, 스탠드얼론 PIE 등)이면 만석 체크 스킵.
+	if (CachedMaxPlayers > 0 && NumPlayers >= CachedMaxPlayers)
 	{
 		ErrorMessage = FString::Printf(TEXT("방이 가득 찼습니다. (%d/%d)"),
-			NumPlayers, GameSession->MaxPlayers);
+			NumPlayers, CachedMaxPlayers);
 		UE_LOG(LogTemp, Warning, TEXT("[PreLogin] reject — server full (%d/%d)"),
-			NumPlayers, GameSession->MaxPlayers);
+			NumPlayers, CachedMaxPlayers);
 		return;
 	}
+}
+
+void AMainGameMode::PreLoginAsync(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, const FOnPreLoginCompleteDelegate& OnComplete)
+{
+	// 1) 동기 합류 조건 — 기존 PreLogin 재사용 (phase·만석·incompatible_net_id).
+	FString SyncError;
+	PreLogin(Options, Address, UniqueId, SyncError);
+	if (!SyncError.IsEmpty())
+	{
+		OnComplete.ExecuteIfBound(SyncError);
+		return;
+	}
+
+#if ANTICHEAT_USE_MOCK
+	// AC 서버 미사용 — 동기 조건만 통과하면 즉시 허용
+	UE_LOG(LogTemp, Log, TEXT("[PreLoginAsync] ANTICHEAT_USE_MOCK — AC 검증 스킵"));
+	OnComplete.ExecuteIfBound(FString());
+	return;
+#else
+	// 2) UniqueId(SteamID)로 AC prelogin 비동기 검증.
+	//    전 시스템이 SteamID 키로 통일 — user_id PK로 row 1:1 매칭.
+	const FString SteamId = UniqueId.IsValid() ? UniqueId->ToString() : FString();
+	if (SteamId.IsEmpty())
+	{
+		OnComplete.ExecuteIfBound(TEXT("Steam ID를 확인할 수 없습니다."));
+		return;
+	}
+
+	const FString URL = NetworkEndpoints::AC::Internal::PreLogin();
+	const FString Payload = FString::Printf(
+		TEXT("{\"user_id\":\"%s\",\"match_id\":\"%s\"}"),
+		*SteamId, *CachedMatchId);
+
+	auto Req = FHttpModule::Get().CreateRequest();
+	Req->SetURL(URL);
+	Req->SetVerb(TEXT("POST"));
+	Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+	Req->SetContentAsString(Payload);
+	Req->SetTimeout(10.0f);
+
+	FOnPreLoginCompleteDelegate CompleteCopy = OnComplete;
+	Req->OnProcessRequestComplete().BindLambda(
+		[SteamId, CompleteCopy](FHttpRequestPtr, FHttpResponsePtr Resp, bool bHttpOk)
+		{
+			if (!bHttpOk || !Resp.IsValid() || Resp->GetResponseCode() != 200)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[PreLoginAsync] prelogin http fail (ok=%d code=%d)"),
+					bHttpOk ? 1 : 0, Resp.IsValid() ? Resp->GetResponseCode() : 0);
+				CompleteCopy.ExecuteIfBound(TEXT("안티치트 서버 연결 실패."));
+				return;
+			}
+
+			TSharedPtr<FJsonObject> Json;
+			const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+			bool bValid = false;
+			if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid()
+				|| !Json->TryGetBoolField(TEXT("valid"), bValid) || !bValid)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[PreLoginAsync] reject steam_id=%s — not verified"), *SteamId);
+				CompleteCopy.ExecuteIfBound(TEXT("안티치트 검증 실패."));
+				return;
+			}
+
+			UE_LOG(LogTemp, Log, TEXT("[PreLoginAsync] OK steam_id=%s"), *SteamId);
+			CompleteCopy.ExecuteIfBound(FString());
+		});
+	Req->ProcessRequest();
+#endif // ANTICHEAT_USE_MOCK
 }
 
 void AMainGameMode::PostLogin(APlayerController* NewPlayer)
@@ -536,3 +722,5 @@ void AMainGameMode::ResetFoldState()
 		MPS->isFold = false;
 	}
 }
+
+#endif // WITH_SERVER_CODE

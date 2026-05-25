@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "Interfaces/OnlineSessionInterface.h"
 #include "Logging/LogMacros.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "SessionSubsystem.generated.h"
 
 
@@ -59,6 +59,7 @@ class INDIAN_BAB_API USessionSubsystem : public UGameInstanceSubsystem
 
 public:
     // 서브시스템 초기화 및 종료 (생성자/소멸자 역할)
+    virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
 
@@ -117,8 +118,10 @@ public:
     // 데디 트래블 실패로 해석할지(세션 오류) 인터넷 단절로 해석할지(오프라인 모달) 분기에 사용.
     bool IsInActiveSession() const;
 
-    // 매치메이커 응답 후 클라이언트가 사용할 데디 endpoint를 SessionSettings에 심는 키
-    static const FName Key_DediEndpoint;
+    // 매치메이커가 발급한 match_id(UUID)를 SessionSettings에 심는 키.
+    // dedi ip:port 평문 광고를 피하기 위해 lobby에는 match_id만 노출 → 조이너가
+    // /api/match/{id}/address(Steam ticket 동봉)로 실제 주소를 인증 후 조회.
+    static const FName Key_MatchId;
 
     // 게임 진행 중 여부 (0=로비/대기, 1=게임 시작 후). 방 목록 위젯이 읽어 클릭 비활성화에 사용.
     static const FName Key_GameStarted;
@@ -131,12 +134,15 @@ public:
     static const int32 GameTagMagic;
 
 protected:
-    // 내부적으로 사용할 변수들
     IOnlineSessionPtr SessionInterface;
     TSharedPtr<class FOnlineSessionSearch> SessionSearch;
 
-    // 클라이언트: Join 성공 시 사용할 데디 URL (검색결과 SessionSettings에서 추출)
+    // 클라이언트: Join 성공 후 매치메이커 /address 응답으로 채워질 데디 URL
     FString PendingDediURL;
+
+    // 클라이언트: SearchResult의 SessionSettings에서 추출한 match_id (UUID).
+    // OnJoinSessionComplete에서 매치메이커 /address 호출에 사용.
+    FString PendingMatchId;
 
     // 호스트 여부 — Lock/UnlockSession 가드. CreateRoom 성공 시 true, Destroy/실패 시 false.
     bool bIsLocalHost = false;
@@ -144,11 +150,9 @@ protected:
     // 마지막 CreateRoom의 Visibility — UnlockSessionForLobby에서 원상복구용
     ERoomVisibility LastVisibility = ERoomVisibility::Public;
 
-    // ----------------------------------------------------------------
-    // Initialize 분기 헬퍼 — PIE / Standalone·패키지 두 흐름을 명확히 분리
-    // ----------------------------------------------------------------
-    void InitializeForEditor();    // PIE: Steam 미강제, 진단 로그만
-    void InitializeForRuntime();   // Standalone/패키지: Steam 강제, 실패 시 종료
+    // 마지막 CreateRoom의 MaxPlayers — MM /create body에 동봉(데디 PreLogin 만석 게이트 기준).
+    // 호스트 UI에서 호출 시 전달한 값을 그대로 통과. MM은 ge=2/le=4 검증, 데디는 -MaxPlayers=N로 받음.
+    int32 LastMaxPlayers = 4;
 
     // ----------------------------------------------------------------
     // 내부 콜백 함수 (OnlineSubsystem으로부터 응답을 받음)
@@ -164,8 +168,16 @@ protected:
     void RequestMatchmakerCreateInstance();
     // 매치메이커 응답 처리 (실제 HTTP 콜백 + 모킹 양쪽에서 호출)
     void HandleMatchmakerResponse(const FString& JsonBody, bool bOk);
-    // 데디 URL 확정 후 SessionSettings 갱신 + 호스트 본인 ClientTravel
-    void FinalizeHostTravel(const FString& DediURL);
+    // 데디 URL 확정 후 SessionSettings에 match_id 광고 + 호스트 본인 ClientTravel
+    void FinalizeHostTravel(const FString& DediURL, const FString& MatchId);
+
+    // ----------------------------------------------------------------
+    // 매치메이커 흐름 (조이너 측)
+    // ----------------------------------------------------------------
+    // Join 성공 후 lobby의 match_id로 dedi 주소를 인증 조회 (Steam ticket 동봉).
+    void RequestDediAddress(const FString& MatchId);
+    // /address 응답 처리 — 성공 시 PendingDediURL 채우고 ClientTravel.
+    void HandleAddressResponse(const FString& JsonBody, int32 HttpCode, bool bOk);
 
     // DestroySession 완료 콜백 — CleanupHostSession 공용 (호스트/클라 분기는 캡처된 플래그로 처리)
     void OnDestroySessionAfterCleanup(FName SessionName, bool bWasSuccessful);

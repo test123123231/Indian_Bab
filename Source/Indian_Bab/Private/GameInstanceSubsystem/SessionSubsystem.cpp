@@ -1,9 +1,11 @@
 ﻿#include "GameInstanceSubsystem/SessionSubsystem.h"
+
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"
 #include "Online/OnlineSessionNames.h"
 #include "Engine/LocalPlayer.h"
-#include "Network/DediServerConfig.h"
+#include "Network/NetworkEndpoints.h"
+#include "GameInstanceSubsystem/SteamCredentialsSubsystem.h"
 #include "HttpModule.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
@@ -11,114 +13,55 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "GameFramework/PlayerController.h"
-#include "HAL/PlatformMisc.h"
-
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include <Windows.h>
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
 
 
 DEFINE_LOG_CATEGORY(LogSessionSubsystem);
 
-#define MATCHMAKER_USE_MOCK 1
-
-const FName USessionSubsystem::Key_DediEndpoint = FName("DediEndpoint");
+const FName USessionSubsystem::Key_MatchId = FName("MatchId");
 const FName USessionSubsystem::Key_GameStarted = FName("GameStarted");
 const FName USessionSubsystem::Key_GameTag = FName("INDIANBABID");
 const int32 USessionSubsystem::GameTagMagic = 0x1B7A;  // 'IndianBab' magic — Steam pool 충돌 회피용 임의값
 
 
-namespace
+bool USessionSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
-    void FatalExitSteamMissing(const TCHAR* Reason)
+    // 데디는 Steam OSS를 쓰지 않음 (MM이 Python에서 ISteamUserAuth 직접 호출). 데디 GameInstance에 미생성.
+    if (IsRunningDedicatedServer())
     {
-#if PLATFORM_WINDOWS
-        ::MessageBoxW(nullptr,
-            L"Steam 클라이언트가 실행 중인지 확인하세요.\n게임을 종료합니다.",
-            L"Indian_Bab — Steam 초기화 실패",
-            MB_OK | MB_ICONERROR);
-#endif
-        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem] Steam init failed — %s. Exiting."), Reason);
-        FPlatformMisc::RequestExit(false);
+        return false;
     }
+    return Super::ShouldCreateSubsystem(Outer);
 }
 
 
 void USessionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+    // Steam 부팅 가드(OSS 로드 확인 / Runtime의 STEAM 강제 / 로그인 검증)는 SteamCredentialsSubsystem
+    Collection.InitializeDependency(USteamCredentialsSubsystem::StaticClass());
     Super::Initialize(Collection);
-    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem] 세션 테스트 로그"));
-    // GIsEditor: PIE 자식 월드에선 true, Standalone 자식 프로세스·패키지 빌드에선 false.
-    // → PIE만 우회, Standalone과 패키지는 Steam 강제.
-    if (GIsEditor)
-    {
-        InitializeForEditor();
-    }
-    else
-    {
-        InitializeForRuntime();
-    }
-}
 
-
-void USessionSubsystem::InitializeForEditor()
-{
-    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Editor] OnlineSubsystem 조회 시도."));
-
-    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
-    if (Subsystem == nullptr)
+    // 여기 도달 시점엔 SteamCreds가 Runtime이면 STEAM 확정, Editor이면 NULL OSS 확정 상태.
+    // 양쪽 다 OSS::Get()은 non-null이어야 정상 — SessionInterface stub을 NULL OSS도 제공하므로
+    // 이름 분기 없이 동일 경로로 캐시. 무효 시 CreateRoom 등이 IsValid() 가드로 거부.
+    IOnlineSubsystem* OSS = IOnlineSubsystem::Get();
+    if (OSS == nullptr)
     {
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("[SessionSubsystem][Editor] IOnlineSubsystem::Get() == null — 세션 기능 비활성 상태로 계속 진행."));
+        UE_LOG(LogSessionSubsystem, Error,
+            TEXT("OSS::Get() == null"));
         return;
     }
 
-    const FName SubsystemName = Subsystem->GetSubsystemName();
-    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Editor] OnlineSubsystem 이름: %s"), *SubsystemName.ToString());
-
-    SessionInterface = Subsystem->GetSessionInterface();
+    SessionInterface = OSS->GetSessionInterface();
     if (!SessionInterface.IsValid())
     {
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("[SessionSubsystem][Editor] SessionInterface 무효 — CreateRoom/JoinRoomByCode 호출 시 즉시 실패 브로드캐스트됨."));
+        UE_LOG(LogSessionSubsystem, Error,
+            TEXT("SessionInterface 무효 (OSS=%s) — CreateRoom 등 호출 시 즉시 실패 브로드캐스트."),
+            *OSS->GetSubsystemName().ToString());
         return;
     }
 
-    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Editor] SessionInterface 확보 완료 (%s)."), *SubsystemName.ToString());
-}
-
-
-void USessionSubsystem::InitializeForRuntime()
-{
-    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Runtime] Steam 검사 시작."));
-
-    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
-    if (Subsystem == nullptr)
-    {
-        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem][Runtime] IOnlineSubsystem::Get() == null."));
-        FatalExitSteamMissing(TEXT("Steam not detected (OnlineSubsystem null)"));
-        return;
-    }
-
-    const FName SubsystemName = Subsystem->GetSubsystemName();
-    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Runtime] OnlineSubsystem 이름: %s (기대값: STEAM)"), *SubsystemName.ToString());
-
-    if (SubsystemName != FName(TEXT("STEAM")))
-    {
-        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem][Runtime] OnlineSubsystem 이름이 STEAM이 아님: %s"), *SubsystemName.ToString());
-        FatalExitSteamMissing(TEXT("Steam not detected (subsystem name mismatch)"));
-        return;
-    }
-
-    SessionInterface = Subsystem->GetSessionInterface();
-    if (!SessionInterface.IsValid())
-    {
-        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem][Runtime] GetSessionInterface() 반환값 무효."));
-        FatalExitSteamMissing(TEXT("Steam session interface unavailable"));
-        return;
-    }
-
-    UE_LOG(LogSessionSubsystem, Log, TEXT("[SessionSubsystem][Runtime] Steam SessionInterface 확보 완료."));
+    UE_LOG(LogSessionSubsystem, Log,
+        TEXT("SessionInterface 확보 완료 (OSS=%s)."), *OSS->GetSubsystemName().ToString());
 }
 
 
@@ -148,6 +91,7 @@ void USessionSubsystem::CreateRoom(int32 MaxPlayers, ERoomVisibility Visibility)
     }
 
     LastVisibility = Visibility;
+    LastMaxPlayers = MaxPlayers;
 
     CreateSessionCompleteDelegateHandle = SessionInterface->AddOnCreateSessionCompleteDelegate_Handle(
         FOnCreateSessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnCreateSessionComplete));
@@ -211,24 +155,54 @@ void USessionSubsystem::OnCreateSessionComplete(FName SessionName, bool bWasSucc
 void USessionSubsystem::RequestMatchmakerCreateInstance()
 {
     #if !MATCHMAKER_USE_MOCK
-    auto Req = FHttpModule::Get().CreateRequest();
-    Req->SetURL(MatchmakerConfig::BaseURL + MatchmakerConfig::CreateMatchPath);
-    Req->SetVerb(TEXT("POST"));
-    Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
-    Req->SetContentAsString(TEXT("{}"));  // 추후 호스트 SteamID 등 주입
-    // 매치메이커 다운/방화벽 차단 시 무한 대기 방지 — 15s 후 bOk=false로 콜백
-    Req->SetTimeout(15.0f);
-    Req->OnProcessRequestComplete().BindLambda(
-        [this](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
+    USteamCredentialsSubsystem* SteamCreds =
+        GetGameInstance() ? GetGameInstance()->GetSubsystem<USteamCredentialsSubsystem>() : nullptr;
+    if (!SteamCreds)
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem] SteamCredentialsSubsystem 없음 — /create 중단."));
+        CleanupHostSession(TEXT("Steam 인증 정보를 가져올 수 없습니다. Steam 로그인 상태를 확인해주세요."));
+        return;
+    }
+
+    TWeakObjectPtr<USessionSubsystem> WeakThis(this);
+    const int32 MaxPlayersToSend = LastMaxPlayers;
+    SteamCreds->RequestTicket(
+        [WeakThis, MaxPlayersToSend](bool bOk, FString SteamTicketHex, FString HostSteamId)
         {
-            HandleMatchmakerResponse(
-                Resp.IsValid() ? Resp->GetContentAsString() : FString(),
-                bOk && Resp.IsValid() && Resp->GetResponseCode() == 200);
+            if (!WeakThis.IsValid()) return;
+            if (!bOk)
+            {
+                UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem] Steam credentials 획득 실패 — /create 중단."));
+                WeakThis->CleanupHostSession(TEXT("Steam 인증 정보를 가져올 수 없습니다. Steam 로그인 상태를 확인해주세요."));
+                return;
+            }
+
+            // CreateRoom 호출 시 받은 MaxPlayers를 그대로 MM에 통과.
+            // MM은 받은 값을 dedi에 -MaxPlayers=N CLI로 주입, dedi MainGameMode가 PreLogin 게이트에서 사용.
+            const FString Body = FString::Printf(
+                TEXT("{\"host_steam_id\":\"%s\",\"steam_session_ticket\":\"%s\",\"max_players\":%d}"),
+                *HostSteamId, *SteamTicketHex, MaxPlayersToSend);
+
+            auto Req = FHttpModule::Get().CreateRequest();
+            Req->SetURL(NetworkEndpoints::MM::External::CreateMatch());
+            Req->SetVerb(TEXT("POST"));
+            Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+            Req->SetContentAsString(Body);
+            // 매치메이커 다운/방화벽 차단 시 무한 대기 방지 — 15s 후 bOk=false로 콜백
+            Req->SetTimeout(15.0f);
+            Req->OnProcessRequestComplete().BindLambda(
+                [WeakThis](FHttpRequestPtr, FHttpResponsePtr Resp, bool bHttpOk)
+                {
+                    if (!WeakThis.IsValid()) return;
+                    WeakThis->HandleMatchmakerResponse(
+                        Resp.IsValid() ? Resp->GetContentAsString() : FString(),
+                        bHttpOk && Resp.IsValid() && Resp->GetResponseCode() == 200);
+                });
+            Req->ProcessRequest();
         });
-    Req->ProcessRequest();
     return;
     #else
-    const FString MockResponse = TEXT(R"({"match_id":"TEST_MATCH_001","host_ip":"127.0.0.1","port":7777})");
+    const FString MockResponse = TEXT(R"({"match_id":"TEST_MATCH_001","server_ip":"127.0.0.1","port":7777})");
     HandleMatchmakerResponse(MockResponse, true);
     #endif
 }
@@ -253,21 +227,23 @@ void USessionSubsystem::HandleMatchmakerResponse(const FString& JsonBody, bool b
     }
 
     // 필수 필드 누락(데디 풀 고갈 등 매치메이커 에러 응답) 방어 — GetStringField는 누락 시 빈 문자열
-    FString HostIp;
+    FString ServerIp;
+    FString MatchId;
     int32 Port = 0;
-    if (!Json->TryGetStringField(TEXT("host_ip"), HostIp) ||
+    if (!Json->TryGetStringField(TEXT("server_ip"), ServerIp) ||
         !Json->TryGetNumberField(TEXT("port"), Port) ||
-        HostIp.IsEmpty() || Port <= 0)
+        !Json->TryGetStringField(TEXT("match_id"), MatchId) ||
+        ServerIp.IsEmpty() || Port <= 0 || MatchId.IsEmpty())
     {
-        UE_LOG(LogSessionSubsystem, Error, TEXT("Matchmaker response missing host_ip/port. body=%s"), *JsonBody);
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Matchmaker response missing match_id/server_ip/port. body=%s"), *JsonBody);
         CleanupHostSession(TEXT("사용 가능한 게임 서버가 없습니다. 잠시 후 다시 시도해주세요."));
         return;
     }
 
-    const FString DediURL = FString::Printf(TEXT("%s:%d"), *HostIp, Port);
+    const FString DediURL = FString::Printf(TEXT("%s:%d"), *ServerIp, Port);
 
-    UE_LOG(LogSessionSubsystem, Warning, TEXT("Matchmaker response → Dedi: %s"), *DediURL);
-    FinalizeHostTravel(DediURL);
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("Matchmaker response → MatchId=%s Dedi=%s"), *MatchId, *DediURL);
+    FinalizeHostTravel(DediURL, MatchId);
 }
 
 
@@ -326,6 +302,7 @@ void USessionSubsystem::OnDestroySessionAfterCleanup(FName /*SessionName*/, bool
     bIsLocalHost = false;
     // 클라 측 stale state 청소 — 새 방 재시도 시 잔여 영향 차단
     PendingDediURL.Empty();
+    PendingMatchId.Empty();
 
     const FString Reason = PendingCleanupReason;
     PendingCleanupReason.Empty();
@@ -341,20 +318,23 @@ bool USessionSubsystem::IsInActiveSession() const
 }
 
 
-void USessionSubsystem::FinalizeHostTravel(const FString& DediURL)
+void USessionSubsystem::FinalizeHostTravel(const FString& DediURL, const FString& MatchId)
 {
-    // 1) SessionSettings에 데디 URL 심기 → 클라이언트가 검색 시 읽음
+    // 1) SessionSettings에 match_id만 광고 → 조이너는 이걸로 /api/match/{id}/address 호출.
+    //    dedi ip:port 평문 광고 폐지: Steam lobby data는 발견 가능한 모두에게 노출되므로
+    //    네트워크 표면을 좁히기 위해 주소는 매치메이커 인증 게이트 뒤로 숨김.
     if (SessionInterface.IsValid())
     {
         if (auto* Named = SessionInterface->GetNamedSession(NAME_GameSession))
         {
-            Named->SessionSettings.Set(Key_DediEndpoint, DediURL,
+            Named->SessionSettings.Set(Key_MatchId, MatchId,
                 EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);
             SessionInterface->UpdateSession(NAME_GameSession, Named->SessionSettings, true);
         }
     }
 
-    // 2) 호스트 본인 데디로 이동
+    // 2) 호스트 본인 데디로 이동 (호스트는 /create 응답으로 이미 ip:port 보유 — 별도 /address 불필요)
+    //    ACToken은 URL에 부착하지 않음 — 데디가 UniqueId(SteamID)로 AC 검증.
     if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
     {
         PC->ClientTravel(DediURL, ETravelType::TRAVEL_Absolute);
@@ -439,11 +419,14 @@ void USessionSubsystem::FindRooms()
 
     SessionSearch = MakeShared<FOnlineSessionSearch>();
     SessionSearch->bIsLanQuery = false;
-    SessionSearch->MaxSearchResults = 10000;
-    // SEARCH_LOBBIES — Steam OSS lobby 검색의 핵심 키. 이전 작동 코드 기준 복원.
-    //                   (UE5.5+ deprecated 정보는 오인이었음 — Steam OSS는 여전히 이 키로 lobby 검색 트리거.)
+    // 작은 limit + 서버측 GameTag 필터 조합으로 480 풀을 우리 lobby로 좁힘.
+    // (큰 limit은 메타데이터 fetch가 15s timeout; 작은 limit 단독은 sampling miss로 0건)
+    SessionSearch->MaxSearchResults = 100;
+    // SEARCH_LOBBIES — Steam OSS lobby 검색의 핵심 키.
     SessionSearch->QuerySettings.Set(SEARCH_LOBBIES, true, EOnlineComparisonOp::Equals);
-    // QuerySettings로 GameTag 필터링은 OSS 변환 버그로 0개 반환 → 클라측 SessionSettings.Get으로 필터링.
+    // 서버측 GameTag 필터 — Steam OSS의 AddRequestLobbyListNumericalFilter 경로.
+    // 클라측 SessionSettings.Get(Key_GameTag) 필터는 백스톱으로 유지(서버 필터 우회 lobby 차단).
+    SessionSearch->QuerySettings.Set(Key_GameTag, GameTagMagic, EOnlineComparisonOp::Equals);
 
     // 이전 핸들 정리 후 재바인딩
     SessionInterface->ClearOnFindSessionsCompleteDelegate_Handle(FindSessionsCompleteDelegateHandle);
@@ -561,12 +544,14 @@ void USessionSubsystem::JoinRoomByIndex(int32 SearchResultIndex)
         return;
     }
 
-    // 데디 URL 추출 (호스트가 FinalizeHostTravel에서 박제한 "host_ip:port")
+    // match_id 추출 (호스트가 FinalizeHostTravel에서 박제). 실제 dedi 주소는
+    // Join 성공 후 매치메이커 /address로 인증 조회 — lobby data 평문 누설 차단.
     PendingDediURL.Empty();
-    Result.Session.SessionSettings.Get(Key_DediEndpoint, PendingDediURL);
-    if (PendingDediURL.IsEmpty())
+    PendingMatchId.Empty();
+    Result.Session.SessionSettings.Get(Key_MatchId, PendingMatchId);
+    if (PendingMatchId.IsEmpty())
     {
-        UE_LOG(LogSessionSubsystem, Error, TEXT("JoinRoomByIndex: Key_DediEndpoint missing in target session."));
+        UE_LOG(LogSessionSubsystem, Error, TEXT("JoinRoomByIndex: Key_MatchId missing in target session."));
         OnSessionErrorEvent.Broadcast(TEXT("방 정보가 손상되었습니다. 다른 방을 시도해주세요."));
         OnJoinSessionCompleteEvent.Broadcast(false);
         return;
@@ -592,8 +577,8 @@ void USessionSubsystem::JoinRoomByIndex(int32 SearchResultIndex)
         return;
     }
 
-    UE_LOG(LogSessionSubsystem, Warning, TEXT("JoinRoomByIndex: idx=%d dedi=%s — JoinSession 발사."),
-        SearchResultIndex, *PendingDediURL);
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("JoinRoomByIndex: idx=%d match_id=%s — JoinSession 발사."),
+        SearchResultIndex, *PendingMatchId);
     SessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, Result);
 }
 
@@ -611,22 +596,19 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
     {
         UE_LOG(LogSessionSubsystem, Warning, TEXT("Joined Session Successfully!"));
 
-        if (PendingDediURL.IsEmpty())
+        if (PendingMatchId.IsEmpty())
         {
-            // Join은 성공해서 호스트 Lobby 멤버로 들어간 상태 — DediURL만 누락.
+            // Join은 성공해서 호스트 Lobby 멤버로 들어간 상태 — match_id만 누락.
             // 그냥 return하면 호스트 슬롯 점유한 채 leak되므로 명시적 leave 필수.
-            UE_LOG(LogSessionSubsystem, Error, TEXT("Join OK but Dedi endpoint missing in SessionSettings."));
+            UE_LOG(LogSessionSubsystem, Error, TEXT("Join OK but MatchId missing in SessionSettings."));
             CleanupHostSession(TEXT("방 정보가 손상되었습니다. 다른 방을 시도해주세요."));
             OnJoinSessionCompleteEvent.Broadcast(false);
             return;
         }
 
-        UE_LOG(LogSessionSubsystem, Warning, TEXT("Join OK → ClientTravel %s"), *PendingDediURL);
-        if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
-        {
-            PC->ClientTravel(PendingDediURL, ETravelType::TRAVEL_Absolute);
-        }
-        OnJoinSessionCompleteEvent.Broadcast(true);
+        // dedi 주소를 매치메이커에 인증 조회 → 응답에서 ClientTravel.
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("Join OK → /address 조회 (match_id=%s)"), *PendingMatchId);
+        RequestDediAddress(PendingMatchId);
     }
     else
     {
@@ -646,4 +628,113 @@ void USessionSubsystem::OnJoinSessionComplete(FName SessionName, EOnJoinSessionC
         OnSessionErrorEvent.Broadcast(Reason);
         OnJoinSessionCompleteEvent.Broadcast(false);
     }
+}
+
+
+// ---------------------------------------------------------
+// 매치메이커 흐름 (조이너)
+// ---------------------------------------------------------
+void USessionSubsystem::RequestDediAddress(const FString& MatchId)
+{
+    #if !MATCHMAKER_USE_MOCK
+    USteamCredentialsSubsystem* SteamCreds =
+        GetGameInstance() ? GetGameInstance()->GetSubsystem<USteamCredentialsSubsystem>() : nullptr;
+    if (!SteamCreds)
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem] SteamCredentialsSubsystem 없음 — /address 중단."));
+        CleanupHostSession(TEXT("Steam 인증 정보를 가져올 수 없습니다. Steam 로그인 상태를 확인해주세요."));
+        return;
+    }
+
+    TWeakObjectPtr<USessionSubsystem> WeakThis(this);
+    const FString CapturedMatchId = MatchId;
+    SteamCreds->RequestTicket(
+        [WeakThis, CapturedMatchId](bool bOk, FString SteamTicketHex, FString JoinerSteamId)
+        {
+            if (!WeakThis.IsValid()) return;
+            if (!bOk)
+            {
+                UE_LOG(LogSessionSubsystem, Error, TEXT("[SessionSubsystem] Steam credentials 획득 실패 — /address 중단."));
+                WeakThis->CleanupHostSession(TEXT("Steam 인증 정보를 가져올 수 없습니다. Steam 로그인 상태를 확인해주세요."));
+                return;
+            }
+
+            const FString Body = FString::Printf(
+                TEXT("{\"joiner_steam_id\":\"%s\",\"steam_session_ticket\":\"%s\"}"),
+                *JoinerSteamId, *SteamTicketHex);
+
+            auto Req = FHttpModule::Get().CreateRequest();
+            Req->SetURL(NetworkEndpoints::MM::External::MatchAddress(CapturedMatchId));
+            Req->SetVerb(TEXT("POST"));
+            Req->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+            Req->SetContentAsString(Body);
+            Req->SetTimeout(15.0f);
+            Req->OnProcessRequestComplete().BindLambda(
+                [WeakThis](FHttpRequestPtr, FHttpResponsePtr Resp, bool bHttpOk)
+                {
+                    if (!WeakThis.IsValid()) return;
+                    const int32 Code = (Resp.IsValid()) ? Resp->GetResponseCode() : 0;
+                    WeakThis->HandleAddressResponse(
+                        Resp.IsValid() ? Resp->GetContentAsString() : FString(),
+                        Code,
+                        bHttpOk && Resp.IsValid() && Code == 200);
+                });
+            Req->ProcessRequest();
+        });
+    return;
+    #else
+    // 호스트 /create 모킹과 정합 — 동일 ip/port로 응답.
+    const FString MockResponse = TEXT(R"({"server_ip":"127.0.0.1","port":7777})");
+    HandleAddressResponse(MockResponse, 200, true);
+    #endif
+}
+
+
+void USessionSubsystem::HandleAddressResponse(const FString& JsonBody, int32 HttpCode, bool bOk)
+{
+    if (!bOk)
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Address request failed (code=%d). body=%s"), HttpCode, *JsonBody);
+        // Join 성공 후 합류한 호스트 Lobby 슬롯 점유 상태 — 사유에 맞춰 leave.
+        FString Reason;
+        switch (HttpCode)
+        {
+        case 401: Reason = TEXT("Steam 인증에 실패했습니다."); break;
+        case 404: Reason = TEXT("해당 방이 더 이상 존재하지 않습니다."); break;
+        default:  Reason = TEXT("매치메이커 응답 실패. 잠시 후 다시 시도해주세요."); break;
+        }
+        CleanupHostSession(Reason);
+        OnJoinSessionCompleteEvent.Broadcast(false);
+        return;
+    }
+
+    TSharedPtr<FJsonObject> Json;
+    auto Reader = TJsonReaderFactory<>::Create(JsonBody);
+    if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid())
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Address response parse failed: %s"), *JsonBody);
+        CleanupHostSession(TEXT("매치메이커 응답 형식이 올바르지 않습니다."));
+        OnJoinSessionCompleteEvent.Broadcast(false);
+        return;
+    }
+
+    FString ServerIp;
+    int32 Port = 0;
+    if (!Json->TryGetStringField(TEXT("server_ip"), ServerIp) ||
+        !Json->TryGetNumberField(TEXT("port"), Port) ||
+        ServerIp.IsEmpty() || Port <= 0)
+    {
+        UE_LOG(LogSessionSubsystem, Error, TEXT("Address response missing server_ip/port: %s"), *JsonBody);
+        CleanupHostSession(TEXT("방 정보가 손상되었습니다. 다른 방을 시도해주세요."));
+        OnJoinSessionCompleteEvent.Broadcast(false);
+        return;
+    }
+
+    PendingDediURL = FString::Printf(TEXT("%s:%d"), *ServerIp, Port);
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("Address OK → ClientTravel %s"), *PendingDediURL);
+    if (APlayerController* PC = GetGameInstance()->GetFirstLocalPlayerController())
+    {
+        PC->ClientTravel(PendingDediURL, ETravelType::TRAVEL_Absolute);
+    }
+    OnJoinSessionCompleteEvent.Broadcast(true);
 }
