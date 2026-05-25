@@ -49,10 +49,6 @@ namespace MM
     // 클라 EXE(Type=Client, WITH_SERVER_CODE=0)에는 경로 리터럴조차 박지 않음.
     namespace Internal
     {
-        inline FString Host(const FString& MatchId)
-        {
-            return BaseURL() + FString::Printf(TEXT("/internal/match/%s/host"), *MatchId);
-        }
         inline FString Close(const FString& MatchId)
         {
             return BaseURL() + FString::Printf(TEXT("/internal/match/%s/close"), *MatchId);

@@ -146,15 +146,13 @@ private:
 	// MM dedi_manager.spawn이 주입한 -MatchId=<uuid>. InitGame에서 캐싱.
 	FString CachedMatchId;
 
-	// 방 생성 호스트 SteamID. InitGame 직후 MM /internal/match/{id}/host로 1회 캐싱.
+	// 방 생성 호스트 SteamID. MM dedi_manager.spawn이 주입한 -HostSteamId=<id>를 InitGame에서 캐싱.
 	// 호스트 이탈 시 clear_host 발사 후 비움(재발사 방지 멱등).
 	FString CachedHostSteamId;
 
 	// 토큰/SteamID 매핑 자료구조는 보관하지 않음 — 게임모드는 SteamID만 다룸.
 	// Logout의 Exiting 인자에서 SteamID 추출 → AC가 SteamID로 verify_session 조회·리셋.
 	// (CLAUDE.md "단일 활성 토큰" 정책상 SteamID → row 1:1 매칭)
-
-	void FetchCachedHostSteamId();
 
 	void NotifyACLeave(const FString& SteamId);
 	void NotifyMatchClose();

@@ -34,50 +34,13 @@ void AMainGameMode::InitGame(const FString& MapName, const FString& Options, FSt
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
 
-	// MM이 dedi spawn 시 주입한 -MatchId=<uuid>를 캐싱. 없으면 빈 문자열(스탠드얼론 PIE 등).
+	// MM이 dedi spawn 시 주입한 -MatchId=<uuid>, -HostSteamId=<id>를 캐싱.
+	// 없으면 빈 문자열(스탠드얼론 PIE 등).
 	FParse::Value(FCommandLine::Get(), TEXT("MatchId="), CachedMatchId);
-	UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] InitGame CachedMatchId=%s"),
-		CachedMatchId.IsEmpty() ? TEXT("(none)") : *CachedMatchId);
-
-	if (!CachedMatchId.IsEmpty())
-	{
-		FetchCachedHostSteamId();
-	}
-}
-
-void AMainGameMode::FetchCachedHostSteamId()
-{
-	const FString URL = NetworkEndpoints::MM::Internal::Host(CachedMatchId);
-
-	auto Req = FHttpModule::Get().CreateRequest();
-	Req->SetURL(URL);
-	Req->SetVerb(TEXT("GET"));
-
-	TWeakObjectPtr<AMainGameMode> WeakThis(this);
-	Req->OnProcessRequestComplete().BindLambda(
-		[WeakThis](FHttpRequestPtr, FHttpResponsePtr Resp, bool bOk)
-		{
-			if (!WeakThis.IsValid()) return;
-			if (!bOk || !Resp.IsValid() || Resp->GetResponseCode() != 200)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] /host fetch failed (ok=%d code=%d)"),
-					bOk ? 1 : 0, Resp.IsValid() ? Resp->GetResponseCode() : 0);
-				return;
-			}
-			TSharedPtr<FJsonObject> Json;
-			const TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
-			if (!FJsonSerializer::Deserialize(Reader, Json) || !Json.IsValid())
-			{
-				return;
-			}
-			FString HostId;
-			if (Json->TryGetStringField(TEXT("host_steam_id"), HostId))
-			{
-				WeakThis->CachedHostSteamId = HostId;
-				UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] CachedHostSteamId=%s"), *HostId);
-			}
-		});
-	Req->ProcessRequest();
+	FParse::Value(FCommandLine::Get(), TEXT("HostSteamId="), CachedHostSteamId);
+	UE_LOG(LogTemp, Warning, TEXT("[MainGameMode] InitGame CachedMatchId=%s CachedHostSteamId=%s"),
+		CachedMatchId.IsEmpty() ? TEXT("(none)") : *CachedMatchId,
+		CachedHostSteamId.IsEmpty() ? TEXT("(none)") : *CachedHostSteamId);
 }
 
 void AMainGameMode::NotifyACLeave(const FString& SteamId)
