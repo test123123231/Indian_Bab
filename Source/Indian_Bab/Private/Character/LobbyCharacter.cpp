@@ -16,7 +16,7 @@
 #include "Widget/PlayerNameWidget.h"
 #include "Components/WidgetComponent.h"
 #include "DrawDebugHelpers.h"
-
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values
 ALobbyCharacter::ALobbyCharacter()
@@ -210,26 +210,28 @@ void ALobbyCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UpdateAimYawFromView();
+	UpdateAimFromView();
 
 	DrawMainShotAimLine();
 }
 
-void ALobbyCharacter::UpdateAimYawFromView()
+void ALobbyCharacter::UpdateAimFromView()
 {
+
 	// 내가 조종하는 캐릭터이고, 앉아있을 때만 작동
 	if (bIsSitting && IsLocallyControlled())
 	{
+
 		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
 			// (현재 마우스 좌우 방향) - (의자에 안착한 캡슐의 고정된 방향) = 순수하게 목이 돌아간 각도
-			float YawDifference = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, PC->GetControlRotation().Yaw);
-			//UE_LOG(LogTemp, Log, TEXT("YawDifference: %f"), YawDifference);
+			const FRotator Aim = UKismetMathLibrary::NormalizedDeltaRotator(GetActorRotation(), PC->GetControlRotation());
+
 			// 내 화면을 위해 로컬 변수 즉시 업데이트
-			ReplicatedAimYaw = YawDifference;
+			ReplicatedAim = Aim;
 
 			// 남들도 내 고개 돌아가는 걸 볼 수 있게 서버로 전송
-			Server_UpdateAimYaw(YawDifference);
+			Server_UpdateAim(ReplicatedAim);
 		}
 	}
 }
@@ -612,10 +614,12 @@ void ALobbyCharacter::Client_PrepareSit_Implementation(FVector TargetLocation, F
 }
 
 
-void ALobbyCharacter::Server_UpdateAimYaw_Implementation(float NewYaw)
+void ALobbyCharacter::Server_UpdateAim_Implementation(FRotator NewAim)
 {
-	ReplicatedAimYaw = NewYaw; // 서버가 값을 받아서 모든 클라이언트에게 자동 전파
+	ReplicatedAim = NewAim; // 서버가 값을 받아서 모든 클라이언트에게 자동 전파
 }
+
+
 
 void ALobbyCharacter::SetActiveRevolver(ARevolver* NewRevolver)
 {

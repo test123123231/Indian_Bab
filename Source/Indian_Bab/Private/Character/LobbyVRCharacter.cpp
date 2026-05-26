@@ -1,4 +1,4 @@
-#include "Character/LobbyVRCharacter.h"
+﻿#include "Character/LobbyVRCharacter.h"
 
 #include "Actor/SeatActor.h"
 #include "Camera/CameraComponent.h"
@@ -17,6 +17,8 @@
 #include "PlayerState/MainPlayerState.h"
 #include "Widget/PlayerNameWidget.h"
 #include "Widget/ReadyWidget.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Net/UnrealNetwork.h"
 
 ALobbyVRCharacter::ALobbyVRCharacter()
 {
@@ -421,24 +423,28 @@ void ALobbyVRCharacter::OnRep_IsSitting()
 	ConfigurePlayerNameWidget();
 }
 
-void ALobbyVRCharacter::UpdateAimYawFromView()
+void ALobbyCharacter::Server_UpdateArm_Implementation(const FTransform& NewArm)
+{
+	Arm = NewArm;
+}
+
+void ALobbyVRCharacter::UpdateAimFromView()
 {
 	if (!bIsSitting || !IsLocallyControlled() || !CameraComponent)
 	{
+		UE_LOG(LogTemp, Log, TEXT("return"));
 		return;
 	}
 
-	FVector Forward = CameraComponent->GetForwardVector();
-	Forward.Z = 0.0f;
+	FRotator Forward = CameraComponent->GetComponentRotation();
+	
+	const FRotator Aim = UKismetMathLibrary::NormalizedDeltaRotator(GetActorRotation(), Forward);
+	ReplicatedAim = Aim;
+	Server_UpdateAim(ReplicatedAim);
+}
 
-	if (!Forward.Normalize())
-	{
-		return;
-	}
+void ALobbyVRCharacter::UpdateArmPosition() {
 
-	const float AimYaw = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, Forward.Rotation().Yaw);
-	ReplicatedAimYaw = AimYaw;
-	Server_UpdateAimYaw(AimYaw);
 }
 
 void ALobbyVRCharacter::ConfigureVRSeatedState()

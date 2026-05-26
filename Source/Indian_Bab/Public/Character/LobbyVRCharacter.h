@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Character/LobbyCharacter.h"
@@ -134,9 +134,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
 	bool bLogVRPointerHits = false;
 
-protected:
-	virtual void UpdateAimYawFromView() override;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	FTransform Arm;
 
+	UFUNCTION(Server, Unreliable)
+	void Server_UpdateArm(const FTransform& NewArm);
+
+
+
+protected:
+	virtual void UpdateAimFromView() override;
+	void UpdateArmPosition();
 private:
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
