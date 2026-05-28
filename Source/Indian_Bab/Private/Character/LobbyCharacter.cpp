@@ -114,9 +114,12 @@ ALobbyCharacter::ALobbyCharacter()
 	// // 닉네임
 	NameWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidget"));
 	NameWidgetComponent->SetupAttachment(GetRootComponent());
-	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 75.f));
-	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
-	NameWidgetComponent->SetDrawAtDesiredSize(true);
+	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 100.f));
+	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+	NameWidgetComponent->SetDrawAtDesiredSize(false);
+	NameWidgetComponent->SetDrawSize(FVector2D(420.f, 120.f));
+	NameWidgetComponent->SetWorldScale3D(FVector(0.075f));
+	NameWidgetComponent->SetTwoSided(true);
 }
 
 
@@ -161,11 +164,17 @@ void ALobbyCharacter::UpdateNameWidget()
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
 	if (!PS) return;
 
+	if (!NameWidgetComponent->GetUserWidgetObject())
+	{
+		NameWidgetComponent->InitWidget();
+	}
+
     UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
     if (!Widget) return;
 
 	if (IsLocallyControlled())
 	{
+		Widget->SetPlayerName(TEXT(""));
 		Widget->SetCardText(TEXT(""));
 		return;
 	}
@@ -185,6 +194,11 @@ void ALobbyCharacter::UpdateCardWidget()
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
 	if (!PS) return;
 
+	if (!NameWidgetComponent->GetUserWidgetObject())
+	{
+		NameWidgetComponent->InitWidget();
+	}
+
 	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
     if (!Widget) return;
 
@@ -201,8 +215,7 @@ void ALobbyCharacter::UpdateCardWidget()
 		return;
 	}
 	
-	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
-	Widget->SetCardText(CardStr);
+	Widget->SetCardText(Card.ToDisplayString());
 }
 
 // Called every frame
