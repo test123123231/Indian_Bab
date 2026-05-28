@@ -51,7 +51,7 @@ void AMainGameMode::DistributeCard()
 		if(!PS -> isAlive) continue;
 
 		PS -> SetMyCard(DealtCards[CardIndex++]);
-		UE_LOG(LogTemp, Warning, TEXT("PS[%d] : PS_Card(%d, %s)"), PS->GetPlayerId(), PS->GetMyCard().Value, *PS->GetMyCard().Suit);
+		UE_LOG(LogTemp, Warning, TEXT("PS[%d] : PS_Card(%s)"), PS->GetPlayerId(), *PS->GetMyCard().ToDisplayString());
 	}
 	return;
 }
@@ -68,7 +68,7 @@ void AMainGameMode::CheckPlayerCard()
     CurrentWinnerPS = MaxCardPlayer();
 	if(!CurrentWinnerPS) return;
 
-    UE_LOG(LogTemp, Warning, TEXT("[GM] Winner : %d[%d, %s]"), CurrentWinnerPS -> GetPlayerId(), CurrentWinnerPS->GetMyCard().Value, *CurrentWinnerPS->GetMyCard().Suit);
+    UE_LOG(LogTemp, Warning, TEXT("[GM] Winner : %d[%s]"), CurrentWinnerPS -> GetPlayerId(), *CurrentWinnerPS->GetMyCard().ToDisplayString());
 	
 	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
 	if (!PC) return;
