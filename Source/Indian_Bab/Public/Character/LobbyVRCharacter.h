@@ -135,16 +135,20 @@ public:
 	bool bLogVRPointerHits = false;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
-	FTransform Arm;
+	FTransform LeftArm;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	FTransform RightArm;
 
 	UFUNCTION(Server, Unreliable)
-	void Server_UpdateArm(const FTransform& NewArm);
+	void Server_UpdateArm(const FTransform& NewLeftArm, const FTransform& NewRightArm);
 
 
 
 protected:
 	virtual void UpdateAimFromView() override;
 	void UpdateArmPosition();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 private:
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();

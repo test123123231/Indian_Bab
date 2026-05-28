@@ -260,7 +260,7 @@ void ALobbyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutL
 	DOREPLIFETIME(ALobbyCharacter, bIsSitting);
 	DOREPLIFETIME(ALobbyCharacter, GunHoldReason);
 	DOREPLIFETIME(ALobbyCharacter, DeskRevolver);
-	DOREPLIFETIME(ALobbyCharacter, ReplicatedAimYaw);
+	DOREPLIFETIME(ALobbyCharacter, ReplicatedAim);
 	DOREPLIFETIME(ALobbyCharacter, ActiveRevolver);
 }
 

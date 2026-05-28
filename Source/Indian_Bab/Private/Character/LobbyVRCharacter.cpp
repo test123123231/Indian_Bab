@@ -147,6 +147,7 @@ void ALobbyVRCharacter::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 	UpdateVRNameWidget();
 	UpdateVRPointers();
+	UpdateArmPosition();
 }
 
 void ALobbyVRCharacter::BindVRPlayerStateDelegates()
@@ -423,9 +424,10 @@ void ALobbyVRCharacter::OnRep_IsSitting()
 	ConfigurePlayerNameWidget();
 }
 
-void ALobbyCharacter::Server_UpdateArm_Implementation(const FTransform& NewArm)
+void ALobbyVRCharacter::Server_UpdateArm_Implementation(const FTransform& NewLeftArm, const FTransform& NewRightArm)
 {
-	Arm = NewArm;
+	LeftArm = NewLeftArm;
+	RightArm = NewRightArm;
 }
 
 void ALobbyVRCharacter::UpdateAimFromView()
@@ -444,7 +446,14 @@ void ALobbyVRCharacter::UpdateAimFromView()
 }
 
 void ALobbyVRCharacter::UpdateArmPosition() {
-
+	if (!IsLocallyControlled() || !MotionControllerLeftGrip || !MotionControllerRightGrip)
+	{
+		UE_LOG(LogTemp, Log, TEXT("return"));
+		return;
+	}
+	LeftArm = MotionControllerLeftGrip->GetComponentTransform();
+	LeftArm = MotionControllerRightGrip->GetComponentTransform();
+	Server_UpdateArm(LeftArm, RightArm);
 }
 
 void ALobbyVRCharacter::ConfigureVRSeatedState()
@@ -819,3 +828,12 @@ void ALobbyVRCharacter::HideReadyWidget()
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget hidden"));
 }
+
+void ALobbyVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ALobbyVRCharacter, LeftArm);
+	DOREPLIFETIME(ALobbyVRCharacter, RightArm);
+}
+	
