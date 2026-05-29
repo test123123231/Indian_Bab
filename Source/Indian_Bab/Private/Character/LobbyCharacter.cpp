@@ -215,7 +215,8 @@ void ALobbyCharacter::UpdateCardWidget()
 		return;
 	}
 	
-	Widget->SetCardText(Card.ToDisplayString());
+	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
+	Widget->SetCardText(CardStr);
 }
 
 // Called every frame
