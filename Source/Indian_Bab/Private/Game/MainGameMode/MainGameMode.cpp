@@ -547,6 +547,8 @@ void AMainGameMode::CheckGameStart()
 // MainGame 시작(반복됨)
 void AMainGameMode::StartMainGame()
 {
+	if (bGameEnded) return;
+
 	// TODO: 카드 분배, 앤티(Ante) 지불 등 실제 인게임 로직 호출, 생존자 카운팅
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
@@ -561,7 +563,7 @@ void AMainGameMode::StartMainGame()
 	
 	DistributeCard();
 	
-	StartTurnTimer(10.0f);
+	StartTurnTimer(5.0f);
 
 	return;
 }
@@ -597,9 +599,9 @@ void AMainGameMode::CheckNext()
     if (!GS) return;
 
 	// 생존 인원이 1명일 때
-	if(GS -> AlivePlayerCount == 1)
+	if(GS -> AlivePlayerCount <= 1)
 	{
-		// 게임 종료로 넘어감
+		EndGame(GetLastAlivePlayer());
 		return;
 	}
 	GS->bTurnActionInProgress = false;
@@ -674,6 +676,12 @@ void AMainGameMode::FinishMainShotPhase()
     CurrentWinnerPS = nullptr;
 	GS -> CurrentBulletCount = 0;
 
+	if (GS->AlivePlayerCount <= 1)
+	{
+		EndGame(GetLastAlivePlayer());
+		return;
+	}
+
     NextRound();
 }
 
@@ -686,7 +694,7 @@ void AMainGameMode::NextTurn(AMainPlayerState* NextPS)
     if (!GS) return;
 
 	GS->ChangeGameTurn(NextPS->GetPlayerId(), GS -> CurrentPlayerIndex);
-	StartTurnTimer(20.0f);
+	StartTurnTimer(5.0f);
 	return;
 }
 
@@ -694,6 +702,7 @@ void AMainGameMode::NextTurn(AMainPlayerState* NextPS)
 void AMainGameMode::NextRound()
 {
 	if (!HasAuthority()) return;
+	if (bGameEnded) return;
 
 	AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
@@ -720,6 +729,64 @@ void AMainGameMode::ResetFoldState()
 		if (!MPS) continue;
 
 		MPS->isFold = false;
+	}
+}
+
+AMainPlayerState* AMainGameMode::GetLastAlivePlayer()
+{
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return nullptr;
+
+	for (APlayerState* PS : GS->PlayerArray)
+	{
+		AMainPlayerState* MPS = Cast<AMainPlayerState>(PS);
+		if (MPS && MPS->isAlive)
+		{
+			return MPS;
+		}
+	}
+
+	return nullptr;
+}
+
+void AMainGameMode::EndGame(AMainPlayerState* WinnerPS)
+{
+	if (!HasAuthority() || bGameEnded) return;
+
+	bGameEnded = true;
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (GS)
+	{
+		GS->SetGamePhase(EGamePhase::Result);
+		GS->bTurnActionInProgress = true;
+	}
+
+	FString WinnerName = TEXT("Unknown Player");
+	if (WinnerPS)
+	{
+		WinnerName = WinnerPS->GetSteamNickname();
+		if (WinnerName.IsEmpty())
+		{
+			WinnerName = WinnerPS->GetPlayerName();
+		}
+	}
+
+	const int32 WinnerPlayerId = WinnerPS ? WinnerPS->GetPlayerId() : -1;
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Game ended. Winner=%s PlayerId=%d"), *WinnerName, WinnerPlayerId);
+
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (!PC) continue;
+
+		ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(PC->GetPawn());
+		if (VRCharacter)
+		{
+			VRCharacter->Client_ShowResultWidget(WinnerName, WinnerPlayerId);
+		}
 	}
 }
 

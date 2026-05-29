@@ -2,7 +2,7 @@
 
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
-#include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerController.h"
 
 void UGameResultWidget::NativeConstruct()
 {
@@ -32,10 +32,21 @@ void UGameResultWidget::SetResult(const FString& WinnerName, bool /*bLocalPlayer
 	}
 }
 
+void UGameResultWidget::ConfirmBackToMainMenu()
+{
+	OnBackToMainMenuClicked();
+}
+
 void UGameResultWidget::OnBackToMainMenuClicked()
 {
-	if (MainMenuMapName != NAME_None)
+	if (bMainMenuTravelRequested || MainMenuMapPath.IsEmpty())
 	{
-		UGameplayStatics::OpenLevel(this, MainMenuMapName);
+		return;
+	}
+
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		bMainMenuTravelRequested = true;
+		PC->ClientTravel(MainMenuMapPath, ETravelType::TRAVEL_Absolute);
 	}
 }

@@ -131,6 +131,10 @@ protected:
 	// 폴드 인원 초기화
 	void ResetFoldState();
 
+	void EndGame(AMainPlayerState* WinnerPS);
+
+	AMainPlayerState* GetLastAlivePlayer();
+
 private:
 	// 빈 의자 찾기
 	ASeatActor* FindEmptySeat();
@@ -208,6 +212,8 @@ private:
 	bool bCheckPlayerFolded = false;
 
 	bool bMainRevolverPutBackInProgress = false;
+
+	bool bGameEnded = false;
 
 	void StartMainRevolverPutBack();
 

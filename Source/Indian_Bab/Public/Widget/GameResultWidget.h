@@ -14,6 +14,7 @@ class INDIAN_BAB_API UGameResultWidget : public UUserWidget
 
 public:
 	void SetResult(const FString& WinnerName, bool bLocalPlayerWon);
+	void ConfirmBackToMainMenu();
 
 protected:
 	virtual void NativeConstruct() override;
@@ -27,7 +28,9 @@ private:
 	TObjectPtr<UButton> Button_Ready;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Result")
-	FName MainMenuMapName = TEXT("/Game/Maps/MainMenu/MainMenu");
+	FString MainMenuMapPath = TEXT("/Game/Maps/MainMenu/MainMenu");
+
+	bool bMainMenuTravelRequested = false;
 
 	UFUNCTION()
 	void OnBackToMainMenuClicked();
