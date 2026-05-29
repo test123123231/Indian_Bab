@@ -30,6 +30,13 @@ void AMainGameMode::DistributeCard()
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 
+	if (MainCardManager->CurrentDeck.Num() < GS->AlivePlayerCount)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Not enough cards. Reset deck before distribution: Alive=%d, Remaining=%d"),
+			GS->AlivePlayerCount, MainCardManager->CurrentDeck.Num());
+		MainCardManager->InitializeDeck();
+	}
+
 	DealtCards = MainCardManager->DealCards(GS->AlivePlayerCount);
 	if (DealtCards.Num() != GS->AlivePlayerCount)
 	{
