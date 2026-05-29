@@ -273,6 +273,9 @@ void AMainGameMode::StartGameAfterAllReady()
 
 	// 기준 플레이어 초기화
 	CheckPlayer = -1;
+	MainRevolverChamberCount = MaxMainRevolverChamberCount;
+	MainLiveShotOffset = -1;
+	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 
 	// 카드 매니저 초기화
 	MainCardManager = GetCardManager();
@@ -342,6 +345,9 @@ void AMainGameMode::CheckGameStart()
 
 		// 기준 플레이어 초기화
 		CheckPlayer = -1;
+		MainRevolverChamberCount = MaxMainRevolverChamberCount;
+		MainLiveShotOffset = -1;
+		GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 
 		//  카드 매니저 초기화
 		MainCardManager = GetCardManager();
@@ -367,6 +373,7 @@ void AMainGameMode::StartMainGame()
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 	
+	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 	GS->SetGamePhase(EGamePhase::Playing);
 
 	//GS의 게임 페이즈 기반 플레이어 선택

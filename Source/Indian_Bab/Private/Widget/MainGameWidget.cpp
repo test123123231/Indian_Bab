@@ -73,7 +73,7 @@ void UMainGameWidget::NativeConstruct()
 	if (BetCount)
 	{
 		BetCount->SetText(FText::AsNumber(BetNum));
-		WBP_BetProgress->SetPerCent(-0.16f);
+		WBP_BetProgress->SetPerCent(-0.125f);
 	}
 	MainGamePC = Cast<AMainGamePlayerController>(GetOwningPlayer());
 
@@ -95,13 +95,13 @@ void UMainGameWidget::MinusButtonClicked()
 
 	if (WBP_BetProgress)
 	{
-		WBP_BetProgress->SetPerCent(0.16f);
+		WBP_BetProgress->SetPerCent(0.125f);
 	}
 }
 
 void UMainGameWidget::PlusButtonClicked()
 {
-	if (BetNum >= 6)
+	if (BetNum >= 8)
 	{
 		return;
 	}
@@ -115,13 +115,13 @@ void UMainGameWidget::PlusButtonClicked()
 
 	if (WBP_BetProgress)
 	{
-		if (BetNum == 6)
+		if (BetNum == 8)
 		{
 			WBP_BetProgress->Fill();
 		}
 		else
 		{
-			WBP_BetProgress->SetPerCent(-0.16f);
+			WBP_BetProgress->SetPerCent(-0.125f);
 		}
 	}
 }
@@ -129,7 +129,7 @@ void UMainGameWidget::PlusButtonClicked()
 void UMainGameWidget::OnButtonRaise()
 {
 	if (!MainGamePC) return;
-	if (BetNum < 1 || BetNum > 6) return;
+	if (BetNum < 1 || BetNum > 8) return;
 	
 	UE_LOG(LogTemp, Display, TEXT("Click Raise Button"));
 	MainGamePC->RequestRaise(BetNum);

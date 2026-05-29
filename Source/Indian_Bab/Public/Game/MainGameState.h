@@ -73,6 +73,9 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBulletCount, BlueprintReadOnly, Category = "Game State")
 	int32 CurrentBulletCount;
 
+	UPROPERTY(ReplicatedUsing = OnRep_MainRevolverChamberCount, BlueprintReadOnly, Category = "Game State")
+	int32 MainRevolverChamberCount;
+
 	// 현재 플레이어 액션
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBetInfo, BlueprintReadOnly, Category = "Game State")
 	FBetActionInfo CurrentBetInfo;
@@ -102,6 +105,8 @@ public:
 
 	// 서버에서 최근 베팅 액션 호출
 	void ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount = 0);
+
+	void SetMainRevolverChamberCount(int32 NewChamberCount);
 
 	// 서버에서 준비 인원 호출
 	void ChangeReadyPlayerCount(int NewReadyCount);
@@ -145,6 +150,9 @@ protected:
 
 	UFUNCTION()
 	void OnRep_CurrentBulletCount();
+
+	UFUNCTION()
+	void OnRep_MainRevolverChamberCount();
 
 	UFUNCTION()
 	void OnRep_TimerInfo();

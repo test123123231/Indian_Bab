@@ -184,6 +184,8 @@ private:
 	// 메인 리볼버 탄창 칸 수
 	int32 MainRevolverChamberCount = 8;
 
+	int32 MaxMainRevolverChamberCount = 8;
+
 	// 앞으로 몇 번 당기면 실탄이 나가는지
 	int32 MainLiveShotOffset = -1;
 
