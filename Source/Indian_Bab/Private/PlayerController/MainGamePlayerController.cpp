@@ -331,21 +331,21 @@ void AMainGamePlayerController::EnterCameraMode()
 }
 
 
-void AMainGamePlayerController::RequestRaise()
+void AMainGamePlayerController::RequestRaise(int32 RaiseCount)
 {
-    Server_RequestBetAction(EBetAction::Raise);
+    Server_RequestBetAction(EBetAction::Raise, RaiseCount);
 }
 
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    Server_RequestBetAction(EBetAction::CheckCall);
+    Server_RequestBetAction(EBetAction::CheckCall, 0);
 }
 
 
 void AMainGamePlayerController::RequestFold()
 {
-    Server_RequestBetAction(EBetAction::Fold);
+    Server_RequestBetAction(EBetAction::Fold, 0);
 }
 
 // 내 스팀 닉네임 읽기
@@ -418,7 +418,7 @@ void AMainGamePlayerController::OnMainGameFold(const FInputActionValue& Value)
 
 void AMainGamePlayerController::OnMainGameRaise(const FInputActionValue& Value)
 {
-    RequestRaise();
+    RequestRaise(MainGameWidgetInstance->GetBetNum());
 }
 
 
@@ -452,14 +452,15 @@ void AMainGamePlayerController::OnRep_PlayerState()
     TrySendSteamNickname();
 }
 
-void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
+void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action, int32 RaiseCount)
 {
 #if WITH_SERVER_CODE
     AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
     if(!GM) return;
 
-    GM -> HandleBetAction(this, Action);
+    GM->HandleBetAction(this, Action, RaiseCount);
 #endif
+
 }
 
 void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FString& NewNickname)

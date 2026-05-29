@@ -459,6 +459,9 @@ void AMainGameMode::StartGameAfterAllReady()
 
 	// 기준 플레이어 초기화
 	CheckPlayer = -1;
+	MainRevolverChamberCount = MaxMainRevolverChamberCount;
+	MainLiveShotOffset = -1;
+	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 
 	// 카드 매니저 초기화
 	MainCardManager = GetCardManager();
@@ -528,6 +531,9 @@ void AMainGameMode::CheckGameStart()
 
 		// 기준 플레이어 초기화
 		CheckPlayer = -1;
+		MainRevolverChamberCount = MaxMainRevolverChamberCount;
+		MainLiveShotOffset = -1;
+		GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 
 		//  카드 매니저 초기화
 		MainCardManager = GetCardManager();
@@ -540,6 +546,8 @@ void AMainGameMode::CheckGameStart()
 
 		// 3초 뒤에 StartMainGame 함수 실행
 		GetWorldTimerManager().ClearTimer(TimerHandle);
+		GS->SetTimerInfo(3.0f);
+		
 		GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::StartMainGame, 3.0f, false);
 	}
 }
@@ -551,6 +559,7 @@ void AMainGameMode::StartMainGame()
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 	
+	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 	GS->SetGamePhase(EGamePhase::Playing);
 
 	//GS의 게임 페이즈 기반 플레이어 선택
@@ -569,7 +578,14 @@ void AMainGameMode::StartMainGame()
 // 턴 넘기는 타이머
 void AMainGameMode::StartTurnTimer(float Time)
 {
+	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
+
 	GetWorldTimerManager().ClearTimer(TimerHandle);
+	
+	GS->SetTimerInfo(Time);
 	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnTurnTimerExpired, Time, false);
 	return;
 }
@@ -581,7 +597,8 @@ void AMainGameMode::OnTurnTimerExpired()
 
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
-
+	
+	GS->ClearTimerInfo();
 	UE_LOG(LogTemp, Warning, TEXT("[GM] TimeOut NextTurn"));
 	GS -> ChangeCurrentBetInfo(EBetAction::CheckCall);
 	CheckNext();
@@ -670,6 +687,7 @@ void AMainGameMode::FinishMainShotPhase()
 
     AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
+	GS->ClearTimerInfo();
 
     CurrentWinnerPS = nullptr;
 	GS -> CurrentBulletCount = 0;
@@ -700,6 +718,7 @@ void AMainGameMode::NextRound()
 	
 	//타이머 정리
 	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GS->ClearTimerInfo();
 
 	// 다음 라운드 대비 GateState 초기화
 	GS -> SetNextRoundGameState();
