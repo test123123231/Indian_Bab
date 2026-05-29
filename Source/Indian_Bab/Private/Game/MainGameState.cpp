@@ -4,6 +4,8 @@
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
+#include "Actor/Revolver.h"
+#include "EngineUtils.h"
 
 AMainGameState::AMainGameState()
 {
@@ -150,6 +152,9 @@ void AMainGameState::OnRep_CurrentTurnPlayerId()
 
 void AMainGameState::OnRep_GamePhase()
 {
+	// 게임 페이즈에 따라 클라이언트에서 필요한 연출이나 UI 업데이트를 처리하는 곳입니다.
+	const bool bIsPlaying = (CurrentGamePhase == EGamePhase::Playing);
+
 	// TODO: 페이즈 변경 시 연출 (예: Playing이 되면 로비 UI 숨기고 메인 게임 UI 띄우기, 조명 어둡게 하기 등)
 	if (CurrentGamePhase == EGamePhase::Starting)
 	{
@@ -173,6 +178,9 @@ void AMainGameState::OnRep_GamePhase()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 결과 확인 중!"));
 	}
+
+	// 게임 페이즈에 따라 UI 업데이트
+	UpdateMainRevolverWidgetPhase(bIsPlaying);
 }
 
 void AMainGameState::OnRep_CurrentBetInfo()
@@ -185,6 +193,9 @@ void AMainGameState::OnRep_CurrentBetInfo()
     else if (CurrentBetInfo.CurrentBetAction == EBetAction::Fold)
         ActionStr = TEXT("Fold");
 	
+	// 게임 페이즈에 따라 메인 리볼버 위젯의 탄창 수 표시 업데이트
+	UpdateMainRevolverWidget(CurrentBulletCount, 8);
+
 	//UE_LOG(LogTemp, Warning, TEXT("[GS]BetAction = %s ActionTotal = %d CurrentBulletCount = %d"), ActionStr,CurrentBetInfo.BetActionTotal, CurrentBulletCount);
 }
 
@@ -214,4 +225,36 @@ void AMainGameState::OnRep_TimerInfo()
 		bTimerActive,
 		GetRemainingTimeCeil()
 	);
+}
+
+// 게임 페이즈에 따라 메인 리볼버 위젯의 탄창 수 표시 업데이트
+void AMainGameState::UpdateMainRevolverWidget(int32 CurrentCount, int32 MaxCount)
+{
+	if (!GetWorld()) return;
+
+	for (TActorIterator<ARevolver> It(GetWorld()); It; ++It)
+	{
+		ARevolver* Revolver = *It;
+		if (Revolver && Revolver->ActorHasTag(FName("MainRevolver")))
+		{
+			Revolver->UpdateBulletCountWidget(CurrentCount, MaxCount);
+			break;
+		}
+	}
+}
+
+// 게임 페이즈에 따라 메인 리볼버 위젯의 표시 여부 제어
+void AMainGameState::UpdateMainRevolverWidgetPhase(bool bIsPlaying)
+{
+	if (!GetWorld()) return;
+
+	for (TActorIterator<ARevolver> It(GetWorld()); It; ++It)
+	{
+		ARevolver* Revolver = *It;
+		if (Revolver && Revolver->ActorHasTag(FName("MainRevolver")))
+		{
+			Revolver->SetWidgetPlayingPhase(bIsPlaying);
+			break;
+		}
+	}
 }

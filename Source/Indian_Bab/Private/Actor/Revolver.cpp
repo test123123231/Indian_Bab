@@ -1,6 +1,8 @@
 #include "Actor/Revolver.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/WidgetComponent.h"
+#include "Widget/RevolverCountWidget.h"
 
 // 생성자
 ARevolver::ARevolver()
@@ -18,6 +20,22 @@ ARevolver::ARevolver()
 	CollisionSphere = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
 	CollisionSphere->SetupAttachment(RootComponent); // 스켈레탈 메시를 캡슐 콜리전 컴포넌트에 붙입니다.
 	
+	// 리볼버 위에 베팅 발수 표시할 월드 스페이스 위젯 컴포넌트 생성
+	BulletCountWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("BulletCountWidget"));
+	BulletCountWidgetComponent->SetupAttachment(RootComponent);
+
+	// 리볼버 메시 위쪽에 위치 (Z축 오프셋)
+	BulletCountWidgetComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 15.0f));
+
+	// 월드 스페이스로 설정 (카메라를 항상 바라보게 하려면 Screen Space 사용 가능)
+	BulletCountWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+
+	// 위젯 크기 설정
+	BulletCountWidgetComponent->SetDrawSize(FVector2D(100.0f, 50.0f));
+
+	// 기본적으로 숨김 상태 (Playing 페이즈에서만 표시)
+	BulletCountWidgetComponent->SetVisibility(false);
+
 	// 기본 스탯 초기화
 	MaxAmmo = 6;
 	CurrentAmmo = MaxAmmo;
@@ -31,6 +49,14 @@ void ARevolver::BeginPlay()
 
 	// 혹시 모르니 게임 시작 시 탄창을 꽉 채워줍니다.
 	CurrentAmmo = MaxAmmo;
+
+	// "MainRevolver" 태그가 없으면 위젯 컴포넌트 자체를 숨김
+	// 태그는 레벨 에디터에서 메인 리볼버 액터에 직접 추가
+	if (!ActorHasTag(FName("MainRevolver")))
+	{
+		BulletCountWidgetComponent->SetVisibility(false);
+		BulletCountWidgetComponent->SetActive(false);
+	}
 }
 
 // 격발 기능
@@ -66,3 +92,29 @@ void ARevolver::Reload()
 	// TODO: 캐릭터의 재장전 애니메이션 및 리볼버 실린더가 열리는 애니메이션/사운드 재생
 }
 
+void ARevolver::UpdateBulletCountWidget(int32 CurrentCount, int32 MaxCount)
+{
+	// MainRevolver 태그가 있는 리볼버에서만 동작
+	if (!ActorHasTag(FName("MainRevolver"))) return;
+
+	URevolverCountWidget* CountWidget = Cast<URevolverCountWidget>(BulletCountWidgetComponent->GetUserWidgetObject());
+	if (CountWidget)
+	{
+		CountWidget->UpdateCount(CurrentCount, MaxCount);
+	}
+}
+
+void ARevolver::SetWidgetPlayingPhase(bool bIsPlaying)
+{
+	// MainRevolver 태그가 있는 리볼버에서만 동작
+	if (!ActorHasTag(FName("MainRevolver"))) return;
+
+	URevolverCountWidget* CountWidget = Cast<URevolverCountWidget>(BulletCountWidgetComponent->GetUserWidgetObject());
+	if (CountWidget)
+	{
+		CountWidget->SetPlayingPhase(bIsPlaying);
+	}
+
+	// 위젯 컴포넌트 자체의 가시성도 같이 설정
+	BulletCountWidgetComponent->SetVisibility(bIsPlaying);
+}

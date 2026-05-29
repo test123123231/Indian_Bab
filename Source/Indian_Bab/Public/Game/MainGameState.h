@@ -8,6 +8,7 @@
 #include "MainGameState.generated.h"
 
 
+
 // 게임의 현재 진행 단계를 정의하는 Enum
 UENUM(BlueprintType)
 enum class EGamePhase : uint8
@@ -147,4 +148,10 @@ protected:
 
 	UFUNCTION()
 	void OnRep_TimerInfo();
+
+private:
+	// 게임 단계에 따라 메인 리볼버 위젯의 탄창 수 표시 업데이트
+	void UpdateMainRevolverWidget(int32 CurrentCount, int32 MaxCount);
+	// 게임 단계에 따라 메인 리볼버 위젯의 표시 여부 제어
+	void UpdateMainRevolverWidgetPhase(bool bIsPlaying);
 };
