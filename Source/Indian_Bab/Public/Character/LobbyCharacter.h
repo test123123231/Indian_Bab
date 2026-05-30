@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -117,6 +117,12 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
 	float ReplicatedAimYaw = 0.0f;
 
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
+	float ReplicatedAimPitch = 0.0f;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Camera")
+	FRotator ReplicatedAim;
+
 	// 서버에서 스팀 닉네임 및 카드 바인딩
 	virtual void PossessedBy(AController* NewController) override;
 
@@ -130,7 +136,9 @@ public:
 	void UpdateCardWidget();
 
 	UFUNCTION(Server, Unreliable)
-	void Server_UpdateAimYaw(float NewYaw);
+	void Server_UpdateAim(FRotator NewAim);
+
+
 
 	UFUNCTION()
 	void OnRep_GunHoldReason();
@@ -200,7 +208,7 @@ protected:
 
 	virtual void OnRep_PlayerState() override;
 
-	virtual void UpdateAimYawFromView();
+	virtual void UpdateAimFromView();
 
 	// 상호작용 입력 처리 함수
 	void OnInteract(const FInputActionValue& Value);
