@@ -81,6 +81,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
 	TSubclassOf<UReadyWidget> ReadyWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI", meta = (ClampMin = "0.0"))
+	float ReadyWidgetDelaySeconds = 0.5f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat")
 	bool bUseCapsuleHalfHeightSeatOffset = true;
 

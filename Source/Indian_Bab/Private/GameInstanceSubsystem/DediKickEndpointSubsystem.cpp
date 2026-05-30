@@ -55,7 +55,7 @@ namespace
     // TerminateProcess — 부팅 단계라 cleanup 손실 없음. MM 측은 데디 프로세스가
     // 모달로 인해 살아있는 동안에도 내부 HTTP 포트가 안 열리는 것으로 readiness
     // 프로브에서 실패를 감지(이 파일 헤더 코멘트 + match.py readiness 로직 참조).
-    void FatalExitWithDialog(const TCHAR* Title, const TCHAR* Body, const TCHAR* LogReason)
+    void DediFatalExitWithDialog(const TCHAR* Title, const TCHAR* Body, const TCHAR* LogReason)
     {
 #if PLATFORM_WINDOWS
         ::MessageBoxW(nullptr, Body, Title, MB_OK | MB_ICONERROR);
@@ -107,7 +107,7 @@ void UDediKickEndpointSubsystem::Initialize(FSubsystemCollectionBase& Collection
         const FString Detail = FString::Printf(
             TEXT("데디 내부 HTTP 포트(%u) 바인드에 실패했습니다.\n다른 프로세스가 점유 중인지 확인하세요.\n데디를 종료합니다."),
             BoundPort);
-        FatalExitWithDialog(
+        DediFatalExitWithDialog(
             TEXT("Indian_Bab Dedi — 내부 엔드포인트 초기화 실패"),
             *Detail,
             *FString::Printf(TEXT("GetHttpRouter 실패 port=%u"), BoundPort));
@@ -122,7 +122,7 @@ void UDediKickEndpointSubsystem::Initialize(FSubsystemCollectionBase& Collection
     if (!RouteHandle.IsValid())
     {
         Router.Reset();
-        FatalExitWithDialog(
+        DediFatalExitWithDialog(
             TEXT("Indian_Bab Dedi — 내부 엔드포인트 초기화 실패"),
             TEXT("Kick 라우트 바인드에 실패했습니다.\n데디를 종료합니다."),
             *FString::Printf(TEXT("BindRoute 실패 port=%u"), BoundPort));
