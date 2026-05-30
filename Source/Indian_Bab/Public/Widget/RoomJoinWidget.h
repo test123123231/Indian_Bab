@@ -2,13 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "RoomJoinWidget.generated.h"
 
 
 class UButton;
 class UTextBlock;
-class UEditableTextBox;
+class UListView;
 class USessionSubsystem;
+class URoomListEntryData;
 
 
 UCLASS()
@@ -20,50 +22,52 @@ public:
 	void SetParentMenu(UUserWidget* InParentMenu);
 
 protected:
-	// [VR 전용] 창을 닫아야 할 때 블루프린트에 알리는 이벤트
-	UFUNCTION(BlueprintImplementableEvent, Category = "VR UI")
-	void OnCloseMenuVR();
-
-	// 위젯 생성 시 (EventConstruct) 호출
 	virtual void NativeConstruct() override;
-
-	// 위젯 소멸 시 (EventDestruct) 호출
 	virtual void NativeDestruct() override;
-
-	/**
-	 * 이 위젯이 포커스를 가지고 있을 때 키 입력을 받음 (ESC 키 처리용)
-	 */
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
-
-	/**
-	 * [추가] 이 위젯에서 마우스 버튼이 눌렸을 때 호출 (포커스 유지용)
-	 * 이 위젯의 '배경'을 클릭해도 포커스를 잃지 않도록 함
-	 */
 	virtual FReply NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:
-	UPROPERTY() 
+	UPROPERTY()
 	TObjectPtr<USessionSubsystem> SessionSubsystem;
 
-	UPROPERTY(meta = (BindWidget)) 
+	// Button_Yes = 참가, Button_No = 닫기, Button_Refresh = 검색 새로고침
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Yes;
-	UPROPERTY(meta = (BindWidget)) 
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_No;
-	UPROPERTY(meta = (BindWidget)) 
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> Button_Refresh;
+
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> TitleText;
-	UPROPERTY(meta = (BindWidget)) 
-	TObjectPtr<UEditableTextBox> Text_InviteCode;
-	//--- 상태 변수 ---
-	UPROPERTY() 
+
+	// 상태 메시지 (검색 중/실패/방 없음) — 옵셔널
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UTextBlock> Text_Status;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UListView> ListView_Rooms;
+
+	UPROPERTY()
 	TObjectPtr<APlayerController> PlayerControllerRef;
-	UPROPERTY() 
+	UPROPERTY()
 	TObjectPtr<UUserWidget> ParentMenu;
 
-	UFUNCTION() 
-	void OnYesClicked();
-	UFUNCTION() 
-	void OnNoClicked();
+	// 현재 선택된 검색결과 인덱스 (없으면 INDEX_NONE)
+	int32 SelectedSearchIndex = INDEX_NONE;
 
-	// 서브시스템 결과 콜백
+	UFUNCTION() void OnYesClicked();
+	UFUNCTION() void OnNoClicked();
+	UFUNCTION() void OnRefreshClicked();
+
+	UFUNCTION() void OnRoomsFound(bool bWasSuccessful, const TArray<FRoomListEntry>& Rooms);
+	UFUNCTION() void OnRoomItemClicked(UObject* Item);
 	UFUNCTION() void OnJoinSessionComplete(bool bWasSuccessful);
+
+	// 세션 에러(매치메이커 실패/검색 실패/Join 즉시 거부 등) — 자기 자신만 닫음.
+	// 사유 표시는 MainMenuWidget의 SessionErrorWidget 단일 채널 담당 (이중 표시 방지).
+	UFUNCTION() void OnSessionError(const FString& Reason);
+
+	void SetStatusText(const FString& Msg, const FLinearColor& Color);
 };

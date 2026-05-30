@@ -17,6 +17,33 @@ void AMainPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
     DOREPLIFETIME(AMainPlayerState, isFold);
     DOREPLIFETIME(AMainPlayerState, BulletArray);
     DOREPLIFETIME(AMainPlayerState, TotalTriggerCount);
+    DOREPLIFETIME(AMainPlayerState, SteamNickname);
+    DOREPLIFETIME(AMainPlayerState, MyCard);
+}
+
+// 닉네임 Set/Get 함수
+void AMainPlayerState::SetSteamNickname(const FString& NewNickname)
+{
+    SteamNickname = NewNickname;
+    SetPlayerName(NewNickname);
+    OnSteamNicknameChanged.Broadcast();
+}
+
+FString AMainPlayerState::GetSteamNickname() const
+{
+    return SteamNickname;
+}
+
+// 카드 Set/Get 함순
+void AMainPlayerState::SetMyCard(const FCardData& NewCard)
+{
+    MyCard = NewCard;
+    OnCardChanged.Broadcast(); 
+}
+
+FCardData AMainPlayerState::GetMyCard() const
+{
+    return MyCard;
 }
 
 // 처음 서브 리볼버 설정
@@ -59,10 +86,24 @@ void AMainPlayerState::OnRep_TotalTriggerCount()
 
 void AMainPlayerState::OnRep_isAlive()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : dead!"), GetPlayerId());
+    if(isAlive == 0)
+        UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : dead!"), GetPlayerId());
 }
 
 void AMainPlayerState::OnRep_isFold()
 {
-    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : Fold!"), GetPlayerId());
+    if(isFold == 1)
+        UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : Fold!"), GetPlayerId());
+}
+
+void AMainPlayerState::OnRep_SteamNickname()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] SteamNickname: %s"), GetPlayerId(), *SteamNickname);
+    OnSteamNicknameChanged.Broadcast();
+}
+
+void AMainPlayerState::OnRep_MyCard()
+{
+    UE_LOG(LogTemp, Warning, TEXT("[PS_%d] Card updated (Client)"), GetPlayerId());
+    OnCardChanged.Broadcast();
 }

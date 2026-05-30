@@ -10,12 +10,33 @@
 #include "GameFramework/PlayerState.h"
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
+#include "InputCoreTypes.h"
 #include "Interface/InteractableInterface.h"
+#include "OnlineSubsystem.h"
+#include "Interfaces/OnlineIdentityInterface.h"
+#include "PlayerState/MainPlayerState.h"
+#include "GameInstanceSubsystem/ConnectivitySubsystem.h"
+#include "GameInstanceSubsystem/IndianBabGameInstance.h"
+#include "Engine/GameInstance.h"
+#include "Blueprint/UserWidget.h"
 
 
 AMainGamePlayerController::AMainGamePlayerController()
 {
 	PlayerCameraManagerClass = ALobbyCameraManager::StaticClass();
+}
+
+void AMainGamePlayerController::ClientWasKicked_Implementation(const FText& KickReason)
+{
+    // 데디 KickPlayer reason 을 GameInstance 에 stash → OnNetworkFailure(ConnectionLost)
+    // 가 곧바로 떨어져 CleanupHostSession 모달로 노출.
+    const FString ReasonStr = KickReason.ToString();
+    if (UIndianBabGameInstance* GI = Cast<UIndianBabGameInstance>(GetGameInstance()))
+    {
+        GI->SetPendingKickReason(ReasonStr);
+    }
+    UE_LOG(LogTemp, Warning, TEXT("[PC] ClientWasKicked reason=%s"), *ReasonStr);
 }
 
 
@@ -39,7 +60,82 @@ void AMainGamePlayerController::BeginPlay()
 	FInputModeGameOnly Mode;
 	SetInputMode(Mode);
 	bShowMouseCursor = false;
-    
+
+    TrySendSteamNickname();
+
+    // 연결성 구독 + 폴링 시작 — 인게임에서도 NLM 폴링으로 로컬 끊김을 빠르게 감지.
+    // NLA 사각지대(NLM online 인데 서버 unreachable) 는 NetDriver OnNetworkFailure → ForceTriggerLost 가 백업.
+    if (UGameInstance* GI = GetGameInstance())
+    {
+        if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
+        {
+            LostHandle = Connectivity->OnConnectivityLost.AddUObject(
+                this, &AMainGamePlayerController::HandleConnectivityLost);
+            RestoredHandle = Connectivity->OnConnectivityRestored.AddUObject(
+                this, &AMainGamePlayerController::HandleConnectivityRestored);
+
+            Connectivity->StartPolling();
+        }
+    }
+}
+
+void AMainGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (IsLocalPlayerController())
+    {
+        if (UGameInstance* GI = GetGameInstance())
+        {
+            if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
+            {
+                Connectivity->OnConnectivityLost.Remove(LostHandle);
+                Connectivity->OnConnectivityRestored.Remove(RestoredHandle);
+                Connectivity->StopPolling();
+            }
+        }
+    }
+
+    Super::EndPlay(EndPlayReason);
+}
+
+// 인터넷 끊김 또는 NetDriver disconnect (ForceTriggerLost 경유)
+void AMainGamePlayerController::HandleConnectivityLost()
+{
+    if (!OfflineWidgetClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MainGamePC: OfflineWidgetClass 설정되지 않았습니다!"));
+        return;
+    }
+
+    if (!OfflineWidgetInstance)
+    {
+        OfflineWidgetInstance = CreateWidget<UUserWidget>(this, OfflineWidgetClass);
+    }
+
+    if (OfflineWidgetInstance && !OfflineWidgetInstance->IsInViewport())
+    {
+        OfflineWidgetInstance->AddToViewport(100); // ZOrder 높게 — 인게임 HUD 위에 표시
+
+        // 오프라인 모달에만 포커스 — 인게임 입력 차단
+        FInputModeUIOnly InputModeData;
+        InputModeData.SetWidgetToFocus(OfflineWidgetInstance->TakeWidget());
+        InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        SetInputMode(InputModeData);
+        bShowMouseCursor = true;
+    }
+}
+
+// 연결 복구 (Lost 카운트다운 중 회복된 경우)
+void AMainGamePlayerController::HandleConnectivityRestored()
+{
+    if (OfflineWidgetInstance && OfflineWidgetInstance->IsInViewport())
+    {
+        OfflineWidgetInstance->RemoveFromParent();
+
+        // 인게임 입력 모드 복구 — 카메라 모드 기본 (BeginPlay 와 동일)
+        FInputModeGameOnly Mode;
+        SetInputMode(Mode);
+        bShowMouseCursor = false;
+    }
 }
 
 
@@ -88,6 +184,43 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             EnhancedInput->BindAction(IA_MainGameTab, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameTabPressed);
         }
+
+        if (IA_Fire)
+        {
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnFire);
+        }
+
+        if (IA_RightTriggerClick)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick is null"));
+        }
+
+        if (IA_LeftTriggerClick)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnLeftTriggerClickStarted);
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick is null"));
+        }
+
+        if (!IA_RightTriggerClick && IA_Fire)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_Fire is used as temporary right trigger UI click fallback"));
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+        }
     }
 }
 
@@ -95,10 +228,18 @@ void AMainGamePlayerController::SetupInputComponent()
 void AMainGamePlayerController::ApplyLobbyMappingContext()
 {
     ULocalPlayer* LocalPlayer = GetLocalPlayer();
-    if (!LocalPlayer) return;
+    if (!LocalPlayer)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Input] ApplyLobbyMappingContext failed. LocalPlayer is null"));
+        return;
+    }
 
     auto* Subsys = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
-    if (!Subsys) return;
+    if (!Subsys)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Input] ApplyLobbyMappingContext failed. EnhancedInput subsystem is null"));
+        return;
+    }
 
     // 나중에 게임 모드 별로 바꾸도록 변경 필요
     if (Subsys->HasMappingContext(MainGameMappingContext))
@@ -109,6 +250,11 @@ void AMainGamePlayerController::ApplyLobbyMappingContext()
     if (LobbyMappingContext)
     {
         Subsys->AddMappingContext(LobbyMappingContext, 0);
+        UE_LOG(LogTemp, Warning, TEXT("[Input] LobbyMappingContext applied: %s"), *GetNameSafe(LobbyMappingContext));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Input] LobbyMappingContext is null"));
     }
 }
 
@@ -198,23 +344,53 @@ void AMainGamePlayerController::EnterCameraMode()
 }
 
 
-void AMainGamePlayerController::RequestRaise()
+void AMainGamePlayerController::RequestRaise(int32 RaiseCount)
 {
-    Server_RequestBetAction(EBetAction::Raise);
+    Server_RequestBetAction(EBetAction::Raise, RaiseCount);
 }
 
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    Server_RequestBetAction(EBetAction::CheckCall);
+    Server_RequestBetAction(EBetAction::CheckCall, 0);
 }
 
 
 void AMainGamePlayerController::RequestFold()
 {
-    Server_RequestBetAction(EBetAction::Fold);
+    Server_RequestBetAction(EBetAction::Fold, 0);
 }
 
+// 내 스팀 닉네임 읽기
+FString AMainGamePlayerController::GetMySteamNickname() const
+{
+    IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+    if (!Subsystem) return TEXT("");
+
+    IOnlineIdentityPtr Identity = Subsystem->GetIdentityInterface();
+    if (Identity.IsValid())
+    {
+        return Identity->GetPlayerNickname(0);
+    }
+
+    return TEXT("");
+}
+
+void AMainGamePlayerController::TrySendSteamNickname()
+{
+    if (bSteamNicknameSent) return;
+
+    if (!IsLocalPlayerController()) return;
+
+    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (!PS) return;
+
+    const FString MyNickname = GetMySteamNickname();
+    if (MyNickname.IsEmpty()) return;
+
+    Server_SetSteamNickname(MyNickname);
+    bSteamNicknameSent = true;
+}
 
 void AMainGamePlayerController::OnMainGameLook(const FInputActionValue& Value)
 {
@@ -255,7 +431,7 @@ void AMainGamePlayerController::OnMainGameFold(const FInputActionValue& Value)
 
 void AMainGamePlayerController::OnMainGameRaise(const FInputActionValue& Value)
 {
-    RequestRaise();
+    RequestRaise(MainGameWidgetInstance->GetBetNum());
 }
 
 
@@ -285,14 +461,37 @@ void AMainGamePlayerController::OnRep_PlayerState()
     {
         MainGameWidgetInstance->InitWidget();
     }
+
+    TrySendSteamNickname();
 }
 
-void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
+void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action, int32 RaiseCount)
 {
+#if WITH_SERVER_CODE
     AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
     if(!GM) return;
 
-    GM -> HandleBetAction(this, Action);
+    GM->HandleBetAction(this, Action, RaiseCount);
+#endif
+
+}
+
+void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FString& NewNickname)
+{
+    AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+    if (!PS) return;
+
+    PS->SetSteamNickname(NewNickname);
+}
+
+void AMainGamePlayerController::Server_RequestMainRevolverShot_Implementation()
+{
+#if WITH_SERVER_CODE
+    AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+	if (!GM) return;
+
+	GM->HandleMainRevolverShotAction(this);
+#endif
 }
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()
@@ -300,6 +499,18 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
     // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
     ApplyMainGameMappingContext();
     EnterUIMode();
+}
+
+void AMainGamePlayerController::Server_RequestReady_Implementation()
+{
+#if WITH_SERVER_CODE
+	UE_LOG(LogTemp, Warning, TEXT("[PC] Server_RequestReady called"));
+
+	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
+	if (!GM) return;
+
+	GM->HandlePlayerReady(this);
+#endif
 }
 
 int AMainGamePlayerController::GetPlayerIdSafe()
@@ -315,4 +526,59 @@ void AMainGamePlayerController::OnMainGameTabPressed(const FInputActionValue& Va
     {
         DeckLeftWidgetInstance->VisibleWidget();
     }
+}
+
+void AMainGamePlayerController::OnFire(const FInputActionValue& Value)
+{
+	Server_RequestMainRevolverShot();
+}
+
+void AMainGamePlayerController::OnRightTriggerClickStarted(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressRightWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnRightTriggerClickReleased(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseRightWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnLeftTriggerClickStarted(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressLeftWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnLeftTriggerClickReleased(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseLeftWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnDebugRightTriggerPressed()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Debug R press"));
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressRightWidgetInteraction();
+	}
+}
+
+void AMainGamePlayerController::OnDebugRightTriggerReleased()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Debug R release"));
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseRightWidgetInteraction();
+	}
 }

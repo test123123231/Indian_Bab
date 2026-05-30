@@ -73,6 +73,9 @@ protected:
 	// 위젯 생성 시 (EventConstruct) 호출
 	virtual void NativeConstruct() override;
 
+	// 캐시 인스턴스 재오픈 시 NativeConstruct 재진입 → 중복 바인딩 ensure 방지용 정리.
+	virtual void NativeDestruct() override;
+
 	/**
 	 * 이 위젯이 포커스를 가지고 있을 때 키 입력을 받음 (ESC 키 처리용)
 	 */

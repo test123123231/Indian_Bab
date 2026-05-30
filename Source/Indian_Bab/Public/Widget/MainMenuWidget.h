@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
@@ -9,6 +9,7 @@ class UButton;
 class UOptionMenuWidget;
 class URoomCreateWidget;
 class URoomJoinWidget;
+class USessionSubsystem;
 
 
 /**
@@ -20,12 +21,21 @@ class INDIAN_BAB_API UMainMenuWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
+public:
+	UMainMenuWidget(const FObjectInitializer& ObjectInitializer);
+
 protected:
 	/**
 	 * 위젯이 생성될 때 (BP의 EventConstruct) 호출
 	 * 버튼 이벤트를 C++ 함수에 바인딩
 	 */
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
+public:
+	// SessionErrorWidget의 확인 버튼 BP가 RemoveFromParent 후 호출 — 메인메뉴로 입력 포커스 복원.
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void RefocusSelf();
 
 private:
 	//--- BP 위젯 변수 바인딩 ---
@@ -44,10 +54,6 @@ private:
 
 	//--- 위젯 설정 프로퍼티 ---
 
-	// // '시작하기' 버튼 클릭 시 열릴 레벨 이름 (BP의 클래스 기본값에서 설정)
-	// UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
-	// FName GameLevelName = FName(TEXT("AreaKeeper"));
-
 	// '설정' 버튼 클릭 시 열릴 옵션 메뉴 위젯 클래스 (BP에서 설정)
 	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UOptionMenuWidget> OptionMenuWidgetClass;
@@ -60,17 +66,34 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<URoomJoinWidget> RoomJoinWidgetClass;
 
-	// '룸 생성' 메뉴 인스턴스 캐시
+	// 매치메이커 실패·데디 PreLogin 거부 등 모든 세션 에러 사유 모달 (BP에서 WBP_SessionErrorNotice 지정)
+	// 위젯은 BindWidget으로 TextBlock(Text_Message) 노출 필요.
+	UPROPERTY(EditDefaultsOnly, Category = "Config", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UUserWidget> SessionErrorWidgetClass;
+
+	//--- 위젯 인스턴스 캐시 ---
+
 	UPROPERTY()
 	TObjectPtr<URoomCreateWidget> RooomCreateInstance;
 
-	// '룸 참가' 메뉴 인스턴스 캐시
 	UPROPERTY()
 	TObjectPtr<URoomJoinWidget> RooomJoinInstance;
 
-	// '설정' 메뉴 인스턴스 캐시
 	UPROPERTY()
 	TObjectPtr<UOptionMenuWidget> OptionMenuInstance;
+
+	UPROPERTY()
+	TObjectPtr<UUserWidget> SessionErrorInstance;
+
+	// 현재 메인메뉴 위에 떠있는 자식 모달(RoomCreate/RoomJoin/Option 중 하나).
+	// SessionErrorWidget 닫힘 시 RefocusSelf가 이 모달이 살아있으면 그쪽으로 포커스를 돌려준다.
+	// 자식이 RemoveFromParent로 사라져도 별도 clear는 안 함 — RefocusSelf에서 IsInViewport로 검증.
+	UPROPERTY()
+	TObjectPtr<UUserWidget> TopmostChildModal;
+
+	// OnSessionErrorEvent 구독/해제용 캐시
+	UPROPERTY()
+	TObjectPtr<USessionSubsystem> SessionSubsystem;
 
 	// --- 기타 캐시된 참조 ---
 	UPROPERTY()
@@ -78,19 +101,19 @@ private:
 
 	//--- C++ 이벤트 핸들러 ---
 
-	// '룸 생성' 버튼 클릭 시
 	UFUNCTION()
 	void OnRoomCreationClicked();
 
-	// '룸 참가' 버튼 클릭 시
 	UFUNCTION()
 	void OnRoomJoinClicked();
 
-	// '설정' 버튼 클릭 시
 	UFUNCTION()
 	void OnOptionClicked();
 
-	// '종료' 버튼 클릭 시
 	UFUNCTION()
 	void OnExitClicked();
+
+	// 매치메이커 사유 / 데디 거부 공용 핸들러 — SessionErrorWidget 모달 표시.
+	UFUNCTION()
+	void OnSessionError(const FString& Reason);
 };

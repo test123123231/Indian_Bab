@@ -12,5 +12,10 @@ Saved
 *.suo
 *.xcodeproj
 *.xcworkspace
-Windows
+/Windows
+/WindowsClient
+/WindowsServer
+/build
 .claude
+CLAUDE.md
+*.code-workspace

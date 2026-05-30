@@ -40,6 +40,17 @@ TObjectPtr<AActor> ASeatActor::GetOccupant()
 	return Occupant;
 }
 
+void ASeatActor::SetOccupant(AActor* NewOccupant)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	Occupant = NewOccupant;
+	bIsOccupied = IsValid(NewOccupant);
+	OnRep_IsOccupied();
+}
 
 void ASeatActor::BeginPlay()
 {
@@ -64,9 +75,15 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 	// 서버가 아니거나, 이미 누가 앉아있다면 무시
 	if (!HasAuthority() || bIsOccupied) return;
 
+#if WITH_SERVER_CODE
 	ALobbyCharacter* PlayerCharacter = Cast<ALobbyCharacter>(Interactor);
 	if (PlayerCharacter)
 	{
+		if (PlayerCharacter->bIsSitting)
+		{
+			return;
+		}
+
 		// 상태 업데이트
 		bIsOccupied = true;
 		Occupant = PlayerCharacter;
@@ -102,6 +119,7 @@ void ASeatActor::Interact_Implementation(AActor* Interactor)
 			PC->ClientOnSeated();
 		}
 	}
+#endif
 }
 
 
