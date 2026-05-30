@@ -13,6 +13,7 @@ Saved
 *.xcodeproj
 *.xcworkspace
 /Windows
+/WindowsClient
 /WindowsServer
 /build
 .claude

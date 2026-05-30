@@ -67,16 +67,19 @@ public class Indian_Bab : ModuleRules
         PublicDefinitions.Add("ANTICHEAT_USE_MOCK=" + AntiCheatUseMock);
 
         // ─────────────────────────────────────────────────────────────
-        // MM/AC 엔드포인트 base URL — 운영 IP 변경 시 여기서 한 줄 수정 후 재빌드.
-        // 헤더(Public/Network/NetworkEndpoints.h)가 이 매크로를 읽어 BaseURL로 사용.
-        // 값은 따옴표 escape 필요 — PublicDefinitions는 raw 문자열로 전처리기에 주입됨.
-        // 타겟별/Configuration별 분기가 필요해지면 여기서 분기.
+        // MM/AC 엔드포인트 — host/port/tls를 1차 SSoT로 노출, BaseURL은 헤더에서 파생 조립.
+        // 운영 IP/포트/스킴 변경은 여기서 수정 후 재빌드.
+        // 헤더(Public/Network/NetworkEndpoints.h)가 이 매크로를 읽어 host/port/tls/BaseURL 노출.
         // ─────────────────────────────────────────────────────────────
-        string MMBaseURL = "http://127.0.0.1:8000";
-        string ACBaseURL = "http://127.0.0.1:9000";
+        string MMHost  = "127.0.0.1"; int MMPort  = 8000; int MMUseTls = 0;
+        string ACHost  = "127.0.0.1"; int ACPort  = 9000; int ACUseTls = 0;
 
-        PublicDefinitions.Add("INDIANBAB_MM_BASE_URL=\"" + MMBaseURL + "\"");
-        PublicDefinitions.Add("INDIANBAB_AC_BASE_URL=\"" + ACBaseURL + "\"");
+        PublicDefinitions.Add("INDIANBAB_MM_HOST=\""  + MMHost + "\"");
+        PublicDefinitions.Add("INDIANBAB_MM_PORT="    + MMPort);
+        PublicDefinitions.Add("INDIANBAB_MM_USE_TLS=" + MMUseTls);
+        PublicDefinitions.Add("INDIANBAB_AC_HOST=\""  + ACHost + "\"");
+        PublicDefinitions.Add("INDIANBAB_AC_PORT="    + ACPort);
+        PublicDefinitions.Add("INDIANBAB_AC_USE_TLS=" + ACUseTls);
 
         PublicIncludePaths.AddRange(new string[] {
             "Indian_Bab",

@@ -742,4 +742,17 @@ void AMainGameMode::ResetFoldState()
 	}
 }
 
+#else // WITH_SERVER_CODE
+
+// Client target(WITH_SERVER_CODE=0): UCLASS이라 UHT가 InternalConstructor<AMainGameMode>를
+// 항상 emit하고 vtable도 key function(ctor)이 있는 TU에 emit됨. 룰 로직 .cpp 전체 가드만으로는
+// CDO 생성·vtable 앵커가 사라져 link fail → 빈 stub으로 심볼만 채운다.
+// 클라 EXE에 룰 로직은 0바이트, 데디 PreLogin Gate·베팅·턴 로직 노출 없음.
+AMainGameMode::AMainGameMode() {}
+void AMainGameMode::InitGame(const FString&, const FString&, FString&) {}
+void AMainGameMode::PreLogin(const FString&, const FString&, const FUniqueNetIdRepl&, FString&) {}
+void AMainGameMode::PreLoginAsync(const FString&, const FString&, const FUniqueNetIdRepl&, const FOnPreLoginCompleteDelegate&) {}
+void AMainGameMode::PostLogin(APlayerController*) {}
+void AMainGameMode::Logout(AController*) {}
+
 #endif // WITH_SERVER_CODE
