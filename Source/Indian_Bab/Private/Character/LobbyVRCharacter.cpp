@@ -65,28 +65,16 @@ ALobbyVRCharacter::ALobbyVRCharacter()
 	ReadyWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("ReadyWidget"));
 	ReadyWidgetComponent->SetupAttachment(CameraComponent);
 	ReadyWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-	ReadyWidgetComponent->SetDrawSize(FVector2D(800.0f, 400.0f));
-	ReadyWidgetComponent->SetPivot(FVector2D(0.5f, 0.5f));
-	ReadyWidgetComponent->SetWorldScale3D(FVector(0.1f));
 	ReadyWidgetComponent->SetTwoSided(true);
 	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	ReadyWidgetComponent->SetGenerateOverlapEvents(false);
 	ReadyWidgetComponent->SetVisibility(false);
 	ReadyWidgetComponent->SetHiddenInGame(true);
 
 	ResultWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("ResultWidget"));
 	ResultWidgetComponent->SetupAttachment(CameraComponent);
 	ResultWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-	ResultWidgetComponent->SetRelativeLocation(FVector(220.0f, 0.0f, 0.0f));
-	ResultWidgetComponent->SetRelativeRotation(FRotator::ZeroRotator);
-	ResultWidgetComponent->SetDrawSize(FVector2D(1920.0f, 1080.0f));
-	ResultWidgetComponent->SetPivot(FVector2D(0.5f, 0.5f));
-	ResultWidgetComponent->SetWorldScale3D(FVector(0.035f));
 	ResultWidgetComponent->SetTwoSided(true);
 	ResultWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	ResultWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	ResultWidgetComponent->SetGenerateOverlapEvents(false);
 	ResultWidgetComponent->SetVisibility(false);
 	ResultWidgetComponent->SetHiddenInGame(true);
 
@@ -552,10 +540,6 @@ void ALobbyVRCharacter::ShowResultWidget(const FString& WinnerName, int32 Winner
 	HideReadyWidget();
 	ConfigureWidgetInteraction();
 
-	ResultWidgetComponent->SetRelativeLocation(FVector(220.0f, 0.0f, 0.0f));
-	ResultWidgetComponent->SetRelativeRotation(FRotator::ZeroRotator);
-	ResultWidgetComponent->SetDrawSize(FVector2D(1920.0f, 1080.0f));
-	ResultWidgetComponent->SetWorldScale3D(FVector(0.035f));
 
 	if (ResultWidgetClass)
 	{

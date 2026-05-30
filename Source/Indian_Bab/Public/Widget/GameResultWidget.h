@@ -22,7 +22,7 @@ protected:
 
 private:
 	UPROPERTY(meta = (BindWidgetOptional))
-	TObjectPtr<UTextBlock> Text_ReadyState;
+	TObjectPtr<UTextBlock> Text_WinnerText;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UButton> Button_Ready;

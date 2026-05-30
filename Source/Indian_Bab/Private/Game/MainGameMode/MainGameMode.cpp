@@ -563,7 +563,7 @@ void AMainGameMode::StartMainGame()
 	
 	DistributeCard();
 	
-	StartTurnTimer(5.0f);
+	StartTurnTimer(TurnTimeLimitSeconds);
 
 	return;
 }
@@ -694,7 +694,7 @@ void AMainGameMode::NextTurn(AMainPlayerState* NextPS)
     if (!GS) return;
 
 	GS->ChangeGameTurn(NextPS->GetPlayerId(), GS -> CurrentPlayerIndex);
-	StartTurnTimer(5.0f);
+	StartTurnTimer(TurnTimeLimitSeconds);
 	return;
 }
 

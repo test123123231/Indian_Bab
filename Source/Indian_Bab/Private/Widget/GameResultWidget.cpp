@@ -26,9 +26,9 @@ void UGameResultWidget::NativeDestruct()
 
 void UGameResultWidget::SetResult(const FString& WinnerName, bool /*bLocalPlayerWon*/)
 {
-	if (Text_ReadyState)
+	if (Text_WinnerText)
 	{
-		Text_ReadyState->SetText(FText::FromString(WinnerName));
+		Text_WinnerText->SetText(FText::FromString(WinnerName));
 	}
 }
 
