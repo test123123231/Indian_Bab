@@ -18,6 +18,7 @@ public class Indian_Bab : ModuleRules
             "StateTreeModule",
             "GameplayStateTreeModule",
             "HTTP",
+            "HTTPServer",
             "Json",
             "JsonUtilities",
             "UMG",

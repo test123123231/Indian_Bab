@@ -17,6 +17,7 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "PlayerState/MainPlayerState.h"
 #include "GameInstanceSubsystem/ConnectivitySubsystem.h"
+#include "GameInstanceSubsystem/IndianBabGameInstance.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 
@@ -24,6 +25,18 @@
 AMainGamePlayerController::AMainGamePlayerController()
 {
 	PlayerCameraManagerClass = ALobbyCameraManager::StaticClass();
+}
+
+void AMainGamePlayerController::ClientWasKicked_Implementation(const FText& KickReason)
+{
+    // 데디 KickPlayer reason 을 GameInstance 에 stash → OnNetworkFailure(ConnectionLost)
+    // 가 곧바로 떨어져 CleanupHostSession 모달로 노출.
+    const FString ReasonStr = KickReason.ToString();
+    if (UIndianBabGameInstance* GI = Cast<UIndianBabGameInstance>(GetGameInstance()))
+    {
+        GI->SetPendingKickReason(ReasonStr);
+    }
+    UE_LOG(LogTemp, Warning, TEXT("[PC] ClientWasKicked reason=%s"), *ReasonStr);
 }
 
 
