@@ -117,4 +117,38 @@ namespace AC
     }
 #endif
 }
+
+#if WITH_SERVER_CODE
+// 데디가 *binding* 하는 엔드포인트 (수신 측). 나가는 URL 조립이 아니라 path 리터럴만
+// 노출 — 데디는 자기 자신의 게임 포트 기반으로 listen 포트(+kHttpPortOffset)를 파생.
+//
+// AC 측 dedi_client.py 의 path/offset 과 짝. 변경 시 두 곳 동시 수정 (Python 공유 불가).
+// 포트 분리 정책: 게임 UDP 포트(7777~7876)는 외부 공개, kick HTTP 는 +10000(17777~17876)
+// 대역 loopback only — 운영 방화벽에서 17xxx 차단이 SSoT.
+namespace Dedi
+{
+    namespace Internal
+    {
+        inline constexpr uint16 kHttpPortOffset = 10000;
+
+        // 데디가 BindRoute 에 등록할 라우트 패턴. UE5 HttpRouter path param 문법 `:name`.
+        inline const TCHAR* KickPlayerRoutePattern()
+        {
+            return TEXT("/internal/dedi/:steam_id/kick_player");
+        }
+
+        // 핸들러가 PathParams 에서 SteamID 를 꺼낼 때 사용할 키.
+        inline const TCHAR* KickPlayerSteamIdParam()
+        {
+            return TEXT("steam_id");
+        }
+
+        // 외부에서 호출 URL 조립 시(테스트/디버깅용 — 실제 호출처는 AC Python).
+        inline FString KickPlayerPath(const FString& SteamId)
+        {
+            return FString::Printf(TEXT("/internal/dedi/%s/kick_player"), *SteamId);
+        }
+    }
+}
+#endif
 }

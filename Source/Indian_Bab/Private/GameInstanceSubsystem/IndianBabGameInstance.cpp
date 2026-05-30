@@ -118,9 +118,18 @@ void UIndianBabGameInstance::OnNetworkFailure(UWorld* /*World*/, UNetDriver* /*N
 
     if (Session && Session->IsInActiveSession() && bDediUnreachable)
     {
+        // ClientWasKicked 가 stash 한 사유가 있으면 그걸 우선 — generic 문구 대체.
+        // KickPlayer → ClientWasKicked RPC(reliable) 가 close 직전에 도착하므로
+        // OnNetworkFailure 시점에 보통 채워져 있음. 비어 있으면(타이밍 미스 / 일반 단절)
+        // 기존 generic fallback.
+        FString KickReason = ConsumePendingKickReason();
+        const FString FinalReason = KickReason.IsEmpty()
+            ? FString(TEXT("게임 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."))
+            : KickReason;
         UE_LOG(LogIndianBabGI, Warning,
-            TEXT("[GI] Dedi unreachable (NetworkFailure:%s) — routing to session error."), *TypeStr);
-        Session->CleanupHostSession(TEXT("게임 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요."));
+            TEXT("[GI] Dedi unreachable (NetworkFailure:%s) — reason=%s"),
+            *TypeStr, *FinalReason);
+        Session->CleanupHostSession(FinalReason);
         return;
     }
 
