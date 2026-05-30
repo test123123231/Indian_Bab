@@ -19,6 +19,7 @@ public:
 	AMainGamePlayerController();
 
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     void ApplyLobbyMappingContext();
 
@@ -28,7 +29,7 @@ public:
 
     // 서버 호출
     UFUNCTION(BlueprintCallable)
-    void RequestRaise();
+    void RequestRaise(int32 RaiseCount);
 
     UFUNCTION(BlueprintCallable)
     void RequestCheckCall();
@@ -47,7 +48,7 @@ public:
 private:
     // 서버로 보내는 RPC
     UFUNCTION(Server, Reliable)
-    void Server_RequestBetAction(EBetAction Action);
+    void Server_RequestBetAction(EBetAction Action, int32 RaiseCount);
 
     UFUNCTION(Server, Reliable)
     void Server_SetSteamNickname(const FString& NewNickname);
@@ -159,6 +160,19 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_MainGameTab;
 
+    //--- 연결성(인터넷/데디 끊김) ---
+    // 끊김 시 모달로 띄울 위젯 클래스 (BP에서 WBP_OfflineNotice 지정)
+    UPROPERTY(EditDefaultsOnly, Category = "Connectivity")
+    TSubclassOf<UUserWidget> OfflineWidgetClass;
+
+    UPROPERTY()
+    TObjectPtr<UUserWidget> OfflineWidgetInstance;
+
+    void HandleConnectivityLost();
+    void HandleConnectivityRestored();
+
+    FDelegateHandle LostHandle;
+    FDelegateHandle RestoredHandle;
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_Fire;
 

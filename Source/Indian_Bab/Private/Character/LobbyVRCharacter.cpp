@@ -2,7 +2,6 @@
 
 #include "Actor/SeatActor.h"
 #include "Camera/CameraComponent.h"
-#include "Camera/PlayerCameraManager.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/WidgetComponent.h"
@@ -14,8 +13,6 @@
 #include "InputCoreTypes.h"
 #include "MotionControllerComponent.h"
 #include "PlayerController/MainGamePlayerController.h"
-#include "PlayerState/MainPlayerState.h"
-#include "Widget/PlayerNameWidget.h"
 #include "Widget/ReadyWidget.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
@@ -81,7 +78,6 @@ ALobbyVRCharacter::ALobbyVRCharacter()
 
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
-	BindVRPlayerStateDelegates();
 }
 
 void ALobbyVRCharacter::BeginPlay()
@@ -90,179 +86,28 @@ void ALobbyVRCharacter::BeginPlay()
 
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
-	ConfigurePlayerNameWidget();
-	BindVRPlayerStateDelegates();
-
-	if (ReadyWidgetClass && ReadyWidgetComponent)
-	{
-		ReadyWidgetComponent->SetWidgetClass(ReadyWidgetClass);
-	}
-
-	if (!IsLocallyControlled() && ReadyWidgetComponent)
-	{
-		ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-		ReadyWidgetComponent->SetHiddenInGame(true);
-		ReadyWidgetComponent->SetVisibility(false, true);
-	}
-
-	if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController()))
-	{
-		if (ReadyWidgetComponent)
-		{
-			ReadyWidgetComponent->SetOwnerPlayer(PC->GetLocalPlayer());
-		}
-	}
 }
 
 void ALobbyVRCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
-
-	BindVRPlayerStateDelegates();
-	ConfigurePlayerNameWidget();
-	HideLocalPlayerNameWidget();
 }
 
 void ALobbyVRCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
-
-	BindVRPlayerStateDelegates();
-	ConfigurePlayerNameWidget();
-	HideLocalPlayerNameWidget();
 }
 
 void ALobbyVRCharacter::PawnClientRestart()
 {
 	Super::PawnClientRestart();
-
-	BindVRPlayerStateDelegates();
-	ConfigurePlayerNameWidget();
-	HideLocalPlayerNameWidget();
 }
 
 void ALobbyVRCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	UpdateVRNameWidget();
 	UpdateVRPointers();
 	UpdateArmPosition();
-}
-
-void ALobbyVRCharacter::BindVRPlayerStateDelegates()
-{
-	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
-	if (!PS)
-	{
-		return;
-	}
-
-	PS->OnSteamNicknameChanged.RemoveAll(this);
-	PS->OnSteamNicknameChanged.AddUObject(this, &ALobbyVRCharacter::UpdateNameWidget);
-
-	PS->OnCardChanged.RemoveAll(this);
-	PS->OnCardChanged.AddUObject(this, &ALobbyVRCharacter::UpdateCardWidget);
-
-	UpdateNameWidget();
-	UpdateCardWidget();
-}
-
-void ALobbyVRCharacter::UpdateNameWidget()
-{
-	if (!NameWidgetComponent)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LobbyVRCharacter] NameWidgetComponent is null on %s"), *GetName());
-		return;
-	}
-
-	UpdateVRNameWidget();
-
-	if (IsLocallyControlled())
-	{
-		return;
-	}
-
-	if (!NameWidgetComponent->GetWidgetClass())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LobbyVRCharacter] NameWidgetComponent has no WidgetClass on %s"), *GetName());
-		return;
-	}
-
-	if (!NameWidgetComponent->GetUserWidgetObject())
-	{
-		NameWidgetComponent->InitWidget();
-	}
-
-	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
-	if (!Widget)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LobbyVRCharacter] NameWidgetComponent widget is not UPlayerNameWidget on %s"), *GetName());
-		return;
-	}
-
-	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
-	if (!PS)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LobbyVRCharacter] MainPlayerState is null on %s"), *GetName());
-		return;
-	}
-
-	FString DisplayName = PS->GetSteamNickname();
-	if (DisplayName.IsEmpty())
-	{
-		DisplayName = FString::Printf(TEXT("Player %d"), PS->GetPlayerId());
-	}
-
-	Widget->SetPlayerName(DisplayName);
-}
-
-void ALobbyVRCharacter::UpdateCardWidget()
-{
-	if (!NameWidgetComponent)
-	{
-		return;
-	}
-
-	if (IsLocallyControlled())
-	{
-		ApplyVRNameWidgetVisibility();
-		return;
-	}
-
-	if (!NameWidgetComponent->GetWidgetClass())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LobbyVRCharacter] Card update skipped. NameWidgetComponent has no WidgetClass on %s"), *GetName());
-		return;
-	}
-
-	if (!NameWidgetComponent->GetUserWidgetObject())
-	{
-		NameWidgetComponent->InitWidget();
-	}
-
-	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
-	if (!Widget)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[LobbyVRCharacter] Card widget is not UPlayerNameWidget on %s"), *GetName());
-		return;
-	}
-
-	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
-	if (!PS)
-	{
-		return;
-	}
-
-	const FCardData Card = PS->GetMyCard();
-	if (Card.Value == 0)
-	{
-		Widget->SetCardText(TEXT(""));
-		return;
-	}
-
-	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
-	Widget->SetCardText(CardStr);
 }
 
 void ALobbyVRCharacter::InitSeatedAtSeat(ASeatActor* TargetSeat)
@@ -302,7 +147,6 @@ void ALobbyVRCharacter::InitSeatedAtSeat(ASeatActor* TargetSeat)
 	bIsSittingEnded = true;
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
-	ConfigurePlayerNameWidget();
 	DrawSeatDebugCapsule();
 
 	Client_InitSeatedAtSeat(SitLocation, SitRotation);
@@ -320,7 +164,6 @@ void ALobbyVRCharacter::Client_InitSeatedAtSeat_Implementation(FVector TargetLoc
 	bIsSittingEnded = true;
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
-	ConfigurePlayerNameWidget();
 	DrawSeatDebugCapsule();
 
 	if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
@@ -328,12 +171,12 @@ void ALobbyVRCharacter::Client_InitSeatedAtSeat_Implementation(FVector TargetLoc
 		UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition(0.0f, EOrientPositionSelector::OrientationAndPosition);
 	}
 
-	ShowReadyWidget();
+	ShowReadyWidgetAfterDelay();
 }
 
 void ALobbyVRCharacter::Client_ShowReadyWidget_Implementation()
 {
-	ShowReadyWidget();
+	ShowReadyWidgetAfterDelay();
 }
 
 void ALobbyVRCharacter::Client_HideReadyWidget_Implementation()
@@ -376,7 +219,15 @@ void ALobbyVRCharacter::ReleaseRightWidgetInteraction()
 		*GetNameSafe(LastHitResult.GetComponent()),
 		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
 		LastHitResult.Distance);
+	const bool bReadyWidgetHovered = WidgetInteractionRight->GetHoveredWidgetComponent() == ReadyWidgetComponent;
 	WidgetInteractionRight->ReleasePointerKey(EKeys::LeftMouseButton);
+	if (bReadyWidgetHovered)
+	{
+		if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent ? ReadyWidgetComponent->GetUserWidgetObject() : nullptr))
+		{
+			ReadyWidget->ConfirmReady();
+		}
+	}
 }
 
 void ALobbyVRCharacter::PressLeftWidgetInteraction()
@@ -414,14 +265,21 @@ void ALobbyVRCharacter::ReleaseLeftWidgetInteraction()
 		*GetNameSafe(LastHitResult.GetComponent()),
 		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
 		LastHitResult.Distance);
+	const bool bReadyWidgetHovered = WidgetInteractionLeft->GetHoveredWidgetComponent() == ReadyWidgetComponent;
 	WidgetInteractionLeft->ReleasePointerKey(EKeys::LeftMouseButton);
+	if (bReadyWidgetHovered)
+	{
+		if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent ? ReadyWidgetComponent->GetUserWidgetObject() : nullptr))
+		{
+			ReadyWidget->ConfirmReady();
+		}
+	}
 }
 
 void ALobbyVRCharacter::OnRep_IsSitting()
 {
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
-	ConfigurePlayerNameWidget();
 }
 
 void ALobbyVRCharacter::Server_UpdateArm_Implementation(const FTransform& NewLeftArm, const FTransform& NewRightArm)
@@ -491,17 +349,6 @@ void ALobbyVRCharacter::ConfigureWidgetInteraction()
 	int32 RightPointerIndex = 0;
 	int32 LeftPointerIndex = 1;
 
-	if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController()))
-	{
-		const int32 PlayerId = PC->GetPlayerIdSafe();
-		if (PlayerId >= 0)
-		{
-			VirtualUserIndex = PlayerId;
-			RightPointerIndex = PlayerId * 2;
-			LeftPointerIndex = PlayerId * 2 + 1;
-		}
-	}
-
 	if (WidgetInteractionRight)
 	{
 		WidgetInteractionRight->InteractionDistance = VRPointerMaxDistance;
@@ -531,170 +378,20 @@ void ALobbyVRCharacter::ConfigureWidgetInteraction()
 		LeftPointerIndex);
 }
 
-void ALobbyVRCharacter::ConfigurePlayerNameWidget()
+void ALobbyVRCharacter::ShowReadyWidgetAfterDelay()
 {
-	UpdateVRNameWidget();
-}
+	if (!IsLocallyControlled()) return;
 
-void ALobbyVRCharacter::UpdateVRNameWidget()
-{
-	if (!NameWidgetComponent)
-	{
-		return;
-	}
-
-	if (!ApplyVRNameWidgetVisibility())
-	{
-		return;
-	}
-
-	UpdateVRNameWidgetTransform();
-}
-
-bool ALobbyVRCharacter::ApplyVRNameWidgetVisibility()
-{
-	if (!NameWidgetComponent)
-	{
-		return false;
-	}
-
-	NameWidgetComponent->SetOwnerNoSee(true);
-	NameWidgetComponent->SetDrawAtDesiredSize(true);
-	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-	NameWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	NameWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-
-	if (IsLocallyControlled())
-	{
-		NameWidgetComponent->SetHiddenInGame(true);
-		NameWidgetComponent->SetVisibility(false, true);
-		LogPlayerNameWidgetTransform();
-		return false;
-	}
-
-	NameWidgetComponent->SetHiddenInGame(false);
-	NameWidgetComponent->SetVisibility(true, true);
-	return true;
-}
-
-void ALobbyVRCharacter::UpdateVRNameWidgetTransform()
-{
-	if (!NameWidgetComponent || IsLocallyControlled())
-	{
-		return;
-	}
-
-	NameWidgetComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-	NameWidgetComponent->SetWorldLocation(GetVRNameWidgetTargetLocation());
-
-	FVector LocalCameraLocation;
-	if (GetLocalCameraLocation(LocalCameraLocation))
-	{
-		const FVector ToCamera = LocalCameraLocation - NameWidgetComponent->GetComponentLocation();
-		if (!ToCamera.IsNearlyZero())
-		{
-			NameWidgetComponent->SetWorldRotation(ToCamera.Rotation());
-		}
-	}
-
-	LogPlayerNameWidgetTransform();
-}
-
-FVector ALobbyVRCharacter::GetVRNameWidgetTargetLocation() const
-{
-	if (ThirdPersonMetaHumanBody)
-	{
-		const bool bHasHeadSocketOrBone =
-			ThirdPersonMetaHumanBody->DoesSocketExist(PlayerNameWidgetHeadSocketName) ||
-			ThirdPersonMetaHumanBody->GetBoneIndex(PlayerNameWidgetHeadSocketName) != INDEX_NONE;
-
-		if (bHasHeadSocketOrBone)
-		{
-			return ThirdPersonMetaHumanBody->GetSocketLocation(PlayerNameWidgetHeadSocketName) + VRNameWidgetWorldOffset;
-		}
-
-		const FBox BodyBounds = ThirdPersonMetaHumanBody->Bounds.GetBox();
-		return FVector(BodyBounds.GetCenter().X, BodyBounds.GetCenter().Y, BodyBounds.Max.Z) + VRNameWidgetWorldOffset;
-	}
-
-	return GetActorLocation() + FVector(0.0f, 0.0f, VRNameWidgetHeightOffset) + VRNameWidgetWorldOffset;
-}
-
-bool ALobbyVRCharacter::GetLocalCameraLocation(FVector& OutCameraLocation) const
-{
 	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return false;
-	}
+	if (!World) return;
 
-	const APlayerController* LocalPC = World->GetFirstPlayerController();
-	if (!LocalPC || !LocalPC->PlayerCameraManager)
-	{
-		return false;
-	}
-
-	OutCameraLocation = LocalPC->PlayerCameraManager->GetCameraLocation();
-	return true;
-}
-
-void ALobbyVRCharacter::LogPlayerNameWidgetTransform() const
-{
-	// if (!bLogPlayerNameWidgetTransform || !NameWidgetComponent)
-	// {
-	// 	return;
-	// }
-
-	// const USceneComponent* AttachParent = NameWidgetComponent->GetAttachParent();
-	// FVector CameraLocation = FVector::ZeroVector;
-	// GetLocalCameraLocation(CameraLocation);
-	// UE_LOG(LogTemp, Warning,
-	// 	TEXT("[LobbyVRCharacter] NameWidget Character=%s Local=%s AttachParent=%s RelLoc=%s WorldLoc=%s CameraWorldLoc=%s ActorLoc=%s"),
-	// 	*GetName(),
-	// 	IsLocallyControlled() ? TEXT("true") : TEXT("false"),
-	// 	*GetNameSafe(AttachParent),
-	// 	*NameWidgetComponent->GetRelativeLocation().ToString(),
-	// 	*NameWidgetComponent->GetComponentLocation().ToString(),
-	// 	*CameraLocation.ToString(),
-	// 	*GetActorLocation().ToString());
-}
-
-void ALobbyVRCharacter::HideLocalPlayerNameWidget()
-{
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	TArray<UWidgetComponent*> WidgetComponents;
-	GetComponents<UWidgetComponent>(WidgetComponents);
-
-	for (UWidgetComponent* WidgetComponent : WidgetComponents)
-	{
-		if (!WidgetComponent || WidgetComponent == ReadyWidgetComponent)
-		{
-			continue;
-		}
-
-		const FString ComponentName = WidgetComponent->GetName();
-		const bool bLooksLikeNameWidget =
-			WidgetComponent == NameWidgetComponent ||
-			ComponentName.Contains(TEXT("Name")) ||
-			ComponentName.Contains(TEXT("Nick")) ||
-			ComponentName.Contains(TEXT("Player"));
-
-		if (!bLooksLikeNameWidget)
-		{
-			continue;
-		}
-
-		WidgetComponent->SetOwnerNoSee(true);
-		WidgetComponent->SetHiddenInGame(true);
-		WidgetComponent->SetVisibility(false, true);
-		WidgetComponent->SetDrawAtDesiredSize(false);
-		WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		WidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	}
+	World->GetTimerManager().ClearTimer(ReadyWidgetDelayTimerHandle);
+	World->GetTimerManager().SetTimer(
+		ReadyWidgetDelayTimerHandle,
+		this,
+		&ALobbyVRCharacter::ShowReadyWidget,
+		FMath::Max(ReadyWidgetDelaySeconds, 0.0f),
+		false);
 }
 
 void ALobbyVRCharacter::UpdateVRPointers()
@@ -773,10 +470,7 @@ void ALobbyVRCharacter::DrawSeatDebugCapsule() const
 
 void ALobbyVRCharacter::ShowReadyWidget()
 {
-	if (!IsLocallyControlled() || !ReadyWidgetComponent)
-	{
-		return;
-	}
+	if (!IsLocallyControlled() || !ReadyWidgetComponent) return;
 
 	ConfigureWidgetInteraction();
 
@@ -786,11 +480,9 @@ void ALobbyVRCharacter::ShowReadyWidget()
 	}
 
 	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController());
-	if (PC)
-	{
-		ReadyWidgetComponent->SetOwnerPlayer(PC->GetLocalPlayer());
-	}
+	if (!PC || !PC->IsLocalPlayerController()) return;
 
+	ReadyWidgetComponent->SetOwnerPlayer(PC->GetLocalPlayer());
 	ReadyWidgetComponent->InitWidget();
 
 	if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent->GetUserWidgetObject()))
@@ -814,9 +506,11 @@ void ALobbyVRCharacter::ShowReadyWidget()
 
 void ALobbyVRCharacter::HideReadyWidget()
 {
-	if (!ReadyWidgetComponent)
+	if (!ReadyWidgetComponent) return;
+
+	if (UWorld* World = GetWorld())
 	{
-		return;
+		World->GetTimerManager().ClearTimer(ReadyWidgetDelayTimerHandle);
 	}
 
 	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);

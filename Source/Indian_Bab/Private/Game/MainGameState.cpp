@@ -1,6 +1,11 @@
 #include "Game/MainGameState.h"
 #include "Actor/SeatActor.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "GameInstanceSubsystem/SessionSubsystem.h"
+#include "Actor/Revolver.h"
+#include "EngineUtils.h"
 
 AMainGameState::AMainGameState()
 {
@@ -11,8 +16,12 @@ AMainGameState::AMainGameState()
 	bTurnActionInProgress = false;
 	CurrentPlayerIndex = -1;
 	CurrentBulletCount = 1;
+	MainRevolverChamberCount = 8;
 	CurrentBetInfo.CurrentBetAction = EBetAction::None;
 	CurrentBetInfo.BetActionTotal = 0;
+	TimerEndServerTime = 0.0f;
+	TimerDuration = 0.0f;
+	bTimerActive = false;
 }
 
 
@@ -27,8 +36,12 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, CurrentTurnPlayerId);
 	DOREPLIFETIME(AMainGameState, CurrentPlayerIndex);
 	DOREPLIFETIME(AMainGameState, CurrentBulletCount);
+	DOREPLIFETIME(AMainGameState, MainRevolverChamberCount);
 	DOREPLIFETIME(AMainGameState, CurrentBetInfo);
 	DOREPLIFETIME(AMainGameState, bTurnActionInProgress);
+	DOREPLIFETIME(AMainGameState, TimerEndServerTime);
+	DOREPLIFETIME(AMainGameState, TimerDuration);
+	DOREPLIFETIME(AMainGameState, bTimerActive);
 }
 
 
@@ -61,14 +74,14 @@ void AMainGameState::ChangeGameTurn(int32 NewTurnPlayerId, int32 NewPlayerIndex)
 	}
 }
 
-void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction)
+void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount)
 {
 	if(!HasAuthority()) return;
 
 	if(NewAction == EBetAction::Raise)
 	{
-		if(CurrentBulletCount >= 8) return;
-		CurrentBulletCount++;
+		if(RaiseCount < 1 || CurrentBulletCount + RaiseCount > MainRevolverChamberCount) return;
+		CurrentBulletCount += RaiseCount;
 
 		OnRep_CurrentBulletCount();
 	}
@@ -77,6 +90,47 @@ void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction)
 	CurrentBetInfo.BetActionTotal++;
 
 	OnRep_CurrentBetInfo();
+}
+
+void AMainGameState::SetMainRevolverChamberCount(int32 NewChamberCount)
+{
+	if (!HasAuthority()) return;
+
+	MainRevolverChamberCount = FMath::Clamp(NewChamberCount, 1, 8);
+	OnRep_MainRevolverChamberCount();
+}
+
+void AMainGameState::SetTimerInfo(float Time)
+{
+	TimerDuration = Time;
+	TimerEndServerTime = GetServerWorldTimeSeconds() + Time;
+	bTimerActive = true;
+
+	OnRep_TimerInfo();
+}
+
+void AMainGameState::ClearTimerInfo()
+{
+	TimerDuration = 0.0f;
+	TimerEndServerTime = 0.0f;
+	bTimerActive = false;
+
+	OnRep_TimerInfo();
+}
+
+float AMainGameState::GetRemainingTime() const
+{
+	if (!bTimerActive)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Max(0.0f, TimerEndServerTime - GetServerWorldTimeSeconds());
+}
+
+int32 AMainGameState::GetRemainingTimeCeil() const
+{
+	return FMath::CeilToInt(GetRemainingTime());
 }
 
 void AMainGameState::ChangeReadyPlayerCount(int32 NewReadyCount)
@@ -108,14 +162,38 @@ void AMainGameState::OnRep_CurrentTurnPlayerId()
 
 void AMainGameState::OnRep_GamePhase()
 {
+	// 게임 페이즈에 따라 클라이언트에서 필요한 연출이나 UI 업데이트를 처리하는 곳입니다.
+	const bool bIsPlaying = (CurrentGamePhase == EGamePhase::Playing);
+
 	// TODO: 페이즈 변경 시 연출 (예: Playing이 되면 로비 UI 숨기고 메인 게임 UI 띄우기, 조명 어둡게 하기 등)
+	if (CurrentGamePhase == EGamePhase::Starting)
+	{
+		// 호스트 클라가 자기 Steam Lobby를 잠금 — 비호스트는 내부 가드로 no-op
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				if (USessionSubsystem* Session = GI->GetSubsystem<USessionSubsystem>())
+				{
+					Session->LockSessionForInGame();
+				}
+			}
+		}
+	}
 	if (CurrentGamePhase == EGamePhase::Playing)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 게임이 시작되었습니다! 장전된 총알 : %d==="), CurrentBulletCount);
-	}	
+	}
 	if (CurrentGamePhase == EGamePhase::Result)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GS]=== 결과 확인 중!"));
+	}
+
+	// 게임 페이즈에 따라 UI 업데이트
+	UpdateMainRevolverWidgetPhase(bIsPlaying);
+	if (bIsPlaying)
+	{
+		UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
 	}
 }
 
@@ -129,6 +207,9 @@ void AMainGameState::OnRep_CurrentBetInfo()
     else if (CurrentBetInfo.CurrentBetAction == EBetAction::Fold)
         ActionStr = TEXT("Fold");
 	
+	// 게임 페이즈에 따라 메인 리볼버 위젯의 탄창 수 표시 업데이트
+	UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
+
 	//UE_LOG(LogTemp, Warning, TEXT("[GS]BetAction = %s ActionTotal = %d CurrentBulletCount = %d"), ActionStr,CurrentBetInfo.BetActionTotal, CurrentBulletCount);
 }
 
@@ -149,5 +230,51 @@ void AMainGameState::OnRep_ReadyPlayerCount()
 
 void AMainGameState::OnRep_CurrentBulletCount()
 {
+	UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
 	UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
+}
+
+void AMainGameState::OnRep_MainRevolverChamberCount()
+{
+	UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
+}
+
+void AMainGameState::OnRep_TimerInfo()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[GS] TimerInfo Replicated. Active=%d Remaining=%d"),
+		bTimerActive,
+		GetRemainingTimeCeil()
+	);
+}
+
+// 게임 페이즈에 따라 메인 리볼버 위젯의 탄창 수 표시 업데이트
+void AMainGameState::UpdateMainRevolverWidget(int32 CurrentCount, int32 MaxCount)
+{
+	if (!GetWorld()) return;
+
+	for (TActorIterator<ARevolver> It(GetWorld()); It; ++It)
+	{
+		ARevolver* Revolver = *It;
+		if (Revolver && Revolver->ActorHasTag(FName("MainRevolver")))
+		{
+			Revolver->UpdateBulletCountWidget(CurrentCount, MaxCount);
+			break;
+		}
+	}
+}
+
+// 게임 페이즈에 따라 메인 리볼버 위젯의 표시 여부 제어
+void AMainGameState::UpdateMainRevolverWidgetPhase(bool bIsPlaying)
+{
+	if (!GetWorld()) return;
+
+	for (TActorIterator<ARevolver> It(GetWorld()); It; ++It)
+	{
+		ARevolver* Revolver = *It;
+		if (Revolver && Revolver->ActorHasTag(FName("MainRevolver")))
+		{
+			Revolver->SetWidgetPlayingPhase(bIsPlaying);
+			break;
+		}
+	}
 }

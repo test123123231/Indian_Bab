@@ -114,9 +114,12 @@ ALobbyCharacter::ALobbyCharacter()
 	// // 닉네임
 	NameWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameWidget"));
 	NameWidgetComponent->SetupAttachment(GetRootComponent());
-	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 75.f));
-	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
-	NameWidgetComponent->SetDrawAtDesiredSize(true);
+	NameWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 100.f));
+	NameWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+	NameWidgetComponent->SetDrawAtDesiredSize(false);
+	NameWidgetComponent->SetDrawSize(FVector2D(420.f, 120.f));
+	NameWidgetComponent->SetWorldScale3D(FVector(0.075f));
+	NameWidgetComponent->SetTwoSided(true);
 }
 
 
@@ -126,7 +129,7 @@ void ALobbyCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	if (!IsLocallyControlled()) return;
-	
+
 	//MainGamePC = Cast<AMainGamePlayerController>(GetController());
 }
 
@@ -161,11 +164,17 @@ void ALobbyCharacter::UpdateNameWidget()
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
 	if (!PS) return;
 
+	if (!NameWidgetComponent->GetUserWidgetObject())
+	{
+		NameWidgetComponent->InitWidget();
+	}
+
     UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
     if (!Widget) return;
 
 	if (IsLocallyControlled())
 	{
+		Widget->SetPlayerName(TEXT(""));
 		Widget->SetCardText(TEXT(""));
 		return;
 	}
@@ -184,6 +193,11 @@ void ALobbyCharacter::UpdateCardWidget()
 
 	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
 	if (!PS) return;
+
+	if (!NameWidgetComponent->GetUserWidgetObject())
+	{
+		NameWidgetComponent->InitWidget();
+	}
 
 	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
     if (!Widget) return;
@@ -503,6 +517,7 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 {
 	if (bInterrupted) return;
 	if (!HasAuthority()) return;
+#if WITH_SERVER_CODE
 	if (GunHoldReason == EGunHoldReason::Fold)
 	{
 		AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
@@ -517,6 +532,7 @@ void ALobbyCharacter::OnGrabGunMontageEnded(UAnimMontage* Montage, bool bInterru
 
 		GM->HandleMainMontageFinished(this);
 	}
+#endif
 }
 
 void ALobbyCharacter::OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -526,10 +542,12 @@ void ALobbyCharacter::OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInte
 
 	bIsPuttingBackGun = false;
 
+#if WITH_SERVER_CODE
 	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
 	GM->HandlePutBackGunMontageFinished(this, FinishedReason);
+#endif
 }
 
 void ALobbyCharacter::OnRep_IsSitting()

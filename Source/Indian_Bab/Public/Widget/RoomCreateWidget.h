@@ -8,6 +8,7 @@
 class UButton;
 class UTextBlock;
 class UEditableTextBox;
+class UCheckBox;
 class USessionSubsystem;
 
 
@@ -45,8 +46,11 @@ private:
 	TObjectPtr<UButton> Button_Yes;
 	UPROPERTY(meta = (BindWidget)) 
 	TObjectPtr<UButton> Button_No;
-	UPROPERTY(meta = (BindWidget)) 
+	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_Status;
+	// 체크 시 FriendsOnly, 미체크 시 Public — 기본 unchecked = Public
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UCheckBox> CheckBox_FriendsOnly;
 	//--- 상태 변수 ---
 	UPROPERTY() 
 	TObjectPtr<APlayerController> PlayerControllerRef;
@@ -62,7 +66,8 @@ private:
 	UFUNCTION() 
 	void OnNoClicked();
 
-	// [추가] 서브시스템으로부터 방 생성 결과를 받을 콜백 함수
-	UFUNCTION() 
-	void OnCreateSessionComplete(bool bWasSuccessful);
+	// 에러 발생 시 자기 자신을 닫는 콜백 — 실제 사유 표시는 MainMenuPC의 모달이 담당.
+	// 성공 케이스는 ClientTravel로 위젯이 자동 소멸하므로 별도 처리 불필요.
+	UFUNCTION()
+	void OnSessionError(const FString& Reason);
 };

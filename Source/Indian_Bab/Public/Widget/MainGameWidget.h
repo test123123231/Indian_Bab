@@ -17,10 +17,6 @@ UCLASS()
 class INDIAN_BAB_API UMainGameWidget : public UUserWidget
 {
 	GENERATED_BODY()
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float RemainingTime = 20.f;
-
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -31,8 +27,9 @@ private:
 
 	// UPROPERTY(meta = (BindWidget))
 	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
+
 	UPROPERTY(EditAnywhere)
-	float BetNum = 0;
+	float BetNum = 1;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Time;
@@ -86,6 +83,8 @@ private:
 public:
 	// 플레이어 컨트롤러 및 플레이어 스테이트 등록
 	void InitWidget();
+
+	int32 GetBetNum() const;
 
 private:
 	UFUNCTION()

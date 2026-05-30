@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/LobbyCharacter.h"
+#include "TimerManager.h"
 #include "LobbyVRCharacter.generated.h"
 
 class ASeatActor;
@@ -25,12 +26,6 @@ public:
 	virtual void OnRep_PlayerState() override;
 	virtual void PawnClientRestart() override;
 	virtual void Tick(float DeltaTime) override;
-
-	void BindVRPlayerStateDelegates();
-
-	void UpdateNameWidget();
-
-	void UpdateCardWidget();
 
 	void InitSeatedAtSeat(ASeatActor* TargetSeat);
 
@@ -98,27 +93,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat|Debug")
 	float DebugSeatCapsuleDuration = 10.0f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
-	bool bAttachPlayerNameWidgetToHeadSocket = true;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
-	FName PlayerNameWidgetHeadSocketName = TEXT("head");
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
-	FVector PlayerNameWidgetRelativeLocation = FVector(0.0f, 0.0f, 30.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI")
-	FVector PlayerNameWidgetFallbackRelativeLocation = FVector(0.0f, 0.0f, 190.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|NameWidget")
-	FVector VRNameWidgetWorldOffset = FVector(0.0f, 0.0f, 25.0f);
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|NameWidget")
-	float VRNameWidgetHeightOffset = 180.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|UI|Debug")
-	bool bLogPlayerNameWidgetTransform = true;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
 	float VRPointerMaxDistance = 500.0f;
 
@@ -152,15 +126,10 @@ protected:
 private:
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
-	void ConfigurePlayerNameWidget();
-	void UpdateVRNameWidget();
-	bool ApplyVRNameWidgetVisibility();
-	void UpdateVRNameWidgetTransform();
-	FVector GetVRNameWidgetTargetLocation() const;
-	bool GetLocalCameraLocation(FVector& OutCameraLocation) const;
-	void LogPlayerNameWidgetTransform() const;
-	void HideLocalPlayerNameWidget();
+	void ShowReadyWidgetAfterDelay();
 	void UpdateVRPointers();
 	void UpdateLaserPointer(const UMotionControllerComponent* AimController, const TCHAR* PointerName) const;
 	void DrawSeatDebugCapsule() const;
+
+	FTimerHandle ReadyWidgetDelayTimerHandle;
 };

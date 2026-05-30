@@ -15,12 +15,17 @@ class INDIAN_BAB_API UReadyWidget : public UUserWidget
 protected:
 	virtual void NativeConstruct() override;
 
+public:
+	void ConfirmReady();
+
 private:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Ready;
 
 	UPROPERTY(meta = (BindWidgetOptional))
 	TObjectPtr<UTextBlock> Text_ReadyState;
+
+	bool bReadySubmitted = false;
 
 	UFUNCTION()
 	void OnReadyButtonClicked();

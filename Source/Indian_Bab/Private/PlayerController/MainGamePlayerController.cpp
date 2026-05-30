@@ -16,6 +16,9 @@
 #include "OnlineSubsystem.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "PlayerState/MainPlayerState.h"
+#include "GameInstanceSubsystem/ConnectivitySubsystem.h"
+#include "Engine/GameInstance.h"
+#include "Blueprint/UserWidget.h"
 
 
 AMainGamePlayerController::AMainGamePlayerController()
@@ -46,6 +49,80 @@ void AMainGamePlayerController::BeginPlay()
 	bShowMouseCursor = false;
 
     TrySendSteamNickname();
+
+    // 연결성 구독 + 폴링 시작 — 인게임에서도 NLM 폴링으로 로컬 끊김을 빠르게 감지.
+    // NLA 사각지대(NLM online 인데 서버 unreachable) 는 NetDriver OnNetworkFailure → ForceTriggerLost 가 백업.
+    if (UGameInstance* GI = GetGameInstance())
+    {
+        if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
+        {
+            LostHandle = Connectivity->OnConnectivityLost.AddUObject(
+                this, &AMainGamePlayerController::HandleConnectivityLost);
+            RestoredHandle = Connectivity->OnConnectivityRestored.AddUObject(
+                this, &AMainGamePlayerController::HandleConnectivityRestored);
+
+            Connectivity->StartPolling();
+        }
+    }
+}
+
+void AMainGamePlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (IsLocalPlayerController())
+    {
+        if (UGameInstance* GI = GetGameInstance())
+        {
+            if (UConnectivitySubsystem* Connectivity = GI->GetSubsystem<UConnectivitySubsystem>())
+            {
+                Connectivity->OnConnectivityLost.Remove(LostHandle);
+                Connectivity->OnConnectivityRestored.Remove(RestoredHandle);
+                Connectivity->StopPolling();
+            }
+        }
+    }
+
+    Super::EndPlay(EndPlayReason);
+}
+
+// 인터넷 끊김 또는 NetDriver disconnect (ForceTriggerLost 경유)
+void AMainGamePlayerController::HandleConnectivityLost()
+{
+    if (!OfflineWidgetClass)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("MainGamePC: OfflineWidgetClass 설정되지 않았습니다!"));
+        return;
+    }
+
+    if (!OfflineWidgetInstance)
+    {
+        OfflineWidgetInstance = CreateWidget<UUserWidget>(this, OfflineWidgetClass);
+    }
+
+    if (OfflineWidgetInstance && !OfflineWidgetInstance->IsInViewport())
+    {
+        OfflineWidgetInstance->AddToViewport(100); // ZOrder 높게 — 인게임 HUD 위에 표시
+
+        // 오프라인 모달에만 포커스 — 인게임 입력 차단
+        FInputModeUIOnly InputModeData;
+        InputModeData.SetWidgetToFocus(OfflineWidgetInstance->TakeWidget());
+        InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+        SetInputMode(InputModeData);
+        bShowMouseCursor = true;
+    }
+}
+
+// 연결 복구 (Lost 카운트다운 중 회복된 경우)
+void AMainGamePlayerController::HandleConnectivityRestored()
+{
+    if (OfflineWidgetInstance && OfflineWidgetInstance->IsInViewport())
+    {
+        OfflineWidgetInstance->RemoveFromParent();
+
+        // 인게임 입력 모드 복구 — 카메라 모드 기본 (BeginPlay 와 동일)
+        FInputModeGameOnly Mode;
+        SetInputMode(Mode);
+        bShowMouseCursor = false;
+    }
 }
 
 
@@ -254,21 +331,21 @@ void AMainGamePlayerController::EnterCameraMode()
 }
 
 
-void AMainGamePlayerController::RequestRaise()
+void AMainGamePlayerController::RequestRaise(int32 RaiseCount)
 {
-    Server_RequestBetAction(EBetAction::Raise);
+    Server_RequestBetAction(EBetAction::Raise, RaiseCount);
 }
 
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    Server_RequestBetAction(EBetAction::CheckCall);
+    Server_RequestBetAction(EBetAction::CheckCall, 0);
 }
 
 
 void AMainGamePlayerController::RequestFold()
 {
-    Server_RequestBetAction(EBetAction::Fold);
+    Server_RequestBetAction(EBetAction::Fold, 0);
 }
 
 // 내 스팀 닉네임 읽기
@@ -341,7 +418,7 @@ void AMainGamePlayerController::OnMainGameFold(const FInputActionValue& Value)
 
 void AMainGamePlayerController::OnMainGameRaise(const FInputActionValue& Value)
 {
-    RequestRaise();
+    RequestRaise(MainGameWidgetInstance->GetBetNum());
 }
 
 
@@ -375,12 +452,15 @@ void AMainGamePlayerController::OnRep_PlayerState()
     TrySendSteamNickname();
 }
 
-void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
+void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action, int32 RaiseCount)
 {
+#if WITH_SERVER_CODE
     AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
     if(!GM) return;
 
-    GM -> HandleBetAction(this, Action);
+    GM->HandleBetAction(this, Action, RaiseCount);
+#endif
+
 }
 
 void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FString& NewNickname)
@@ -393,10 +473,12 @@ void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FSt
 
 void AMainGamePlayerController::Server_RequestMainRevolverShot_Implementation()
 {
+#if WITH_SERVER_CODE
     AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
 	GM->HandleMainRevolverShotAction(this);
+#endif
 }
 
 void AMainGamePlayerController::ClientOnSeated_Implementation()
@@ -408,12 +490,14 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
 
 void AMainGamePlayerController::Server_RequestReady_Implementation()
 {
+#if WITH_SERVER_CODE
 	UE_LOG(LogTemp, Warning, TEXT("[PC] Server_RequestReady called"));
 
 	AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr;
 	if (!GM) return;
 
 	GM->HandlePlayerReady(this);
+#endif
 }
 
 int AMainGamePlayerController::GetPlayerIdSafe()

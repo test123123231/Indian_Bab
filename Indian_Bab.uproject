@@ -33,11 +33,8 @@
 		},
 		{
 			"Name": "OnlineSubsystemSteam",
-			"Enabled": true
-		},
-		{
-			"Name": "SteamSockets",
-			"Enabled": true
+			"Enabled": true,
+			"TargetDenyList": [ "Server" ]
 		},
 		{
 			"Name": "OnlineSubsystemGooglePlay",
@@ -56,7 +53,7 @@
 		},
 		{
 			"Name": "OnlineSubsystemNull",
-			"Enabled": false
+			"Enabled": true
 		},
 		{
 			"Name": "meshy",
@@ -111,6 +108,10 @@
 				"LinuxArm64",
 				"Android"
 			]
+		},
+		{
+			"Name": "HairStrands",
+			"Enabled": true
 		}
 	]
 }

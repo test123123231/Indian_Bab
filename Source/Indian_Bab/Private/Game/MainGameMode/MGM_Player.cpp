@@ -4,6 +4,8 @@
 #include "PlayerState/MainPlayerState.h"
 #include "GameFramework/Character.h"
 
+#if WITH_SERVER_CODE
+
 // 플레이어 선택
 void AMainGameMode::PickPlayer(int32 CurrentPlayerIndex)
 {
@@ -143,3 +145,4 @@ TObjectPtr<AMainPlayerState> AMainGameMode::GetNextPlayerState(int32 CurrentPlay
 	return nullptr;
 }
 
+#endif // WITH_SERVER_CODE
