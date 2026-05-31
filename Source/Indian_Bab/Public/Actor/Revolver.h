@@ -6,6 +6,8 @@
 
 class USkeletalMeshComponent;
 class USphereComponent;
+class UWidgetComponent;
+class URevolverCountWidget;
 
 UCLASS()
 class INDIAN_BAB_API ARevolver : public AActor
@@ -26,6 +28,10 @@ public:
 	// 블루프린트에서 리볼버 메시를 여기에 할당
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USkeletalMeshComponent* WeaponMesh;
+
+	// 탄창 수 표시용 위젯 컴포넌트 (월드 스페이스)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UWidgetComponent* BulletCountWidgetComponent;
 
 
 	// --- 무기 스탯 변수 ---
@@ -52,6 +58,14 @@ public:
 	// 장전 함수
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void Reload();
+
+	// 탄창 수 위젯 업데이트 함수
+	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
+	void UpdateBulletCountWidget(int32 CurrentCount, int32 MaxCount = 8);
+
+	// 게임 페이즈에 따라 위젯 표시 여부를 제어하는 함수
+	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
+	void SetWidgetPlayingPhase(bool bIsPlaying);
 
 protected:
 	// 게임이 시작되거나 이 무기가 스폰될 때 호출됩니다.

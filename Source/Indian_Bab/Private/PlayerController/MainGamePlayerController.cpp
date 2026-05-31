@@ -17,6 +17,7 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "PlayerState/MainPlayerState.h"
 #include "GameInstanceSubsystem/ConnectivitySubsystem.h"
+#include "GameInstanceSubsystem/IndianBabGameInstance.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
 
@@ -24,6 +25,18 @@
 AMainGamePlayerController::AMainGamePlayerController()
 {
 	PlayerCameraManagerClass = ALobbyCameraManager::StaticClass();
+}
+
+void AMainGamePlayerController::ClientWasKicked_Implementation(const FText& KickReason)
+{
+    // 데디 KickPlayer reason 을 GameInstance 에 stash → OnNetworkFailure(ConnectionLost)
+    // 가 곧바로 떨어져 CleanupHostSession 모달로 노출.
+    const FString ReasonStr = KickReason.ToString();
+    if (UIndianBabGameInstance* GI = Cast<UIndianBabGameInstance>(GetGameInstance()))
+    {
+        GI->SetPendingKickReason(ReasonStr);
+    }
+    UE_LOG(LogTemp, Warning, TEXT("[PC] ClientWasKicked reason=%s"), *ReasonStr);
 }
 
 
@@ -331,21 +344,21 @@ void AMainGamePlayerController::EnterCameraMode()
 }
 
 
-void AMainGamePlayerController::RequestRaise()
+void AMainGamePlayerController::RequestRaise(int32 RaiseCount)
 {
-    Server_RequestBetAction(EBetAction::Raise);
+    Server_RequestBetAction(EBetAction::Raise, RaiseCount);
 }
 
 
 void AMainGamePlayerController::RequestCheckCall()
 {
-    Server_RequestBetAction(EBetAction::CheckCall);
+    Server_RequestBetAction(EBetAction::CheckCall, 0);
 }
 
 
 void AMainGamePlayerController::RequestFold()
 {
-    Server_RequestBetAction(EBetAction::Fold);
+    Server_RequestBetAction(EBetAction::Fold, 0);
 }
 
 // 내 스팀 닉네임 읽기
@@ -418,7 +431,7 @@ void AMainGamePlayerController::OnMainGameFold(const FInputActionValue& Value)
 
 void AMainGamePlayerController::OnMainGameRaise(const FInputActionValue& Value)
 {
-    RequestRaise();
+    RequestRaise(MainGameWidgetInstance->GetBetNum());
 }
 
 
@@ -452,14 +465,15 @@ void AMainGamePlayerController::OnRep_PlayerState()
     TrySendSteamNickname();
 }
 
-void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action)
+void AMainGamePlayerController::Server_RequestBetAction_Implementation(EBetAction Action, int32 RaiseCount)
 {
 #if WITH_SERVER_CODE
     AMainGameMode* GM = GetWorld() -> GetAuthGameMode<AMainGameMode>();
     if(!GM) return;
 
-    GM -> HandleBetAction(this, Action);
+    GM->HandleBetAction(this, Action, RaiseCount);
 #endif
+
 }
 
 void AMainGamePlayerController::Server_SetSteamNickname_Implementation(const FString& NewNickname)

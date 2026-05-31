@@ -21,6 +21,11 @@ public:
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
+    // 데디 AGameSession::KickPlayer(reason) → ClientWasKicked RPC 수신부.
+    // 기본 구현은 no-op 이라 reason 이 폐기되며 직후 ConnectionLost 가
+    // generic 문구로 덮어쓴다. 여기서 GameInstance 에 stash → OnNetworkFailure 가 소비.
+    virtual void ClientWasKicked_Implementation(const FText& KickReason) override;
+
     void ApplyLobbyMappingContext();
 
     void ApplyMainGameMappingContext();
@@ -29,7 +34,7 @@ public:
 
     // 서버 호출
     UFUNCTION(BlueprintCallable)
-    void RequestRaise();
+    void RequestRaise(int32 RaiseCount);
 
     UFUNCTION(BlueprintCallable)
     void RequestCheckCall();
@@ -48,7 +53,7 @@ public:
 private:
     // 서버로 보내는 RPC
     UFUNCTION(Server, Reliable)
-    void Server_RequestBetAction(EBetAction Action);
+    void Server_RequestBetAction(EBetAction Action, int32 RaiseCount);
 
     UFUNCTION(Server, Reliable)
     void Server_SetSteamNickname(const FString& NewNickname);

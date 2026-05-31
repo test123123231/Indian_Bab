@@ -18,6 +18,7 @@ public class Indian_Bab : ModuleRules
             "StateTreeModule",
             "GameplayStateTreeModule",
             "HTTP",
+            "HTTPServer",
             "Json",
             "JsonUtilities",
             "UMG",
@@ -67,16 +68,34 @@ public class Indian_Bab : ModuleRules
         PublicDefinitions.Add("ANTICHEAT_USE_MOCK=" + AntiCheatUseMock);
 
         // ─────────────────────────────────────────────────────────────
-        // MM/AC 엔드포인트 base URL — 운영 IP 변경 시 여기서 한 줄 수정 후 재빌드.
-        // 헤더(Public/Network/NetworkEndpoints.h)가 이 매크로를 읽어 BaseURL로 사용.
-        // 값은 따옴표 escape 필요 — PublicDefinitions는 raw 문자열로 전처리기에 주입됨.
-        // 타겟별/Configuration별 분기가 필요해지면 여기서 분기.
+        // MM/AC 엔드포인트 — 외부/내부 2채널 SSoT.
+        //   External: 클라/워치독 → Nginx(443, TLS) → MM/AC. 공인 도메인으로 진입.
+        //   Internal: 데디 S2S(loopback). Nginx `/internal/*` deny 정책상 외부 절대 금지.
+        // 헤더(Public/Network/NetworkEndpoints.h)가 이 매크로를 읽어 host/port/tls/BaseURL 노출.
+        // BaseURL composer는 표준 포트(80/443)면 ":port" 생략(Host 헤더 server_name 매칭 안전).
+        // 운영 도메인/IP/포트/스킴 변경은 여기서 수정 후 재빌드.
         // ─────────────────────────────────────────────────────────────
-        string MMBaseURL = "http://127.0.0.1:8000";
-        string ACBaseURL = "http://127.0.0.1:9000";
+        string ExternalHost = "indianbab.freeddns.org";
+        int    ExternalPort = 443;
+        int    ExternalTls  = 1;
 
-        PublicDefinitions.Add("INDIANBAB_MM_BASE_URL=\"" + MMBaseURL + "\"");
-        PublicDefinitions.Add("INDIANBAB_AC_BASE_URL=\"" + ACBaseURL + "\"");
+        string InternalHost = "127.0.0.1";
+        int    MMInternalPort = 8000;
+        int    ACInternalPort = 9000;
+
+        PublicDefinitions.Add("INDIANBAB_MM_EXTERNAL_HOST=\""  + ExternalHost + "\"");
+        PublicDefinitions.Add("INDIANBAB_MM_EXTERNAL_PORT="    + ExternalPort);
+        PublicDefinitions.Add("INDIANBAB_MM_EXTERNAL_USE_TLS=" + ExternalTls);
+        PublicDefinitions.Add("INDIANBAB_MM_INTERNAL_HOST=\""  + InternalHost + "\"");
+        PublicDefinitions.Add("INDIANBAB_MM_INTERNAL_PORT="    + MMInternalPort);
+        PublicDefinitions.Add("INDIANBAB_MM_INTERNAL_USE_TLS=0");
+
+        PublicDefinitions.Add("INDIANBAB_AC_EXTERNAL_HOST=\""  + ExternalHost + "\"");
+        PublicDefinitions.Add("INDIANBAB_AC_EXTERNAL_PORT="    + ExternalPort);
+        PublicDefinitions.Add("INDIANBAB_AC_EXTERNAL_USE_TLS=" + ExternalTls);
+        PublicDefinitions.Add("INDIANBAB_AC_INTERNAL_HOST=\""  + InternalHost + "\"");
+        PublicDefinitions.Add("INDIANBAB_AC_INTERNAL_PORT="    + ACInternalPort);
+        PublicDefinitions.Add("INDIANBAB_AC_INTERNAL_USE_TLS=0");
 
         PublicIncludePaths.AddRange(new string[] {
             "Indian_Bab",

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Character/LobbyCharacter.h"
@@ -91,6 +91,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
 	TSubclassOf<UGameResultWidget> ResultWidgetClass;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI", meta = (ClampMin = "0.0"))
+	float ReadyWidgetDelaySeconds = 0.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat")
 	bool bUseCapsuleHalfHeightSeatOffset = true;
@@ -119,12 +121,21 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
 	bool bLogVRPointerHits = false;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
-	float ReadyWidgetDelaySeconds = 2.0f;
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	FTransform LeftArm;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	FTransform RightArm;
+
+	UFUNCTION(Server, Unreliable)
+	void Server_UpdateArm(const FTransform& NewLeftArm, const FTransform& NewRightArm);
+
+
 
 protected:
-	virtual void UpdateAimYawFromView() override;
-
+	virtual void UpdateAimFromView() override;
+	void UpdateArmPosition();
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 private:
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();

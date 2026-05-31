@@ -66,6 +66,10 @@ public:
 	void OnConfirmChangesNo();
 
 protected:
+	// '변경사항 저장' 팝업을 염 (블루프린트에서 VR용으로 띄우기 위해 이벤트로 변경)
+	UFUNCTION(BlueprintImplementableEvent, Category = "Option Menu")
+	void ShowConfirmChangesPopup();
+
 	// 위젯 생성 시 (EventConstruct) 호출
 	virtual void NativeConstruct() override;
 
@@ -140,8 +144,7 @@ private:
 	// bSaveChanges=true면 '적용'을, false면 '취소' 로직을 수행하고 메뉴를 닫음
 	void CloseMenu(bool bSaveChanges);
 
-	// '변경사항 저장' 팝업을 염
-	void ShowConfirmChangesPopup();
+	
 
 	//--- 상태 변수 ---
 	UPROPERTY() TObjectPtr<USettingSubsystem> SettingSubsystem;

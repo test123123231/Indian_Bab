@@ -9,7 +9,7 @@
 
 #if WITH_SERVER_CODE
 
-void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action)
+void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action, int32 RaiseCount)
 {
     if (!HasAuthority()) return;
     if (!RequestPC) return;
@@ -24,30 +24,32 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	if (GS -> CurrentTurnPlayerId != PlayerId) return;
 
 	// Raise 불가능하면 아예 막고 종료
-    if (Action == EBetAction::Raise && GS->CurrentBulletCount >= 8)
+    if (Action == EBetAction::Raise && (RaiseCount < 1 || RaiseCount > 8 || GS->CurrentBulletCount + RaiseCount > GS->MainRevolverChamberCount))
     {
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Raise blocked: CurrentBulletCount is already %d"), GS->CurrentBulletCount);
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Raise blocked: RaiseCount=%d CurrentBulletCount=%d"), RaiseCount, GS->CurrentBulletCount);
         //TODO 추후에 텍스트로 Raise 불가라고 뜨게
         return;
     }
 
 	GS->bTurnActionInProgress = true;
-	GS -> ChangeCurrentBetInfo(Action);
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d Action: %s"), PlayerId, *UEnum::GetValueAsString(Action));
 
 	if(Action == EBetAction::Fold)
 	{
+		GS->ChangeCurrentBetInfo(Action);
 		HandleFoldAction(RequestPC);
 		return;
 	}
 	if(Action == EBetAction::Raise)
 	{
 		CheckPlayer = PlayerId;
+		GS->ChangeCurrentBetInfo(Action, RaiseCount);
 		CheckNext();
 		return;
 	}
 	if(Action == EBetAction::CheckCall)
 	{
+		GS->ChangeCurrentBetInfo(Action);
 		CheckNext();
 		return;
 	}
@@ -102,6 +104,10 @@ void AMainGameMode::StartMainshotTimer(float Time)
 {
 	if (!HasAuthority()) return;
 
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
+	GS->SetTimerInfo(Time);
+
 	GetWorldTimerManager().ClearTimer(TimerHandle);
 	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnMainShotTimerExpired, Time, false);
 
@@ -111,6 +117,11 @@ void AMainGameMode::StartMainshotTimer(float Time)
 void AMainGameMode::OnMainShotTimerExpired()
 {
 	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (GS)
+		GS->ClearTimerInfo();
+
 	ExecuteMainShot(true);
 }
 
@@ -353,15 +364,28 @@ bool AMainGameMode::PullMainRevolverTrigger()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[GM] BANG! Main revolver real bullet fired."));
 
+		MainRevolverChamberCount = MaxMainRevolverChamberCount;
+		if (AMainGameState* GS = GetGameState<AMainGameState>())
+		{
+			GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
+		}
+
 		// 실제 격발 후에는 실탄 위치를 다시 랜덤으로 설정
 		RandomizeMainRevolverLiveBullet();
 
 		return true;
 	}
 
+	MainRevolverChamberCount = FMath::Max(1, MainRevolverChamberCount - 1);
+	if (AMainGameState* GS = GetGameState<AMainGameState>())
+	{
+		GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
+	}
+
 	UE_LOG(LogTemp, Warning,
-		TEXT("[GM] Click. Empty chamber. LiveShotOffset now=%d"),
-		MainLiveShotOffset
+		TEXT("[GM] Click. Empty chamber. LiveShotOffset now=%d ChamberCount=%d"),
+		MainLiveShotOffset,
+		MainRevolverChamberCount
 	);
 
 	return false;

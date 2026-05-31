@@ -384,6 +384,7 @@ void UOptionMenuWidget::OnResetWindowModeClicked()
 // 팝업 관련 함수들
 
 // '변경사항 저장' 팝업을 염
+/*
 void UOptionMenuWidget::ShowConfirmChangesPopup()
 {
 	if (!ConfirmChangesPopupClass)
@@ -411,7 +412,7 @@ void UOptionMenuWidget::ShowConfirmChangesPopup()
 		}
 	}
 }
-
+*/
 
 // WBP_ConfirmChanges 팝업의 '예' 버튼에서 호출
 void UOptionMenuWidget::OnConfirmChangesYes()

@@ -27,6 +27,18 @@ public:
     virtual void Init() override;
     virtual void Shutdown() override;
 
+    // 서버가 ClientWasKicked RPC 로 보낸 사유를 클라 측에서 잠시 stash.
+    // 직후 NetConnection close 로 OnNetworkFailure(ConnectionLost) 가 떨어지면
+    // 그쪽에서 Consume 해서 generic "게임 서버에 연결할 수 없습니다…" 대신
+    // 실제 킥 사유를 모달에 노출.
+    void SetPendingKickReason(const FString& Reason) { PendingKickReason = Reason; }
+    FString ConsumePendingKickReason()
+    {
+        FString Out = MoveTemp(PendingKickReason);
+        PendingKickReason.Reset();
+        return Out;
+    }
+
 private:
     void OnNetworkFailure(UWorld* World, UNetDriver* NetDriver,
         ENetworkFailure::Type FailureType, const FString& ErrorString);
@@ -36,4 +48,7 @@ private:
 
     FDelegateHandle NetworkFailureHandle;
     FDelegateHandle TravelFailureHandle;
+
+    // ClientWasKicked override 가 채우고 OnNetworkFailure 가 비움.
+    FString PendingKickReason;
 };

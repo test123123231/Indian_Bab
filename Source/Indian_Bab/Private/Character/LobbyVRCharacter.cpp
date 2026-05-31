@@ -1,4 +1,4 @@
-#include "Character/LobbyVRCharacter.h"
+﻿#include "Character/LobbyVRCharacter.h"
 
 #include "Actor/SeatActor.h"
 #include "Camera/CameraComponent.h"
@@ -15,6 +15,8 @@
 #include "PlayerController/MainGamePlayerController.h"
 #include "Widget/GameResultWidget.h"
 #include "Widget/ReadyWidget.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Net/UnrealNetwork.h"
 
 ALobbyVRCharacter::ALobbyVRCharacter()
 {
@@ -109,6 +111,7 @@ void ALobbyVRCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 	UpdateVRPointers();
+	UpdateArmPosition();
 }
 
 void ALobbyVRCharacter::InitSeatedAtSeat(ASeatActor* TargetSeat)
@@ -304,24 +307,36 @@ void ALobbyVRCharacter::OnRep_IsSitting()
 	ConfigureWidgetInteraction();
 }
 
-void ALobbyVRCharacter::UpdateAimYawFromView()
+void ALobbyVRCharacter::Server_UpdateArm_Implementation(const FTransform& NewLeftArm, const FTransform& NewRightArm)
+{
+	LeftArm = NewLeftArm;
+	RightArm = NewRightArm;
+}
+
+void ALobbyVRCharacter::UpdateAimFromView()
 {
 	if (!bIsSitting || !IsLocallyControlled() || !CameraComponent)
 	{
+		UE_LOG(LogTemp, Log, TEXT("return"));
 		return;
 	}
 
-	FVector Forward = CameraComponent->GetForwardVector();
-	Forward.Z = 0.0f;
+	FRotator Forward = CameraComponent->GetComponentRotation();
+	
+	const FRotator Aim = UKismetMathLibrary::NormalizedDeltaRotator(GetActorRotation(), Forward);
+	ReplicatedAim = Aim;
+	Server_UpdateAim(ReplicatedAim);
+}
 
-	if (!Forward.Normalize())
+void ALobbyVRCharacter::UpdateArmPosition() {
+	if (!IsLocallyControlled() || !MotionControllerLeftGrip || !MotionControllerRightGrip)
 	{
+		UE_LOG(LogTemp, Log, TEXT("return"));
 		return;
 	}
-
-	const float AimYaw = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, Forward.Rotation().Yaw);
-	ReplicatedAimYaw = AimYaw;
-	Server_UpdateAimYaw(AimYaw);
+	LeftArm = MotionControllerLeftGrip->GetComponentTransform();
+	LeftArm = MotionControllerRightGrip->GetComponentTransform();
+	Server_UpdateArm(LeftArm, RightArm);
 }
 
 void ALobbyVRCharacter::ConfigureVRSeatedState()
@@ -569,3 +584,11 @@ void ALobbyVRCharacter::ShowResultWidget(const FString& WinnerName, int32 Winner
 		*GetNameSafe(ResultWidgetComponent->GetWidgetClass()),
 		*GetNameSafe(ResultWidgetComponent->GetUserWidgetObject()));
 }
+void ALobbyVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ALobbyVRCharacter, LeftArm);
+	DOREPLIFETIME(ALobbyVRCharacter, RightArm);
+}
+	

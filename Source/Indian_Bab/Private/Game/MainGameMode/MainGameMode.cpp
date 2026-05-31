@@ -459,6 +459,9 @@ void AMainGameMode::StartGameAfterAllReady()
 
 	// 기준 플레이어 초기화
 	CheckPlayer = -1;
+	MainRevolverChamberCount = MaxMainRevolverChamberCount;
+	MainLiveShotOffset = -1;
+	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 
 	// 카드 매니저 초기화
 	MainCardManager = GetCardManager();
@@ -528,6 +531,9 @@ void AMainGameMode::CheckGameStart()
 
 		// 기준 플레이어 초기화
 		CheckPlayer = -1;
+		MainRevolverChamberCount = MaxMainRevolverChamberCount;
+		MainLiveShotOffset = -1;
+		GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 
 		//  카드 매니저 초기화
 		MainCardManager = GetCardManager();
@@ -540,6 +546,8 @@ void AMainGameMode::CheckGameStart()
 
 		// 3초 뒤에 StartMainGame 함수 실행
 		GetWorldTimerManager().ClearTimer(TimerHandle);
+		GS->SetTimerInfo(3.0f);
+		
 		GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::StartMainGame, 3.0f, false);
 	}
 }
@@ -553,6 +561,7 @@ void AMainGameMode::StartMainGame()
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
 	
+	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 	GS->SetGamePhase(EGamePhase::Playing);
 
 	//GS의 게임 페이즈 기반 플레이어 선택
@@ -571,7 +580,14 @@ void AMainGameMode::StartMainGame()
 // 턴 넘기는 타이머
 void AMainGameMode::StartTurnTimer(float Time)
 {
+	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS) return;
+
 	GetWorldTimerManager().ClearTimer(TimerHandle);
+	
+	GS->SetTimerInfo(Time);
 	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnTurnTimerExpired, Time, false);
 	return;
 }
@@ -583,7 +599,8 @@ void AMainGameMode::OnTurnTimerExpired()
 
 	AMainGameState* GS = GetGameState<AMainGameState>();
 	if (!GS) return;
-
+	
+	GS->ClearTimerInfo();
 	UE_LOG(LogTemp, Warning, TEXT("[GM] TimeOut NextTurn"));
 	GS -> ChangeCurrentBetInfo(EBetAction::CheckCall);
 	CheckNext();
@@ -672,6 +689,7 @@ void AMainGameMode::FinishMainShotPhase()
 
     AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
+	GS->ClearTimerInfo();
 
     CurrentWinnerPS = nullptr;
 	GS -> CurrentBulletCount = 0;
@@ -709,6 +727,7 @@ void AMainGameMode::NextRound()
 	
 	//타이머 정리
 	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GS->ClearTimerInfo();
 
 	// 다음 라운드 대비 GateState 초기화
 	GS -> SetNextRoundGameState();
@@ -789,5 +808,17 @@ void AMainGameMode::EndGame(AMainPlayerState* WinnerPS)
 		}
 	}
 }
+#else // WITH_SERVER_CODE
+
+// Client target(WITH_SERVER_CODE=0): UCLASS이라 UHT가 InternalConstructor<AMainGameMode>를
+// 항상 emit하고 vtable도 key function(ctor)이 있는 TU에 emit됨. 룰 로직 .cpp 전체 가드만으로는
+// CDO 생성·vtable 앵커가 사라져 link fail → 빈 stub으로 심볼만 채운다.
+// 클라 EXE에 룰 로직은 0바이트, 데디 PreLogin Gate·베팅·턴 로직 노출 없음.
+AMainGameMode::AMainGameMode() {}
+void AMainGameMode::InitGame(const FString&, const FString&, FString&) {}
+void AMainGameMode::PreLogin(const FString&, const FString&, const FUniqueNetIdRepl&, FString&) {}
+void AMainGameMode::PreLoginAsync(const FString&, const FString&, const FUniqueNetIdRepl&, const FOnPreLoginCompleteDelegate&) {}
+void AMainGameMode::PostLogin(APlayerController*) {}
+void AMainGameMode::Logout(AController*) {}
 
 #endif // WITH_SERVER_CODE
