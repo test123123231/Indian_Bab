@@ -13,6 +13,7 @@
 #include "InputCoreTypes.h"
 #include "MotionControllerComponent.h"
 #include "PlayerController/MainGamePlayerController.h"
+#include "Widget/GameResultWidget.h"
 #include "Widget/ReadyWidget.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
@@ -66,15 +67,18 @@ ALobbyVRCharacter::ALobbyVRCharacter()
 	ReadyWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("ReadyWidget"));
 	ReadyWidgetComponent->SetupAttachment(CameraComponent);
 	ReadyWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
-	ReadyWidgetComponent->SetDrawSize(FVector2D(800.0f, 400.0f));
-	ReadyWidgetComponent->SetPivot(FVector2D(0.5f, 0.5f));
-	ReadyWidgetComponent->SetWorldScale3D(FVector(0.1f));
 	ReadyWidgetComponent->SetTwoSided(true);
 	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	ReadyWidgetComponent->SetGenerateOverlapEvents(false);
 	ReadyWidgetComponent->SetVisibility(false);
 	ReadyWidgetComponent->SetHiddenInGame(true);
+
+	ResultWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("ResultWidget"));
+	ResultWidgetComponent->SetupAttachment(CameraComponent);
+	ResultWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+	ResultWidgetComponent->SetTwoSided(true);
+	ResultWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ResultWidgetComponent->SetVisibility(false);
+	ResultWidgetComponent->SetHiddenInGame(true);
 
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
@@ -184,6 +188,11 @@ void ALobbyVRCharacter::Client_HideReadyWidget_Implementation()
 	HideReadyWidget();
 }
 
+void ALobbyVRCharacter::Client_ShowResultWidget_Implementation(const FString& WinnerName, int32 WinnerPlayerId)
+{
+	ShowResultWidget(WinnerName, WinnerPlayerId);
+}
+
 void ALobbyVRCharacter::PressRightWidgetInteraction()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Right trigger press"));
@@ -220,12 +229,20 @@ void ALobbyVRCharacter::ReleaseRightWidgetInteraction()
 		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
 		LastHitResult.Distance);
 	const bool bReadyWidgetHovered = WidgetInteractionRight->GetHoveredWidgetComponent() == ReadyWidgetComponent;
+	const bool bResultWidgetHovered = WidgetInteractionRight->GetHoveredWidgetComponent() == ResultWidgetComponent;
 	WidgetInteractionRight->ReleasePointerKey(EKeys::LeftMouseButton);
 	if (bReadyWidgetHovered)
 	{
 		if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent ? ReadyWidgetComponent->GetUserWidgetObject() : nullptr))
 		{
 			ReadyWidget->ConfirmReady();
+		}
+	}
+	if (bResultWidgetHovered)
+	{
+		if (UGameResultWidget* ResultWidget = Cast<UGameResultWidget>(ResultWidgetComponent ? ResultWidgetComponent->GetUserWidgetObject() : nullptr))
+		{
+			ResultWidget->ConfirmBackToMainMenu();
 		}
 	}
 }
@@ -266,12 +283,20 @@ void ALobbyVRCharacter::ReleaseLeftWidgetInteraction()
 		LastHitResult.bBlockingHit ? TEXT("true") : TEXT("false"),
 		LastHitResult.Distance);
 	const bool bReadyWidgetHovered = WidgetInteractionLeft->GetHoveredWidgetComponent() == ReadyWidgetComponent;
+	const bool bResultWidgetHovered = WidgetInteractionLeft->GetHoveredWidgetComponent() == ResultWidgetComponent;
 	WidgetInteractionLeft->ReleasePointerKey(EKeys::LeftMouseButton);
 	if (bReadyWidgetHovered)
 	{
 		if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent ? ReadyWidgetComponent->GetUserWidgetObject() : nullptr))
 		{
 			ReadyWidget->ConfirmReady();
+		}
+	}
+	if (bResultWidgetHovered)
+	{
+		if (UGameResultWidget* ResultWidget = Cast<UGameResultWidget>(ResultWidgetComponent ? ResultWidgetComponent->GetUserWidgetObject() : nullptr))
+		{
+			ResultWidget->ConfirmBackToMainMenu();
 		}
 	}
 }
@@ -523,6 +548,42 @@ void ALobbyVRCharacter::HideReadyWidget()
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget hidden"));
 }
 
+void ALobbyVRCharacter::ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId)
+{
+	if (!IsLocallyControlled() || !ResultWidgetComponent) return;
+
+	HideReadyWidget();
+	ConfigureWidgetInteraction();
+
+
+	if (ResultWidgetClass)
+	{
+		ResultWidgetComponent->SetWidgetClass(ResultWidgetClass);
+	}
+
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController());
+	if (!PC || !PC->IsLocalPlayerController()) return;
+
+	ResultWidgetComponent->SetOwnerPlayer(PC->GetLocalPlayer());
+	ResultWidgetComponent->InitWidget();
+
+	if (UGameResultWidget* ResultWidget = Cast<UGameResultWidget>(ResultWidgetComponent->GetUserWidgetObject()))
+	{
+		ResultWidget->SetOwningPlayer(PC);
+		ResultWidget->SetResult(WinnerName, PC->GetPlayerIdSafe() == WinnerPlayerId);
+	}
+
+	ResultWidgetComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ResultWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ResultWidgetComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	ResultWidgetComponent->SetHiddenInGame(false);
+	ResultWidgetComponent->SetVisibility(true, true);
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ResultWidget shown. Winner=%s WidgetClass=%s WidgetObject=%s"),
+		*WinnerName,
+		*GetNameSafe(ResultWidgetComponent->GetWidgetClass()),
+		*GetNameSafe(ResultWidgetComponent->GetUserWidgetObject()));
+}
 void ALobbyVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
