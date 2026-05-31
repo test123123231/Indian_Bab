@@ -131,6 +131,10 @@ protected:
 	// 폴드 인원 초기화
 	void ResetFoldState();
 
+	void EndGame(AMainPlayerState* WinnerPS);
+
+	AMainPlayerState* GetLastAlivePlayer();
+
 private:
 	// 빈 의자 찾기
 	ASeatActor* FindEmptySeat();
@@ -172,11 +176,14 @@ private:
 	int32 MinPlayerCountToStart = 2;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Game Start")
-	int32 MaxPlayerCountToStart = 5;
+	int32 MaxPlayerCountToStart = 4;
 
 	// 클라이언트 3개일 때 맞춰줌(테스트 시 BP에서 true로 변경하면 1인 클라로 가능)
 	UPROPERTY(EditDefaultsOnly, Category = "Game Start|Test")
 	bool bAutoReadyAllPlayersWhenOneReady = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Turn", meta = (AllowPrivateAccess = "true", ClampMin = "0.1", UIMin = "0.1"))
+	float TurnTimeLimitSeconds = 20.0f;
 
 	// 게임 시작 중복 호출 방지
 	bool bGameStartRequested = false;
@@ -208,6 +215,8 @@ private:
 	bool bCheckPlayerFolded = false;
 
 	bool bMainRevolverPutBackInProgress = false;
+
+	bool bGameEnded = false;
 
 	void StartMainRevolverPutBack();
 

@@ -26,6 +26,48 @@ struct FCardData : public FTableRowBase
 
     // 기본 생성자: 초기값 설정
     FCardData() : Value(0), Suit(TEXT("")), CardMesh(nullptr) {}
+
+    FString GetDisplayRank() const
+    {
+        if (Suit.Equals(TEXT("Joker"), ESearchCase::IgnoreCase))
+        {
+            if (Value == 14)
+            {
+                return TEXT("Black Joker");
+            }
+
+            if (Value == 15)
+            {
+                return TEXT("Color Joker");
+            }
+
+            return TEXT("Joker");
+        }
+
+        switch (Value)
+        {
+        case 1:
+            return TEXT("A");
+        case 11:
+            return TEXT("J");
+        case 12:
+            return TEXT("Q");
+        case 13:
+            return TEXT("K");
+        default:
+            return FString::FromInt(Value);
+        }
+    }
+
+    FString ToDisplayString() const
+    {
+        if (Suit.Equals(TEXT("Joker"), ESearchCase::IgnoreCase))
+        {
+            return GetDisplayRank();
+        }
+
+        return FString::Printf(TEXT("%s %s"), *GetDisplayRank(), *Suit);
+    }
 };
 
 

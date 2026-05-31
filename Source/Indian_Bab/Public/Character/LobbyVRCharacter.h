@@ -7,6 +7,7 @@
 
 class ASeatActor;
 class UMotionControllerComponent;
+class UGameResultWidget;
 class UReadyWidget;
 class USceneComponent;
 class USkeletalMeshComponent;
@@ -38,6 +39,9 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_HideReadyWidget();
 
+	UFUNCTION(Client, Reliable)
+	void Client_ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
+
 	void PressRightWidgetInteraction();
 	void ReleaseRightWidgetInteraction();
 	void PressLeftWidgetInteraction();
@@ -45,6 +49,7 @@ public:
 
 	void ShowReadyWidget();
 	void HideReadyWidget();
+	void ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
 
 	virtual void OnRep_IsSitting() override;
 
@@ -80,6 +85,14 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
 	TSubclassOf<UReadyWidget> ReadyWidgetClass;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR UI")
+	TObjectPtr<UWidgetComponent> ResultWidgetComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
+	TSubclassOf<UGameResultWidget> ResultWidgetClass;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI", meta = (ClampMin = "0.0"))
+	float ReadyWidgetDelaySeconds = 0.5f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Seat")
 	bool bUseCapsuleHalfHeightSeatOffset = true;
