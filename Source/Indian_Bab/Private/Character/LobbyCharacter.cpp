@@ -667,7 +667,6 @@ void ALobbyCharacter::DrawMainShotAimLine()
 	FVector ViewLocation;
 	FRotator ViewRotation;
 	PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
 	const FVector Forward = ViewRotation.Vector();
 	const FVector Start = ViewLocation + Forward * 80.0f;
 	const FVector End = Start + Forward * 2500.0f;
