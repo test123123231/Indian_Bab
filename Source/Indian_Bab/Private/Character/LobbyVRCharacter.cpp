@@ -331,7 +331,6 @@ void ALobbyVRCharacter::UpdateAimFromView()
 {
 	if (!bIsSitting || !IsLocallyControlled() || !CameraComponent)
 	{
-		UE_LOG(LogTemp, Log, TEXT("return"));
 		return;
 	}
 
@@ -345,7 +344,6 @@ void ALobbyVRCharacter::UpdateAimFromView()
 void ALobbyVRCharacter::UpdateArmPosition() {
 	if (!IsLocallyControlled() || !MotionControllerLeftGrip || !MotionControllerRightGrip)
 	{
-		UE_LOG(LogTemp, Log, TEXT("return"));
 		return;
 	}
 	LeftArm = MotionControllerLeftGrip->GetComponentTransform();
@@ -398,6 +396,8 @@ void ALobbyVRCharacter::ConfigureWidgetInteraction()
 		WidgetInteractionRight->VirtualUserIndex = VirtualUserIndex;
 		WidgetInteractionRight->PointerIndex = RightPointerIndex;
 	}
+
+
 
 	if (WidgetInteractionLeft)
 	{
@@ -611,7 +611,7 @@ void ALobbyVRCharacter::GrabGun(const FInputActionValue& Value) {
 	{
 		return;
 	}
-	if (GunHoldReason != EGunHoldReason::Win) return;
+	//if (GunHoldReason != EGunHoldReason::Win) return;
 	UE_LOG(LogTemp, Warning, TEXT("GrabGun Called"));
 	const FVector Start = MotionControllerRightGrip->GetComponentLocation();
 	const FVector TraceEnd = Start + MotionControllerRightGrip->GetForwardVector() * VRPointerMaxDistance;
@@ -627,29 +627,6 @@ void ALobbyVRCharacter::GrabGun(const FInputActionValue& Value) {
 		{
 			UE_LOG(LogTemp, Warning, TEXT("gun found"));
 			AttachRevolverToSocket();
-			DrawMainRevolverAimLine();
 		}
 	}
-
-}
-
-void ALobbyVRCharacter::DrawMainRevolverAimLine() {
-	if (!IsLocallyControlled()) return;
-
-	if (!bShowMainShotAimLine) return;
-
-	const FVector Start = MotionControllerRightGrip->GetComponentLocation();
-	const FVector Forward = MotionControllerRightGrip->GetForwardVector();
-	const FVector End = Start + Forward * 2500.0f;
-
-	DrawDebugLine(
-		GetWorld(),
-		Start,
-		End,
-		FColor::Red,
-		false,
-		0.0f,
-		0,
-		2.0f
-	);
 }

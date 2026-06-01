@@ -661,14 +661,8 @@ void ALobbyCharacter::DrawMainShotAimLine()
 	if (!bShowMainShotAimLine) return;
 	if (GunHoldReason != EGunHoldReason::Win) return;
 
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC) return;
-
-	FVector ViewLocation;
-	FRotator ViewRotation;
-	PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
-	const FVector Forward = ViewRotation.Vector();
-	const FVector Start = ViewLocation + Forward * 80.0f;
+	const FVector Forward = FP_RevolverMesh->GetForwardVector();
+	const FVector Start = FP_RevolverMesh->GetComponentLocation();
 	const FVector End = Start + Forward * 2500.0f;
 
 	DrawDebugLine(
