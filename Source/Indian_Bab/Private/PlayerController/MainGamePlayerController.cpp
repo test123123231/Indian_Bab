@@ -44,11 +44,6 @@ void AMainGamePlayerController::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (GEngine && GEngine->GameViewport)
-    {
-        GEngine->GameViewport->RemoveAllViewportWidgets();
-    }
-
     if(!IsLocalPlayerController()) 
         return;
 
@@ -294,10 +289,10 @@ void AMainGamePlayerController::CreateMainGameWidget()
         MainGameWidgetInstance = CreateWidget<UMainGameWidget>(this, MainGameWidgetClass);
     }
 
-    //if (MainGameWidgetInstance && !MainGameWidgetInstance->IsInViewport())
-    //{
-    //    MainGameWidgetInstance->AddToViewport();
-    //}
+    if (MainGameWidgetInstance && !MainGameWidgetInstance->IsInViewport())
+    {
+        MainGameWidgetInstance->AddToViewport();
+    }
 
     if (MainGameWidgetInstance)
     {
@@ -313,10 +308,10 @@ void AMainGamePlayerController::CreateDeckLeftWidget()
     {
         DeckLeftWidgetInstance = CreateWidget<UDeckLeftWidget>(this, DeckLeftWidgetClass);
     }
-    //if (DeckLeftWidgetInstance && !DeckLeftWidgetInstance->IsInViewport()) 
-    //{
-    //    DeckLeftWidgetInstance->AddToViewport();
-    //}
+    if (DeckLeftWidgetInstance && !DeckLeftWidgetInstance->IsInViewport()) 
+    {
+        DeckLeftWidgetInstance->AddToViewport();
+    }
     if (DeckLeftWidgetInstance) 
     {
         DeckLeftWidgetInstance->InvisibleWidget();
