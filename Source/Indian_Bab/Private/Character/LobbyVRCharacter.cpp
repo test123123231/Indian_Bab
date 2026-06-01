@@ -17,6 +17,7 @@
 #include "Widget/ReadyWidget.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
+#include "EnhancedInputComponent.h"
 
 ALobbyVRCharacter::ALobbyVRCharacter()
 {
@@ -90,6 +91,19 @@ void ALobbyVRCharacter::BeginPlay()
 
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
+}
+
+void ALobbyVRCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
+	{
+		if (IA_RightTriggerClick)
+		{
+			EnhancedInputComponent->BindAction(IA_RightTriggerClick, ETriggerEvent::Triggered, this, &ALobbyVRCharacter::GrabGun);
+		}
+	}
 }
 
 void ALobbyVRCharacter::PossessedBy(AController* NewController)
@@ -317,7 +331,6 @@ void ALobbyVRCharacter::UpdateAimFromView()
 {
 	if (!bIsSitting || !IsLocallyControlled() || !CameraComponent)
 	{
-		UE_LOG(LogTemp, Log, TEXT("return"));
 		return;
 	}
 
@@ -331,7 +344,6 @@ void ALobbyVRCharacter::UpdateAimFromView()
 void ALobbyVRCharacter::UpdateArmPosition() {
 	if (!IsLocallyControlled() || !MotionControllerLeftGrip || !MotionControllerRightGrip)
 	{
-		UE_LOG(LogTemp, Log, TEXT("return"));
 		return;
 	}
 	LeftArm = MotionControllerLeftGrip->GetComponentTransform();
@@ -384,6 +396,8 @@ void ALobbyVRCharacter::ConfigureWidgetInteraction()
 		WidgetInteractionRight->VirtualUserIndex = VirtualUserIndex;
 		WidgetInteractionRight->PointerIndex = RightPointerIndex;
 	}
+
+
 
 	if (WidgetInteractionLeft)
 	{
@@ -591,4 +605,28 @@ void ALobbyVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ALobbyVRCharacter, LeftArm);
 	DOREPLIFETIME(ALobbyVRCharacter, RightArm);
 }
-	
+
+void ALobbyVRCharacter::GrabGun(const FInputActionValue& Value) {
+	if (!MotionControllerRightGrip || !GetWorld())
+	{
+		return;
+	}
+	//if (GunHoldReason != EGunHoldReason::Win) return;
+	UE_LOG(LogTemp, Warning, TEXT("GrabGun Called"));
+	const FVector Start = MotionControllerRightGrip->GetComponentLocation();
+	const FVector TraceEnd = Start + MotionControllerRightGrip->GetForwardVector() * VRPointerMaxDistance;
+
+	FHitResult HitResult;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(VRPointerTrace), false, this);
+
+	if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, TraceEnd, ECC_Visibility, QueryParams))
+	{
+		AActor* HitActor = HitResult.GetActor();
+
+		if (HitActor && HitActor->ActorHasTag("MainRevolver"))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("gun found"));
+			AttachRevolverToSocket();
+		}
+	}
+}
