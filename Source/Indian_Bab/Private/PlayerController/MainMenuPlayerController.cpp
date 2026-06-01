@@ -9,6 +9,11 @@ void AMainMenuPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (GEngine && GEngine->GameViewport)
+	{
+		GEngine->GameViewport->RemoveAllViewportWidgets();
+	}
+
 	if (!IsLocalPlayerController())
 		return;
 
@@ -57,7 +62,7 @@ void AMainMenuPlayerController::OpenMainMenu()
 		if (MainMenuWidgetInstance)
 		{
 			// 생성된 위젯을 뷰포트에 추가하여 화면에 표시합니다.
-			MainMenuWidgetInstance->AddToViewport();
+			//MainMenuWidgetInstance->AddToViewport();
 
 			// 입력 모드를 게임 및 UI 겸용으로 변경
 			FInputModeUIOnly InputModeData;
