@@ -7,6 +7,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Engine/GameInstance.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
+#include "PlayerController/MainMenuPlayerController.h"
 #include "Widget/OptionMenuWidget.h"
 #include "Widget/RoomCreateWidget.h"
 #include "Widget/RoomJoinWidget.h"
@@ -83,6 +84,12 @@ void UMainMenuWidget::RefocusSelf()
 	if (TopmostChildModal && TopmostChildModal->IsInViewport())
 	{
 		FocusTarget = TopmostChildModal;
+	}
+
+	if (AMainMenuPlayerController* MainMenuPC = Cast<AMainMenuPlayerController>(PlayerControllerRef))
+	{
+		MainMenuPC->ApplyMenuInputMode(FocusTarget);
+		return;
 	}
 
 	FInputModeUIOnly InputModeData;

@@ -7,7 +7,14 @@
 
 class UInputMappingContext;
 class UMainMenuWidget;
+class UUserWidget;
 
+UENUM(BlueprintType)
+enum class EMainMenuInputMode : uint8
+{
+	VR UMETA(DisplayName = "VR"),
+	Mouse UMETA(DisplayName = "Mouse")
+};
 
 UCLASS()
 class INDIAN_BAB_API AMainMenuPlayerController : public APlayerController
@@ -24,6 +31,9 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UMainMenuWidget> MainMenuWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	EMainMenuInputMode MenuInputMode = EMainMenuInputMode::VR;
 
 	// 생성된 메인 메뉴 위젯의 인스턴스를 저장할 변수
 	UPROPERTY(VisibleInstanceOnly, Category = "UI")
@@ -44,6 +54,14 @@ public:
 	// 신규 BP는 MainMenuWidget::RefocusSelf 를 직접 호출 권장.
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void RefocusMainMenu();
+
+	void ApplyMenuInputMode(UUserWidget* FocusWidget = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void SetMenuInputMode(EMainMenuInputMode NewInputMode);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	bool IsMouseMenuInputMode() const { return MenuInputMode == EMainMenuInputMode::Mouse; }
 
 private:
 	void HandleConnectivityLost();
