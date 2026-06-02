@@ -410,7 +410,6 @@ void ALobbyCharacter::AttachRevolverToSocket()
 	// 	*GetNameSafe(DeskRevolver),
 	// 	*GetNameSafe(RevolverToAttach)
 	// );
-
 	if (!RevolverToAttach) return;
 
 	// 1) 책상 위 리볼버 Prop 숨기기 + 콜리전 제거
@@ -437,11 +436,8 @@ void ALobbyCharacter::AttachRevolverToSocket()
 		FName("Revolver")
 	);
 	TP_RevolverMesh->SetVisibility(true);
-
-	if (GunHoldReason == EGunHoldReason::Win)
-	{
-		SetMainShotAimLineVisible(true);
-	}
+	DrawMainShotAimLine();
+	
 }
 
 void ALobbyCharacter::ReturnRevolverToDesk()

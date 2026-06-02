@@ -164,6 +164,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> FP_RevolverMesh;
 
+
 	// 3인칭 리볼버 메시 (ThirdPersonMetaHumanBody의 Revolver 소켓에 부착, 타인만 보임)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> TP_RevolverMesh;
@@ -231,6 +232,8 @@ protected:
 	UFUNCTION()
 	void OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+	void DrawMainShotAimLine();
+
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
@@ -245,5 +248,5 @@ private:
 	void SetMainShotAimLineVisible(bool bVisible);
 
 	// 조준선 그리기
-	void DrawMainShotAimLine();
+
 };
