@@ -130,8 +130,7 @@ public:
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateArm(const FTransform& NewLeftArm, const FTransform& NewRightArm);
 
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> IA_RightTriggerClick;
+	void GrabGun();
 
 protected:
 	virtual void UpdateAimFromView() override;
@@ -146,7 +145,5 @@ private:
 	void DrawSeatDebugCapsule() const;
 
 	FTimerHandle ReadyWidgetDelayTimerHandle;
-	void GrabGun(const FInputActionValue& Value);
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-	void DrawMainRevolverAimLine();
+
 };

@@ -1,4 +1,4 @@
-#include "PlayerController/MainGamePlayerController.h"
+﻿#include "PlayerController/MainGamePlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "EnhancedInputComponent.h"
@@ -220,6 +220,10 @@ void AMainGamePlayerController::SetupInputComponent()
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
+        }
+        if (IA_MainGameInteract) 
+        {
+            EnhancedInput->BindAction(IA_MainGameInteract, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameInteract);
         }
     }
 }
@@ -581,4 +585,12 @@ void AMainGamePlayerController::OnDebugRightTriggerReleased()
 	{
 		VRCharacter->ReleaseRightWidgetInteraction();
 	}
+}
+
+void AMainGamePlayerController::OnMainGameInteract(const FInputActionValue& Value)
+{
+    if(ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+    {
+        VRCharacter->GrabGun();
+    }
 }

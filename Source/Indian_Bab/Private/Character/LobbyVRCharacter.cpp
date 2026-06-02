@@ -1,6 +1,7 @@
 ﻿#include "Character/LobbyVRCharacter.h"
 
 #include "Actor/SeatActor.h"
+#include "Game/MainGameMode.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -93,18 +94,6 @@ void ALobbyVRCharacter::BeginPlay()
 	ConfigureWidgetInteraction();
 }
 
-void ALobbyVRCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-	if (UEnhancedInputComponent* EnhancedInputComponent = CastChecked<UEnhancedInputComponent>(PlayerInputComponent))
-	{
-		if (IA_RightTriggerClick)
-		{
-			EnhancedInputComponent->BindAction(IA_RightTriggerClick, ETriggerEvent::Triggered, this, &ALobbyVRCharacter::GrabGun);
-		}
-	}
-}
 
 void ALobbyVRCharacter::PossessedBy(AController* NewController)
 {
@@ -606,27 +595,20 @@ void ALobbyVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ALobbyVRCharacter, RightArm);
 }
 
-void ALobbyVRCharacter::GrabGun(const FInputActionValue& Value) {
+void ALobbyVRCharacter::GrabGun() {
+	if (GunHoldReason != EGunHoldReason::Win) return;
 	if (!MotionControllerRightGrip || !GetWorld())
 	{
 		return;
 	}
-	//if (GunHoldReason != EGunHoldReason::Win) return;
-	UE_LOG(LogTemp, Warning, TEXT("GrabGun Called"));
 	const FVector Start = MotionControllerRightGrip->GetComponentLocation();
 	const FVector TraceEnd = Start + MotionControllerRightGrip->GetForwardVector() * VRPointerMaxDistance;
 
 	FHitResult HitResult;
 	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(VRPointerTrace), false, this);
 
-	if (GetWorld()->LineTraceSingleByChannel(HitResult, Start, TraceEnd, ECC_Visibility, QueryParams))
-	{
-		AActor* HitActor = HitResult.GetActor();
+	UE_LOG(LogTemp, Warning, TEXT("Gun visible"));
+	AttachRevolverToSocket();
+	DrawMainShotAimLine();
 
-		if (HitActor && HitActor->ActorHasTag("MainRevolver"))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("gun found"));
-			AttachRevolverToSocket();
-		}
-	}
 }
