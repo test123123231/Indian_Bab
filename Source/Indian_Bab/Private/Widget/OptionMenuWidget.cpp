@@ -5,6 +5,7 @@
 #include "Components/ComboBoxString.h"
 #include "Kismet/GameplayStatics.h"
 #include "Widget/ConfirmChangesWidget.h"
+#include "Widget/MainMenuWidget.h"
 #include "Framework/Application/SlateApplication.h"
 
 
@@ -320,6 +321,15 @@ void UOptionMenuWidget::CloseMenu(bool bSaveChanges)
 		if (!(StagedSettings == SavedSettings))
 		{
 			OnApplyClicked(); // 저장 로직 실행
+		}
+	}
+
+	if (UMainMenuWidget* MainMenu = Cast<UMainMenuWidget>(ParentMenu))
+	{
+		if (!IsInViewport())
+		{
+			MainMenu->ShowMainMenuRoot();
+			return;
 		}
 	}
 

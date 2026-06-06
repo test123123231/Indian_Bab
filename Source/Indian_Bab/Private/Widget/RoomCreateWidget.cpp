@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Net/UnrealNetwork.h"
+#include "Widget/MainMenuWidget.h"
 
 
 void URoomCreateWidget::SetParentMenu(UUserWidget* InParentMenu)
@@ -40,6 +41,15 @@ void URoomCreateWidget::OnYesClicked()
 
 void URoomCreateWidget::OnNoClicked()
 {
+	if (UMainMenuWidget* MainMenu = Cast<UMainMenuWidget>(ParentMenu))
+	{
+		if (!IsInViewport())
+		{
+			MainMenu->ShowMainMenuRoot();
+			return;
+		}
+	}
+
 	// 부모 메뉴가 있다면 다시 보이게 함
 	if (ParentMenu)
 	{

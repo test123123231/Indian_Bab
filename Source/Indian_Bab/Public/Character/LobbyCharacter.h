@@ -138,7 +138,13 @@ public:
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateAim(FRotator NewAim);
 
+	// 플레이어 이름 색상 업데이트 함수
+	UFUNCTION()
+	void UpdatePlayerNameColor();
 
+	// 플레이어 상태 변화 시 호출
+	UFUNCTION()
+	void OnAliveStateChanged(bool bIsAlive);
 
 	UFUNCTION()
 	void OnRep_GunHoldReason();

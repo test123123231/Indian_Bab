@@ -8,6 +8,7 @@
 #include "MainPlayerState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTriggerCountChanged, int32);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAliveStateChanged, bool);
 
 class ACardManager;
 
@@ -34,6 +35,7 @@ public:
 	FOnCardChanged OnCardChanged;
 
 	FOnTriggerCountChanged OnTriggerCountChanged;
+	FOnAliveStateChanged OnAliveStateChanged;
 
 	// 플레이어의 생존 유무
 	UPROPERTY(ReplicatedUsing = "OnRep_isAlive", BlueprintReadOnly, Category = "PlayerState")
@@ -61,6 +63,7 @@ public:
 
 	// 처음 서브 리볼버 설정
 	void SetInitSubRevolver();
+	void SetAliveState(bool bNewAlive);
 
 	// 리볼버 당김 횟수 변경
 	bool ChangeSubRevolver();

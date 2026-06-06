@@ -42,6 +42,23 @@ void UMainMenuWidget::NativeConstruct()
 		Button_Exit->OnClicked.AddDynamic(this, &UMainMenuWidget::OnExitClicked);
 	}
 
+	URoomCreateWidget* EmbeddedCreateRoom = WBP_CreateRoom ? WBP_CreateRoom.Get() : Cast<URoomCreateWidget>(GetWidgetFromName(TEXT("WBP_CreateRoom")));
+	URoomJoinWidget* EmbeddedJoinRoom = WBP_JoinRoom ? WBP_JoinRoom.Get() : Cast<URoomJoinWidget>(GetWidgetFromName(TEXT("WBP_JoinRoom")));
+	UOptionMenuWidget* EmbeddedOptionMenu = WBP_OptionMenu ? WBP_OptionMenu.Get() : Cast<UOptionMenuWidget>(GetWidgetFromName(TEXT("WBP_OptionMenu")));
+
+	if (EmbeddedCreateRoom)
+	{
+		EmbeddedCreateRoom->SetParentMenu(this);
+	}
+	if (EmbeddedJoinRoom)
+	{
+		EmbeddedJoinRoom->SetParentMenu(this);
+	}
+	if (EmbeddedOptionMenu)
+	{
+		EmbeddedOptionMenu->SetParentMenu(this);
+	}
+
 	PlayerControllerRef = GetOwningPlayer();
 
 	// 모든 세션/매치메이커/데디 거부 에러 단일 채널 구독 — 자식 모달과 동일 패턴.
@@ -54,6 +71,13 @@ void UMainMenuWidget::NativeConstruct()
 			SessionSubsystem->OnSessionErrorEvent.AddDynamic(this, &UMainMenuWidget::OnSessionError);
 		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[MainMenu Bind Check] Create=%s Join=%s Option=%s Exit=%s Switcher=%s"),
+	*GetNameSafe(Button_Room_Creation),
+	*GetNameSafe(Button_Room_Join),
+	*GetNameSafe(Button_Option),
+	*GetNameSafe(Button_Exit),
+	*GetNameSafe(Switcher_MainMenu));
 }
 
 
@@ -101,6 +125,17 @@ void UMainMenuWidget::RefocusSelf()
 
 // 매치메이커 실패 / 데디 거부 공용 모달.
 // 위젯 BP는 BindWidget으로 "Text_Message" TextBlock 노출 시 사유 주입됨.
+void UMainMenuWidget::ShowMainMenuRoot()
+{
+	if (Switcher_MainMenu)
+	{
+		Switcher_MainMenu->SetActiveWidgetIndex(0);
+	}
+
+	TopmostChildModal = nullptr;
+	RefocusSelf();
+}
+
 void UMainMenuWidget::OnSessionError(const FString& Reason)
 {
 	UE_LOG(LogTemp, Warning, TEXT("MainMenuWidget: session error — %s"), *Reason);
@@ -145,24 +180,40 @@ void UMainMenuWidget::OnSessionError(const FString& Reason)
 
 
 // '룸 생성' 버튼 로직
+bool UMainMenuWidget::ShouldOpenViewportMenu() const
+{
+	APlayerController* PC = PlayerControllerRef ? PlayerControllerRef.Get() : GetOwningPlayer();
+	const AMainMenuPlayerController* MainMenuPC = Cast<AMainMenuPlayerController>(PC);
+	return MainMenuPC && MainMenuPC->IsMouseMenuInputMode();
+}
+
 void UMainMenuWidget::OnRoomCreationClicked()
 {
+	if (!ShouldOpenViewportMenu())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("VR Mode: Switch to Create Room"));
+
+		if (Switcher_MainMenu)
+		{
+			Switcher_MainMenu->SetActiveWidgetIndex(1);
+		}
+		return;
+	}
+
 	if (!RoomCreateWidgetClass)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("PauseRoomCreateWidget: RoomCreateWidgetClass 설정되지 않았습니다!"));
 		return;
 	}
-	// 생성 메뉴 '인스턴스' 생성
+
 	if (!RooomCreateInstance)
 	{
 		RooomCreateInstance = CreateWidget<URoomCreateWidget>(this, RoomCreateWidgetClass);
-		if (!RooomCreateInstance) return; // 생성 실패 시 중단
+		if (!RooomCreateInstance) return;
 
-		// 룸 생성에 부모(자신)를 알려줌
 		RooomCreateInstance->SetParentMenu(this);
 	}
 
-	// 뷰포트에 추가 및 포커스 설정
 	if (RooomCreateInstance && !RooomCreateInstance->IsInViewport())
 	{
 		RooomCreateInstance->AddToViewport();
@@ -170,7 +221,6 @@ void UMainMenuWidget::OnRoomCreationClicked()
 
 		if (PlayerControllerRef)
 		{
-			// (GameAndUI) 옵션 메뉴는 ESC 키를 사용하므로 포커스 설정
 			FInputModeGameAndUI InputModeData;
 			InputModeData.SetWidgetToFocus(RooomCreateInstance->TakeWidget());
 			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::LockInFullscreen);
@@ -183,22 +233,32 @@ void UMainMenuWidget::OnRoomCreationClicked()
 // '룸 참가' 버튼 로직
 void UMainMenuWidget::OnRoomJoinClicked()
 {
+	UE_LOG(LogTemp, Warning, TEXT("OnRoomJoinClicked called"));
+	if (!ShouldOpenViewportMenu())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("VR Mode: Switch to Join Room"));
+
+		if (Switcher_MainMenu)
+		{
+			Switcher_MainMenu->SetActiveWidgetIndex(2);
+		}
+		return;
+	}
+
 	if (!RoomJoinWidgetClass)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("PauseRoomJoinWidget: RoomJoinWidgetClass 설정되지 않았습니다!"));
 		return;
 	}
-	// 참가 메뉴 '인스턴스' 생성
+
 	if (!RooomJoinInstance)
 	{
 		RooomJoinInstance = CreateWidget<URoomJoinWidget>(this, RoomJoinWidgetClass);
-		if (!RooomJoinInstance) return; // 생성 실패 시 중단
+		if (!RooomJoinInstance) return;
 
-		// 룸 참가에 부모(자신)를 알려줌
 		RooomJoinInstance->SetParentMenu(this);
 	}
 
-	// 뷰포트에 추가 및 포커스 설정
 	if (RooomJoinInstance && !RooomJoinInstance->IsInViewport())
 	{
 		RooomJoinInstance->AddToViewport();
@@ -206,7 +266,6 @@ void UMainMenuWidget::OnRoomJoinClicked()
 
 		if (PlayerControllerRef)
 		{
-			// (GameAndUI) 옵션 메뉴는 ESC 키를 사용하므로 포커스 설정
 			FInputModeGameAndUI InputModeData;
 			InputModeData.SetWidgetToFocus(RooomJoinInstance->TakeWidget());
 			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::LockInFullscreen);
@@ -219,23 +278,32 @@ void UMainMenuWidget::OnRoomJoinClicked()
 // '설정' 버튼 로직
 void UMainMenuWidget::OnOptionClicked()
 {
+	UE_LOG(LogTemp, Warning, TEXT("OnOptionClicked called"));
+	if (!ShouldOpenViewportMenu())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("VR Mode: Switch to Option Menu"));
+
+		if (Switcher_MainMenu)
+		{
+			Switcher_MainMenu->SetActiveWidgetIndex(3);
+		}
+		return;
+	}
+
 	if (!OptionMenuWidgetClass)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("PauseMenuWidget: OptionMenuWidgetClass가 설정되지 않았습니다!"));
 		return;
 	}
 
-	// 옵션 메뉴 '인스턴스' 생성
 	if (!OptionMenuInstance)
 	{
 		OptionMenuInstance = CreateWidget<UOptionMenuWidget>(this, OptionMenuWidgetClass);
-		if (!OptionMenuInstance) return; // 생성 실패 시 중단
+		if (!OptionMenuInstance) return;
 
-		// 옵션 메뉴에 부모(자신)를 알려줌
 		OptionMenuInstance->SetParentMenu(this);
 	}
 
-	// 뷰포트에 추가 및 포커스 설정
 	if (OptionMenuInstance && !OptionMenuInstance->IsInViewport())
 	{
 		OptionMenuInstance->AddToViewport();
@@ -243,7 +311,6 @@ void UMainMenuWidget::OnOptionClicked()
 
 		if (PlayerControllerRef)
 		{
-			// (GameAndUI) 옵션 메뉴는 ESC 키를 사용하므로 포커스 설정
 			FInputModeGameAndUI InputModeData;
 			InputModeData.SetWidgetToFocus(OptionMenuInstance->TakeWidget());
 			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::LockInFullscreen);

@@ -16,3 +16,11 @@ void UPlayerNameWidget::SetCardText(const FString& Name)
         CardText->SetText(FText::FromString(Name));
     }
 }
+
+void UPlayerNameWidget::SetNameTextColor(const FLinearColor& Color)
+{
+    if (PlayerNameText)
+    {
+        PlayerNameText->SetColorAndOpacity(Color);
+    }
+}

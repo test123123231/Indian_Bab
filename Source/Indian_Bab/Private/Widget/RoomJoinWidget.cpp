@@ -5,6 +5,7 @@
 #include "Components/ListView.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Widget/MainMenuWidget.h"
 
 
 void URoomJoinWidget::SetParentMenu(UUserWidget* InParentMenu)
@@ -219,6 +220,15 @@ void URoomJoinWidget::OnJoinSessionComplete(bool bWasSuccessful)
 
 void URoomJoinWidget::OnNoClicked()
 {
+	if (UMainMenuWidget* MainMenu = Cast<UMainMenuWidget>(ParentMenu))
+	{
+		if (!IsInViewport())
+		{
+			MainMenu->ShowMainMenuRoot();
+			return;
+		}
+	}
+
 	if (ParentMenu && PlayerControllerRef)
 	{
 		FInputModeGameAndUI InputModeData;

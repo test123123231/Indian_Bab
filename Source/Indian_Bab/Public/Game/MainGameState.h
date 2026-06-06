@@ -7,7 +7,7 @@
 #include "Game/MainGameTypes.h"
 #include "MainGameState.generated.h"
 
-
+DECLARE_MULTICAST_DELEGATE(FOnCurrentTurnPlayerChanged);
 
 // 게임의 현재 진행 단계를 정의하는 Enum
 UENUM(BlueprintType)
@@ -38,6 +38,8 @@ class INDIAN_BAB_API AMainGameState : public AGameState
 
 public:
 	AMainGameState();
+
+	FOnCurrentTurnPlayerChanged OnCurrentTurnPlayerChanged;
 
 	// 상태 복제를 위한 필수 함수
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;

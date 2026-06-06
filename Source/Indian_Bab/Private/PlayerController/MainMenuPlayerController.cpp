@@ -1,9 +1,15 @@
 #include "PlayerController/MainMenuPlayerController.h"
-#include "EnhancedInputSubsystems.h"
-#include "Widget/MainMenuWidget.h"
-#include "GameInstanceSubsystem/ConnectivitySubsystem.h"
-#include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "Engine/GameInstance.h"
+#include "Engine/LocalPlayer.h"
+#include "InputAction.h"
+#include "InputActionValue.h"
+#include "InputMappingContext.h"
+#include "GameInstanceSubsystem/ConnectivitySubsystem.h"
+#include "Widget/MainMenuWidget.h"
+#include "Character/LobbyVRCharacter.h"
 
 void AMainMenuPlayerController::BeginPlay()
 {
@@ -17,6 +23,7 @@ void AMainMenuPlayerController::BeginPlay()
 	if (!IsLocalPlayerController())
 		return;
 
+	ApplyMainMenuMappingContext();
 	OpenMainMenu();
 
 	// 연결성 구독 + 폴링 시작 — 메인메뉴 PC 살아있는 동안만 활성
@@ -47,7 +54,120 @@ void AMainMenuPlayerController::EndPlay(const EEndPlayReason::Type EndPlayReason
 		}
 	}
 
+	if (IsLocalPlayerController())
+	{
+		RemoveMainMenuMappingContext();
+	}
+
 	Super::EndPlay(EndPlayReason);
+}
+
+void AMainMenuPlayerController::SetupInputComponent()
+{
+    Super::SetupInputComponent();
+
+	if (!IsLocalPlayerController()) 
+        return;
+
+    if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(InputComponent))
+    {
+        if (IA_RightTriggerClick)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainMenuPlayerController::OnRightTriggerClickStarted);
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainMenuPlayerController::OnRightTriggerClickReleased);
+            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Canceled, this, &AMainMenuPlayerController::OnRightTriggerClickReleased);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick is null"));
+        }
+
+        if (IA_LeftTriggerClick)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainMenuPlayerController::OnLeftTriggerClickStarted);
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainMenuPlayerController::OnLeftTriggerClickReleased);
+            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Canceled, this, &AMainMenuPlayerController::OnLeftTriggerClickReleased);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick is null"));
+        }
+    }
+}
+
+void AMainMenuPlayerController::ApplyMainMenuMappingContext()
+{
+	ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	if (!LocalPlayer)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Input] ApplyMainMenuMappingContext failed. LocalPlayer is null"));
+		return;
+	}
+
+	auto* Subsys = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
+	if (!Subsys)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Input] ApplyMainMenuMappingContext failed. EnhancedInput subsystem is null"));
+		return;
+	}
+
+	if (MainMenuMappingContext)
+	{
+		Subsys->AddMappingContext(MainMenuMappingContext, 0);
+		UE_LOG(LogTemp, Warning, TEXT("[Input] MainMenuMappingContext applied: %s"), *GetNameSafe(MainMenuMappingContext));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Input] MainMenuMappingContext is null"));
+	}
+}
+
+void AMainMenuPlayerController::RemoveMainMenuMappingContext()
+{
+	ULocalPlayer* LocalPlayer = GetLocalPlayer();
+	if (!LocalPlayer || !MainMenuMappingContext)
+	{
+		return;
+	}
+
+	if (auto* Subsys = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+	{
+		Subsys->RemoveMappingContext(MainMenuMappingContext);
+	}
+}
+
+void AMainMenuPlayerController::OnLeftTriggerClickStarted(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressLeftWidgetInteraction();
+	}
+}
+
+void AMainMenuPlayerController::OnLeftTriggerClickReleased(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseLeftWidgetInteraction();
+	}
+}
+
+void AMainMenuPlayerController::OnRightTriggerClickStarted(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->PressRightWidgetInteraction();
+	}
+}
+
+void AMainMenuPlayerController::OnRightTriggerClickReleased(const FInputActionValue& Value)
+{
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->ReleaseRightWidgetInteraction();
+	}
 }
 
 void AMainMenuPlayerController::OpenMainMenu()
