@@ -503,6 +503,11 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
     // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
     ApplyMainGameMappingContext();
     EnterUIMode();
+
+    if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+    {
+        VRCharacter->SetActiveVRUI(EVRActiveUI::InGame);
+    }
 }
 
 void AMainGamePlayerController::Server_RequestReady_Implementation()

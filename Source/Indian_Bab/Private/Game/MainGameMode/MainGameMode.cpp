@@ -564,6 +564,20 @@ void AMainGameMode::StartMainGame()
 	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 	GS->SetGamePhase(EGamePhase::Playing);
 
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (!PC)
+		{
+			continue;
+		}
+
+		if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(PC->GetPawn()))
+		{
+			VRCharacter->Client_ShowMainGameWidget();
+		}
+	}
+
 	//GS의 게임 페이즈 기반 플레이어 선택
 	PickPlayer(GS -> CurrentPlayerIndex);
 	

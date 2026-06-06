@@ -172,6 +172,11 @@ void AMainMenuPlayerController::OnRightTriggerClickReleased(const FInputActionVa
 
 void AMainMenuPlayerController::OpenMainMenu()
 {
+	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
+	{
+		VRCharacter->SetActiveVRUI(EVRActiveUI::MainMenu);
+	}
+
 	if (!MainMenuWidgetClass)
 	{
 		return;

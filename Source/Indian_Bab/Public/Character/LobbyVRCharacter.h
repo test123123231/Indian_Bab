@@ -14,6 +14,16 @@ class USkeletalMeshComponent;
 class UWidgetComponent;
 class UWidgetInteractionComponent;
 
+UENUM(BlueprintType)
+enum class EVRActiveUI : uint8
+{
+	None,
+	MainMenu,
+	Ready,
+	InGame,
+	Result
+};
+
 UCLASS()
 class INDIAN_BAB_API ALobbyVRCharacter : public ALobbyCharacter
 {
@@ -40,6 +50,9 @@ public:
 	void Client_HideReadyWidget();
 
 	UFUNCTION(Client, Reliable)
+	void Client_ShowMainGameWidget();
+
+	UFUNCTION(Client, Reliable)
 	void Client_ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
 
 	void PressRightWidgetInteraction();
@@ -50,6 +63,9 @@ public:
 	void ShowReadyWidget();
 	void HideReadyWidget();
 	void ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
+
+	UFUNCTION(BlueprintCallable, Category = "VR UI")
+	void SetActiveVRUI(EVRActiveUI ActiveUI);
 
 	virtual void OnRep_IsSitting() override;
 
@@ -140,6 +156,9 @@ private:
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
 	void ShowReadyWidgetAfterDelay();
+	void SetComponentsForVRUIState(EVRActiveUI UIState, bool bActive);
+	void ApplyVRWidgetComponentState(UWidgetComponent* WidgetComponent, bool bActive);
+	bool DoesWidgetComponentMatchName(const UWidgetComponent* WidgetComponent, FName ComponentName);
 	void UpdateVRPointers();
 	void UpdateLaserPointer(const UMotionControllerComponent* AimController, const TCHAR* PointerName) const;
 	void DrawSeatDebugCapsule() const;

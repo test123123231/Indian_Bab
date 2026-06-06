@@ -9,6 +9,7 @@
 #include "Components/WidgetInteractionComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/EngineTypes.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "InputCoreTypes.h"
@@ -19,6 +20,27 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "EnhancedInputComponent.h"
+
+namespace
+{
+	const TCHAR* GetVRUIStateLogName(EVRActiveUI UIState)
+	{
+		switch (UIState)
+		{
+		case EVRActiveUI::MainMenu:
+			return TEXT("MainMenu");
+		case EVRActiveUI::Ready:
+			return TEXT("Ready");
+		case EVRActiveUI::InGame:
+			return TEXT("InGame");
+		case EVRActiveUI::Result:
+			return TEXT("Result");
+		case EVRActiveUI::None:
+		default:
+			return TEXT("None");
+		}
+	}
+}
 
 ALobbyVRCharacter::ALobbyVRCharacter()
 {
@@ -92,6 +114,7 @@ void ALobbyVRCharacter::BeginPlay()
 
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
+	SetActiveVRUI(EVRActiveUI::MainMenu);
 }
 
 
@@ -189,6 +212,11 @@ void ALobbyVRCharacter::Client_ShowReadyWidget_Implementation()
 void ALobbyVRCharacter::Client_HideReadyWidget_Implementation()
 {
 	HideReadyWidget();
+}
+
+void ALobbyVRCharacter::Client_ShowMainGameWidget_Implementation()
+{
+	SetActiveVRUI(EVRActiveUI::InGame);
 }
 
 void ALobbyVRCharacter::Client_ShowResultWidget_Implementation(const FString& WinnerName, int32 WinnerPlayerId)
@@ -422,6 +450,93 @@ void ALobbyVRCharacter::ShowReadyWidgetAfterDelay()
 		false);
 }
 
+void ALobbyVRCharacter::SetActiveVRUI(EVRActiveUI ActiveUI)
+{
+	SetComponentsForVRUIState(EVRActiveUI::MainMenu, ActiveUI == EVRActiveUI::MainMenu);
+	SetComponentsForVRUIState(EVRActiveUI::Ready, ActiveUI == EVRActiveUI::Ready);
+	SetComponentsForVRUIState(EVRActiveUI::InGame, ActiveUI == EVRActiveUI::InGame);
+	SetComponentsForVRUIState(EVRActiveUI::Result, ActiveUI == EVRActiveUI::Result);
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Active UI changed to %s"), GetVRUIStateLogName(ActiveUI));
+}
+
+void ALobbyVRCharacter::SetComponentsForVRUIState(EVRActiveUI UIState, bool bActive)
+{
+	TArray<FName> ComponentNames;
+	switch (UIState)
+	{
+	case EVRActiveUI::MainMenu:
+		ComponentNames.Add(TEXT("MainMenuWidget"));
+		break;
+	case EVRActiveUI::Ready:
+		ComponentNames.Add(TEXT("ReadyWidget"));
+		break;
+	case EVRActiveUI::InGame:
+		ComponentNames.Add(TEXT("MainGameWidget"));
+		break;
+	case EVRActiveUI::Result:
+		ComponentNames.Add(TEXT("ResultWidget"));
+		break;
+	case EVRActiveUI::None:
+	default:
+		return;
+	}
+
+	TArray<UWidgetComponent*> WidgetComponents;
+	GetComponents<UWidgetComponent>(WidgetComponents);
+
+	TSet<UWidgetComponent*> AppliedComponents;
+	for (UWidgetComponent* WidgetComponent : WidgetComponents)
+	{
+		for (const FName& ComponentName : ComponentNames)
+		{
+			if (DoesWidgetComponentMatchName(WidgetComponent, ComponentName))
+			{
+				ApplyVRWidgetComponentState(WidgetComponent, bActive);
+				AppliedComponents.Add(WidgetComponent);
+				break;
+			}
+		}
+	}
+
+	if (UIState == EVRActiveUI::Ready && ReadyWidgetComponent && !AppliedComponents.Contains(ReadyWidgetComponent))
+	{
+		ApplyVRWidgetComponentState(ReadyWidgetComponent, bActive);
+	}
+	else if (UIState == EVRActiveUI::Result && ResultWidgetComponent && !AppliedComponents.Contains(ResultWidgetComponent))
+	{
+		ApplyVRWidgetComponentState(ResultWidgetComponent, bActive);
+	}
+}
+
+void ALobbyVRCharacter::ApplyVRWidgetComponentState(UWidgetComponent* WidgetComponent, bool bActive)
+{
+	if (!WidgetComponent)
+	{
+		return;
+	}
+
+	WidgetComponent->SetVisibility(bActive, true);
+	WidgetComponent->SetHiddenInGame(!bActive);
+	WidgetComponent->SetCollisionEnabled(bActive ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+	WidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+	WidgetComponent->SetCollisionResponseToChannel(ECC_Visibility, bActive ? ECR_Block : ECR_Ignore);
+	WidgetComponent->SetGenerateOverlapEvents(false);
+}
+
+bool ALobbyVRCharacter::DoesWidgetComponentMatchName(const UWidgetComponent* WidgetComponent, FName ComponentName)
+{
+	if (!WidgetComponent)
+	{
+		return false;
+	}
+
+	const FString WidgetComponentName = WidgetComponent->GetName();
+	const FString TargetName = ComponentName.ToString();
+	return WidgetComponentName.Equals(TargetName, ESearchCase::IgnoreCase)
+		|| WidgetComponentName.Contains(TargetName, ESearchCase::IgnoreCase);
+}
+
 void ALobbyVRCharacter::UpdateVRPointers()
 {
 	if (!IsLocallyControlled())
@@ -519,11 +634,7 @@ void ALobbyVRCharacter::ShowReadyWidget()
 		UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget owning player set to %s"), *GetNameSafe(PC));
 	}
 
-	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	ReadyWidgetComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	ReadyWidgetComponent->SetHiddenInGame(false);
-	ReadyWidgetComponent->SetVisibility(true, true);
+	SetActiveVRUI(EVRActiveUI::Ready);
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget shown. Local=%s Collision=%d WidgetClass=%s WidgetObject=%s"),
 		IsLocallyControlled() ? TEXT("true") : TEXT("false"),
@@ -541,11 +652,7 @@ void ALobbyVRCharacter::HideReadyWidget()
 		World->GetTimerManager().ClearTimer(ReadyWidgetDelayTimerHandle);
 	}
 
-	ReadyWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	ReadyWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	ReadyWidgetComponent->SetGenerateOverlapEvents(false);
-	ReadyWidgetComponent->SetVisibility(false);
-	ReadyWidgetComponent->SetHiddenInGame(true);
+	SetActiveVRUI(EVRActiveUI::None);
 
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ReadyWidget hidden"));
@@ -555,7 +662,12 @@ void ALobbyVRCharacter::ShowResultWidget(const FString& WinnerName, int32 Winner
 {
 	if (!IsLocallyControlled() || !ResultWidgetComponent) return;
 
-	HideReadyWidget();
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ReadyWidgetDelayTimerHandle);
+	}
+
+	SetActiveVRUI(EVRActiveUI::None);
 	ConfigureWidgetInteraction();
 
 
@@ -576,11 +688,7 @@ void ALobbyVRCharacter::ShowResultWidget(const FString& WinnerName, int32 Winner
 		ResultWidget->SetResult(WinnerName, PC->GetPlayerIdSafe() == WinnerPlayerId);
 	}
 
-	ResultWidgetComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	ResultWidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	ResultWidgetComponent->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
-	ResultWidgetComponent->SetHiddenInGame(false);
-	ResultWidgetComponent->SetVisibility(true, true);
+	SetActiveVRUI(EVRActiveUI::Result);
 
 	UE_LOG(LogTemp, Warning, TEXT("[VR UI] ResultWidget shown. Winner=%s WidgetClass=%s WidgetObject=%s"),
 		*WinnerName,
