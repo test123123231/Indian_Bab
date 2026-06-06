@@ -102,6 +102,13 @@ ALobbyCharacter::ALobbyCharacter()
 	ThirdPersonMetaHumanEyelashes->SetOwnerNoSee(true);
 	ThirdPersonMetaHumanFuzz->SetOwnerNoSee(true);
 
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		CharacterMesh->SetVisibility(false, false);
+		CharacterMesh->SetHiddenInGame(true, false);
+		CharacterMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	}
+
 	// Create the Camera Component
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
 	CameraComponent->SetupAttachment(FirstPersonMetaHumanBody, FName("head"));
@@ -415,7 +422,14 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 	GunHoldReason = Reason;
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (!AnimInstance) return;
+	if (!AnimInstance)
+	{
+		if (HasAuthority())
+		{
+			OnGrabGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
 
 	UAnimMontage* MontageToPlay = nullptr;
 	if (Reason == EGunHoldReason::Fold)
@@ -433,13 +447,27 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 		FOnMontageEnded EndDelegate;
 		EndDelegate.BindUObject(this, &ALobbyCharacter::OnGrabGunMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		OnGrabGunMontageEnded(nullptr, false);
 	}
 }
 
 void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason Reason)
 {
     UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-    if (!AnimInstance) return;
+	if (!AnimInstance)
+	{
+		FinishedReason = Reason;
+		if (HasAuthority())
+		{
+			OnPutBackGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
 
 	bIsPuttingBackGun = true;
 	
@@ -459,9 +487,20 @@ void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason 
         MontageToPlay = WinEndMontage;
     }
 
-	AnimInstance->Montage_Play(MontageToPlay, 1.0f);
 	FinishedReason = GunHoldReason;
 	GunHoldReason = EGunHoldReason::None;
+
+	if (!MontageToPlay)
+	{
+		bIsPuttingBackGun = false;
+		if (HasAuthority())
+		{
+			OnPutBackGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
+
+	AnimInstance->Montage_Play(MontageToPlay, 1.0f);
 
 	if (HasAuthority())
 	{

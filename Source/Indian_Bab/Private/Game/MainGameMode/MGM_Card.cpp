@@ -96,7 +96,7 @@ void AMainGameMode::CheckPlayerCard()
 	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
 
 	WinnerCharacter->SetActiveRevolver(Revolver);
-	//WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
+	WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
 }
 
 // 활성 인원 중에서 가장 큰 값을 가진 플레이어

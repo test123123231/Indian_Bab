@@ -153,6 +153,7 @@ protected:
 	void UpdateArmPosition();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 private:
+	void ConfigureLocalVRTracking();
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
 	void ShowReadyWidgetAfterDelay();

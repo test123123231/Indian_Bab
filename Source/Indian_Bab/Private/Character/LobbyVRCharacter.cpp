@@ -112,6 +112,7 @@ void ALobbyVRCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ConfigureLocalVRTracking();
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
 	SetActiveVRUI(EVRActiveUI::MainMenu);
@@ -121,16 +122,19 @@ void ALobbyVRCharacter::BeginPlay()
 void ALobbyVRCharacter::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
+	ConfigureLocalVRTracking();
 }
 
 void ALobbyVRCharacter::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
+	ConfigureLocalVRTracking();
 }
 
 void ALobbyVRCharacter::PawnClientRestart()
 {
 	Super::PawnClientRestart();
+	ConfigureLocalVRTracking();
 }
 
 void ALobbyVRCharacter::Tick(float DeltaTime)
@@ -364,8 +368,34 @@ void ALobbyVRCharacter::UpdateArmPosition() {
 		return;
 	}
 	LeftArm = MotionControllerLeftGrip->GetComponentTransform();
-	LeftArm = MotionControllerRightGrip->GetComponentTransform();
+	RightArm = MotionControllerRightGrip->GetComponentTransform();
 	Server_UpdateArm(LeftArm, RightArm);
+}
+
+void ALobbyVRCharacter::ConfigureLocalVRTracking()
+{
+	const bool bLocalTrackingOwner = IsLocallyControlled();
+
+	if (CameraComponent)
+	{
+		CameraComponent->bLockToHmd = bLocalTrackingOwner;
+	}
+
+	UMotionControllerComponent* MotionControllers[] =
+	{
+		MotionControllerRightGrip,
+		MotionControllerLeftGrip,
+		MotionControllerRightAim,
+		MotionControllerLeftAim
+	};
+
+	for (UMotionControllerComponent* MotionController : MotionControllers)
+	{
+		if (!MotionController) continue;
+
+		MotionController->SetComponentTickEnabled(bLocalTrackingOwner);
+		MotionController->SetActive(bLocalTrackingOwner, true);
+	}
 }
 
 void ALobbyVRCharacter::ConfigureVRSeatedState()
@@ -393,7 +423,7 @@ void ALobbyVRCharacter::ConfigureVRSeatedState()
 		CameraComponent->SetRelativeLocation(FVector::ZeroVector);
 		CameraComponent->SetRelativeRotation(FRotator::ZeroRotator);
 		CameraComponent->bUsePawnControlRotation = false;
-		CameraComponent->bLockToHmd = true;
+		CameraComponent->bLockToHmd = IsLocallyControlled();
 	}
 }
 
