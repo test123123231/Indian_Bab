@@ -234,7 +234,7 @@ void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[GM] Main revolver shot hit Player %d"), TargetPS->GetPlayerId());
 
-			TargetPS->isAlive = false;
+			TargetPS->SetAliveState(false);
 
 			if (GS->AlivePlayerCount > 0)
 			{

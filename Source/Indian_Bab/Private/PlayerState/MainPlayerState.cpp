@@ -59,7 +59,19 @@ void AMainPlayerState::SetInitSubRevolver()
     BulletArray[RandomIndex] = 1;
     
     TotalTriggerCount = 0;
-    isAlive = 1;
+    SetAliveState(true);
+}
+
+void AMainPlayerState::SetAliveState(bool bNewAlive)
+{
+    if (isAlive == bNewAlive)
+    {
+        OnAliveStateChanged.Broadcast(isAlive);
+        return;
+    }
+
+    isAlive = bNewAlive;
+    OnRep_isAlive();
 }
 
 // 서브 리볼버 당김횟부 변화(+1)
@@ -68,8 +80,7 @@ bool AMainPlayerState::ChangeSubRevolver()
     isFold = 1;
     if(BulletArray[TotalTriggerCount])
     {
-        isAlive = 0;
-        OnRep_isAlive();
+        SetAliveState(false);
     }
 
     TotalTriggerCount++;
@@ -88,6 +99,8 @@ void AMainPlayerState::OnRep_isAlive()
 {
     if(isAlive == 0)
         UE_LOG(LogTemp, Warning, TEXT("[PS_%d] : dead!"), GetPlayerId());
+
+    OnAliveStateChanged.Broadcast(isAlive);
 }
 
 void AMainPlayerState::OnRep_isFold()
