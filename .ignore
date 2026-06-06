@@ -1,11 +1,15 @@
+/.claude
 /.git
 /.github
+/.vs
 /.vscode
 /Content
 /DerivedDataCache
 /Intermediate
 /Platforms
 /Saved
+/Windows
+/WindowsServer
 /Plugins/MetaXR/Content
 /Plugins/MetaXR/Intermediate
 /Plugins/MetaXR/Shaders
