@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/WidgetSwitcher.h"
 #include "MainMenuWidget.generated.h"
 
 
@@ -52,6 +53,9 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> Button_Exit;
 
+	UPROPERTY(meta = (BindWidget))
+	UWidgetSwitcher* Switcher_MainMenu;
+
 	//--- 위젯 설정 프로퍼티 ---
 
 	// '설정' 버튼 클릭 시 열릴 옵션 메뉴 위젯 클래스 (BP에서 설정)
@@ -100,6 +104,8 @@ private:
 	TObjectPtr<APlayerController> PlayerControllerRef;
 
 	//--- C++ 이벤트 핸들러 ---
+
+	bool ShouldOpenViewportMenu() const;
 
 	UFUNCTION()
 	void OnRoomCreationClicked();
