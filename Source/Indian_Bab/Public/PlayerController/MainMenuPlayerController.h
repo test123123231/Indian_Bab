@@ -8,6 +8,8 @@
 class UInputMappingContext;
 class UMainMenuWidget;
 class UUserWidget;
+class UInputAction;
+struct FInputActionValue;
 
 UENUM(BlueprintType)
 enum class EMainMenuInputMode : uint8
@@ -63,10 +65,30 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Input")
 	bool IsMouseMenuInputMode() const { return MenuInputMode == EMainMenuInputMode::Mouse; }
 
+	virtual void SetupInputComponent() override;
+
 private:
+	void ApplyMainMenuMappingContext();
+	void RemoveMainMenuMappingContext();
+
 	void HandleConnectivityLost();
 	void HandleConnectivityRestored();
 
 	FDelegateHandle LostHandle;
 	FDelegateHandle RestoredHandle;
+
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+    TObjectPtr<UInputMappingContext> MainMenuMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_RightTriggerClick;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_LeftTriggerClick;
+
+	void OnLeftTriggerClickStarted(const FInputActionValue& Value);
+	void OnLeftTriggerClickReleased(const FInputActionValue& Value);
+
+	void OnRightTriggerClickStarted(const FInputActionValue& Value);
+	void OnRightTriggerClickReleased(const FInputActionValue& Value);
 };
