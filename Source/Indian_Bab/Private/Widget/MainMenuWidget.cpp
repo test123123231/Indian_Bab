@@ -168,12 +168,17 @@ void UMainMenuWidget::OnSessionError(const FString& Reason)
 	{
 		SessionErrorInstance->AddToViewport(100);
 
+		// VR 모드에서 SetInputMode(UIOnly)는 WidgetInteractionComponent 시뮬 키 라우팅을 깨뜨림 — Mouse 모드만 적용
 		if (PlayerControllerRef)
 		{
-			FInputModeUIOnly InputModeData;
-			InputModeData.SetWidgetToFocus(SessionErrorInstance->TakeWidget());
-			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-			PlayerControllerRef->SetInputMode(InputModeData);
+			const AMainMenuPlayerController* MainMenuPC = Cast<AMainMenuPlayerController>(PlayerControllerRef);
+			if (!MainMenuPC || MainMenuPC->IsMouseMenuInputMode())
+			{
+				FInputModeUIOnly InputModeData;
+				InputModeData.SetWidgetToFocus(SessionErrorInstance->TakeWidget());
+				InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+				PlayerControllerRef->SetInputMode(InputModeData);
+			}
 		}
 	}
 }

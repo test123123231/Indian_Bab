@@ -6,6 +6,7 @@
 #include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Net/UnrealNetwork.h"
 #include "Widget/MainMenuWidget.h"
+#include "PlayerController/MainMenuPlayerController.h"
 
 
 void URoomCreateWidget::SetParentMenu(UUserWidget* InParentMenu)
@@ -157,6 +158,13 @@ FReply URoomCreateWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, c
 {
 	// 기본 마우스 로직을 먼저 호출 (예: 버튼 클릭)
 	FReply Reply = Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+
+	// VR 모드에서 SetInputMode(UIOnly)는 WidgetInteractionComponent 시뮬 키 라우팅을 깨뜨림 — Mouse 모드만 포커스 회복 적용
+	const AMainMenuPlayerController* MainMenuPC = Cast<AMainMenuPlayerController>(PlayerControllerRef);
+	if (MainMenuPC && !MainMenuPC->IsMouseMenuInputMode())
+	{
+		return FReply::Handled();
+	}
 
 	// 팝업이 없고, 플레이어 컨트롤러가 유효하다면
 	// (사용자가 이 위젯의 빈 공간(배경)을 클릭했더라도)
