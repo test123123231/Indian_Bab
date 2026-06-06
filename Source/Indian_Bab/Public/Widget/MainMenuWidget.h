@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void RefocusSelf();
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void ShowMainMenuRoot();
+
 private:
 	//--- BP 위젯 변수 바인딩 ---
 
@@ -55,6 +58,15 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 	UWidgetSwitcher* Switcher_MainMenu;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<URoomCreateWidget> WBP_CreateRoom;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<URoomJoinWidget> WBP_JoinRoom;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UOptionMenuWidget> WBP_OptionMenu;
 
 	//--- 위젯 설정 프로퍼티 ---
 

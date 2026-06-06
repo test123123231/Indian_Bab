@@ -42,6 +42,23 @@ void UMainMenuWidget::NativeConstruct()
 		Button_Exit->OnClicked.AddDynamic(this, &UMainMenuWidget::OnExitClicked);
 	}
 
+	URoomCreateWidget* EmbeddedCreateRoom = WBP_CreateRoom ? WBP_CreateRoom.Get() : Cast<URoomCreateWidget>(GetWidgetFromName(TEXT("WBP_CreateRoom")));
+	URoomJoinWidget* EmbeddedJoinRoom = WBP_JoinRoom ? WBP_JoinRoom.Get() : Cast<URoomJoinWidget>(GetWidgetFromName(TEXT("WBP_JoinRoom")));
+	UOptionMenuWidget* EmbeddedOptionMenu = WBP_OptionMenu ? WBP_OptionMenu.Get() : Cast<UOptionMenuWidget>(GetWidgetFromName(TEXT("WBP_OptionMenu")));
+
+	if (EmbeddedCreateRoom)
+	{
+		EmbeddedCreateRoom->SetParentMenu(this);
+	}
+	if (EmbeddedJoinRoom)
+	{
+		EmbeddedJoinRoom->SetParentMenu(this);
+	}
+	if (EmbeddedOptionMenu)
+	{
+		EmbeddedOptionMenu->SetParentMenu(this);
+	}
+
 	PlayerControllerRef = GetOwningPlayer();
 
 	// 모든 세션/매치메이커/데디 거부 에러 단일 채널 구독 — 자식 모달과 동일 패턴.
@@ -108,6 +125,17 @@ void UMainMenuWidget::RefocusSelf()
 
 // 매치메이커 실패 / 데디 거부 공용 모달.
 // 위젯 BP는 BindWidget으로 "Text_Message" TextBlock 노출 시 사유 주입됨.
+void UMainMenuWidget::ShowMainMenuRoot()
+{
+	if (Switcher_MainMenu)
+	{
+		Switcher_MainMenu->SetActiveWidgetIndex(0);
+	}
+
+	TopmostChildModal = nullptr;
+	RefocusSelf();
+}
+
 void UMainMenuWidget::OnSessionError(const FString& Reason)
 {
 	UE_LOG(LogTemp, Warning, TEXT("MainMenuWidget: session error — %s"), *Reason);
