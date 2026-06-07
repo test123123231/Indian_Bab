@@ -76,7 +76,6 @@ void AMainMenuPlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainMenuPlayerController::OnRightTriggerClickStarted);
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainMenuPlayerController::OnRightTriggerClickReleased);
-            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Canceled, this, &AMainMenuPlayerController::OnRightTriggerClickReleased);
         }
         else
         {
@@ -88,7 +87,6 @@ void AMainMenuPlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainMenuPlayerController::OnLeftTriggerClickStarted);
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainMenuPlayerController::OnLeftTriggerClickReleased);
-            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Canceled, this, &AMainMenuPlayerController::OnLeftTriggerClickReleased);
         }
         else
         {

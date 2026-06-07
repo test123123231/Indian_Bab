@@ -195,7 +195,6 @@ void AMainGamePlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
-            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
         }
         else
         {
@@ -207,7 +206,6 @@ void AMainGamePlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnLeftTriggerClickStarted);
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
-            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
         }
         else
         {
@@ -219,7 +217,6 @@ void AMainGamePlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_Fire is used as temporary right trigger UI click fallback"));
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
-            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
         }
         if (IA_MainGameInteract) 
         {
@@ -503,11 +500,6 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
     // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
     ApplyMainGameMappingContext();
     EnterUIMode();
-
-    if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
-    {
-        VRCharacter->SetActiveVRUI(EVRActiveUI::InGame);
-    }
 }
 
 void AMainGamePlayerController::Server_RequestReady_Implementation()

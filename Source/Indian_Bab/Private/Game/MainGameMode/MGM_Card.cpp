@@ -4,6 +4,7 @@
 #include "Game/MainGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
 #include "Actor/SeatActor.h"
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
@@ -96,6 +97,12 @@ void AMainGameMode::CheckPlayerCard()
 	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
 
 	WinnerCharacter->SetActiveRevolver(Revolver);
+
+	if (ALobbyVRCharacter* WinnerVRCharacter = Cast<ALobbyVRCharacter>(WinnerCharacter))
+	{
+		WinnerVRCharacter->Client_HideMainGameWidget();
+	}
+
 	WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
 }
 

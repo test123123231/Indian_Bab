@@ -29,7 +29,7 @@ private:
 	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
 
 	UPROPERTY(EditAnywhere)
-	float BetNum = 1;
+	int32 BetNum = 1;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Time;
