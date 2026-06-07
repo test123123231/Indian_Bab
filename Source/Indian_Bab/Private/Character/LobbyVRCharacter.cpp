@@ -921,6 +921,7 @@ void ALobbyVRCharacter::AttachMainRevolverToRightGrip()
 	{
 		MarkMainRevolverGrabbed();
 
+#if WITH_SERVER_CODE
 		if (!bWasMainRevolverGrabbed)
 		{
 			if (AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr)
@@ -928,6 +929,7 @@ void ALobbyVRCharacter::AttachMainRevolverToRightGrip()
 				GM->HandleMainRevolverGrabbed(this);
 			}
 		}
+#endif
 	}
 
 	UE_LOG(LogTemp, Warning,
