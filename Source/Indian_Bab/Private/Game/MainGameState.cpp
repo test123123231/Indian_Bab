@@ -9,7 +9,7 @@
 
 namespace
 {
-	constexpr int32 MaxRaiseCount = 7;
+	constexpr int32 GameStateMaxRaiseCount = 7;
 }
 
 AMainGameState::AMainGameState()
@@ -85,7 +85,7 @@ void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount
 
 	if(NewAction == EBetAction::Raise)
 	{
-		if(RaiseCount < 1 || RaiseCount > MaxRaiseCount || CurrentBulletCount + RaiseCount > MainRevolverChamberCount) return;
+		if(RaiseCount < 1 || RaiseCount > GameStateMaxRaiseCount || CurrentBulletCount + RaiseCount > MainRevolverChamberCount) return;
 		CurrentBulletCount += RaiseCount;
 
 		OnRep_CurrentBulletCount();
