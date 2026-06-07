@@ -58,6 +58,8 @@ public:
 	// 메인 리볼버 격발 액션
 	void HandleMainRevolverShotAction(AMainGamePlayerController* RequestPC);
 
+	void HandleMainRevolverGrabbed(ALobbyCharacter* Character);
+
 	// 자기 머리에 겨냥했을 때
 	void HandleFoldMontageFinished(ALobbyCharacter* Character);
 
@@ -106,6 +108,8 @@ protected:
 
 	// 메인 리볼버 격발 시간 넘겼을 때
 	void OnMainShotTimerExpired();
+
+	void OnMainRevolverGrabTimerExpired();
 
 	// 메인 리볼버 격발 실행
 	void ExecuteMainShot(bool bAutoFire);

@@ -97,13 +97,14 @@ void AMainGameMode::CheckPlayerCard()
 	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
 
 	WinnerCharacter->SetActiveRevolver(Revolver);
+	WinnerCharacter->BeginManualMainRevolverPhase();
 
 	if (ALobbyVRCharacter* WinnerVRCharacter = Cast<ALobbyVRCharacter>(WinnerCharacter))
 	{
 		WinnerVRCharacter->Client_HideMainGameWidget();
 	}
 
-	WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
+	ManageShotPhase();
 }
 
 // 활성 인원 중에서 가장 큰 값을 가진 플레이어

@@ -7,6 +7,7 @@
 #include "Widget/DeckLeftWidget.h"
 #include "Game/MainGameMode.h"
 #include "Game/MainGameTypes.h"
+#include "Actor/Revolver.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
@@ -220,7 +221,7 @@ void AMainGamePlayerController::SetupInputComponent()
         }
         if (IA_MainGameInteract) 
         {
-            EnhancedInput->BindAction(IA_MainGameInteract, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameInteract);
+            EnhancedInput->BindAction(IA_MainGameInteract, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameInteract);
         }
     }
 }
@@ -298,6 +299,10 @@ void AMainGamePlayerController::CreateMainGameWidget()
     if (MainGameWidgetInstance)
     {
         MainGameWidgetInstance->InitWidget();
+        if (Cast<ALobbyVRCharacter>(GetPawn()))
+        {
+            MainGameWidgetInstance->SetVisibility(ESlateVisibility::Hidden);
+        }
     }
 }
 
@@ -538,6 +543,18 @@ void AMainGamePlayerController::OnRightTriggerClickStarted(const FInputActionVal
 {
 	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
 	{
+        if (VRCharacter->GunHoldReason == EGunHoldReason::Win
+            && VRCharacter->ActiveRevolver
+            && VRCharacter->ActiveRevolver->ActorHasTag(FName("MainRevolver")))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR Gun] Right trigger used as main revolver fire. PC=%s Pawn=%s Revolver=%s"),
+                *GetNameSafe(this),
+                *GetNameSafe(VRCharacter),
+                *GetNameSafe(VRCharacter->ActiveRevolver));
+            Server_RequestMainRevolverShot();
+            return;
+        }
+
 		VRCharacter->PressRightWidgetInteraction();
 	}
 }

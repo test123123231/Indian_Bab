@@ -122,7 +122,78 @@ void AMainGameMode::OnMainShotTimerExpired()
 	if (GS)
 		GS->ClearTimerInfo();
 
+	ALobbyCharacter* WinnerCharacter = nullptr;
+	if (CurrentWinnerPS)
+	{
+		if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner()))
+		{
+			WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+		}
+	}
+
+	if (!WinnerCharacter || !WinnerCharacter->IsMainRevolverGrabbed())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Main shot timer expired but MainRevolver is not grabbed. Auto fire skipped."));
+		return;
+	}
+
 	ExecuteMainShot(true);
+}
+
+void AMainGameMode::OnMainRevolverGrabTimerExpired()
+{
+	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (GS)
+	{
+		GS->ClearTimerInfo();
+	}
+
+	ALobbyCharacter* WinnerCharacter = nullptr;
+	if (CurrentWinnerPS)
+	{
+		if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner()))
+		{
+			WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+		}
+	}
+
+	if (WinnerCharacter && WinnerCharacter->IsMainRevolverGrabbed())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver was grabbed before grab timer expired. Ignored."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver grab timed out. Main shot phase skipped."));
+
+	if (WinnerCharacter)
+	{
+		WinnerCharacter->ReturnMainRevolverToTableImmediately();
+	}
+
+	FinishMainShotPhase();
+}
+
+void AMainGameMode::HandleMainRevolverGrabbed(ALobbyCharacter* Character)
+{
+	if (!HasAuthority() || !Character) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS || GS->CurrentGamePhase != EGamePhase::Result) return;
+	if (!CurrentWinnerPS) return;
+
+	AMainGamePlayerController* WinnerPC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
+	if (!WinnerPC || WinnerPC->GetPawn() != Character) return;
+
+	if (GS->CurrentBulletCount <= 0)
+	{
+		StartMainRevolverPutBack();
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver grabbed. Shot timer started."));
+	StartMainshotTimer(10.0f);
 }
 
 // 메인 리볼버 격발 액션
@@ -331,7 +402,9 @@ void AMainGameMode::StartMainRevolverPutBack()
 
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Start Main Revolver PutBack"));
 
-	WinnerCharacter->Multicast_PutBackGunMontage(EGunHoldReason::Win);
+	WinnerCharacter->ReturnMainRevolverToTableImmediately();
+	bMainRevolverPutBackInProgress = false;
+	FinishMainShotPhase();
 }
 
 void AMainGameMode::InitMainRevolverLiveBulletIfNeeded()

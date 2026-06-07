@@ -12,6 +12,7 @@ ARevolver::ARevolver()
 
 	// 멀티플레이어 동기화 필수 - 이게 없으면 클라이언트에서 DeskRevolver 포인터가 null이 됨
 	bReplicates = true;
+	SetReplicateMovement(true);
 
 	// 스켈레탈 메시 컴포넌트 생성 및 루트(기준점)로 설정
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
@@ -46,6 +47,9 @@ ARevolver::ARevolver()
 void ARevolver::BeginPlay()
 {
 	Super::BeginPlay();
+
+	InitialTableTransform = GetActorTransform();
+	bInitialTableTransformSaved = true;
 
 	// 혹시 모르니 게임 시작 시 탄창을 꽉 채워줍니다.
 	CurrentAmmo = MaxAmmo;
@@ -117,4 +121,23 @@ void ARevolver::SetWidgetPlayingPhase(bool bIsPlaying)
 
 	// 위젯 컴포넌트 자체의 가시성도 같이 설정
 	BulletCountWidgetComponent->SetVisibility(bIsPlaying);
+}
+
+void ARevolver::ReturnToInitialTableTransform()
+{
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	if (bInitialTableTransformSaved)
+	{
+		SetActorTransform(InitialTableTransform, false, nullptr, ETeleportType::TeleportPhysics);
+	}
+
+	SetActorHiddenInGame(false);
+
+	if (CollisionSphere)
+	{
+		CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+
+	ForceNetUpdate();
 }

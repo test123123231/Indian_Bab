@@ -161,6 +161,11 @@ protected:
 	void UpdateArmPosition();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 private:
+	UFUNCTION(Server, Reliable)
+	void Server_GrabMainRevolver();
+
+	void AttachMainRevolverToRightGrip();
+
 	void ConfigureLocalVRTracking();
 	void ApplyReplicatedArmTransforms();
 	void ConfigureVRSeatedState();

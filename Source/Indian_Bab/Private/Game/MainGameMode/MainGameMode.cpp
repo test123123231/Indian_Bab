@@ -690,7 +690,10 @@ void AMainGameMode::ManageShotPhase()
     }
 	else
 	{
-		StartMainshotTimer(10.0f);
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Waiting for winner to grab MainRevolver. Grab timer started."));
+		GS->SetTimerInfo(10.0f);
+		GetWorldTimerManager().ClearTimer(TimerHandle);
+		GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnMainRevolverGrabTimerExpired, 10.0f, false);
 	}
 }
 

@@ -758,6 +758,68 @@ void ALobbyCharacter::SetActiveRevolver(ARevolver* NewRevolver)
 	ForceNetUpdate();
 }
 
+void ALobbyCharacter::BeginManualMainRevolverPhase()
+{
+	if (!HasAuthority()) return;
+
+	GunHoldReason = EGunHoldReason::Win;
+	bShowMainShotAimLine = false;
+	bMainRevolverGrabbed = false;
+	bIsPuttingBackGun = false;
+
+	if (ActiveRevolver)
+	{
+		ActiveRevolver->SetActorHiddenInGame(false);
+		if (ActiveRevolver->CollisionSphere)
+		{
+			ActiveRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		}
+	}
+
+	ForceNetUpdate();
+}
+
+void ALobbyCharacter::ReturnMainRevolverToTableImmediately()
+{
+	if (FP_RevolverMesh)
+	{
+		FP_RevolverMesh->SetVisibility(false);
+		FP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	if (TP_RevolverMesh)
+	{
+		TP_RevolverMesh->SetVisibility(false);
+		TP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	bShowMainShotAimLine = false;
+	bMainRevolverGrabbed = false;
+	bIsPuttingBackGun = false;
+	GunHoldReason = EGunHoldReason::None;
+
+	if (ActiveRevolver)
+	{
+		ActiveRevolver->ReturnToInitialTableTransform();
+		ActiveRevolver = nullptr;
+	}
+
+	ForceNetUpdate();
+}
+
+void ALobbyCharacter::MarkMainRevolverGrabbed()
+{
+	if (!HasAuthority()) return;
+
+	bMainRevolverGrabbed = true;
+	ForceNetUpdate();
+}
+
+bool ALobbyCharacter::IsMainRevolverGrabbed() const
+{
+	return bMainRevolverGrabbed;
+}
+
 void ALobbyCharacter::SetMainShotAimLineVisible(bool bVisible)
 {
 	bShowMainShotAimLine = bVisible;

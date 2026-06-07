@@ -1,5 +1,6 @@
 ﻿#include "Character/LobbyVRCharacter.h"
 
+#include "Actor/Revolver.h"
 #include "Actor/SeatActor.h"
 #include "Game/MainGameMode.h"
 #include "Camera/CameraComponent.h"
@@ -8,6 +9,7 @@
 #include "Components/WidgetComponent.h"
 #include "Components/WidgetInteractionComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -809,20 +811,130 @@ void ALobbyVRCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Ou
 	DOREPLIFETIME(ALobbyVRCharacter, RightArm);
 }
 
-void ALobbyVRCharacter::GrabGun() {
-	if (GunHoldReason != EGunHoldReason::Win) return;
-	if (!MotionControllerRightGrip || !GetWorld())
+void ALobbyVRCharacter::GrabGun()
+{
+	if (MotionControllerRightGrip && GetWorld())
 	{
+		const FVector Start = MotionControllerRightGrip->GetComponentLocation();
+		const FVector TraceEnd = Start + MotionControllerRightGrip->GetForwardVector() * VRPointerMaxDistance;
+
+		FHitResult HitResult;
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(VRGunGrabTrace), false, this);
+		const bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, TraceEnd, ECC_Visibility, QueryParams);
+
+		UE_LOG(LogTemp, Warning,
+			TEXT("[VR Gun] GrabGun input. Char=%s Local=%s Reason=%d ActiveRevolver=%s Hit=%s Actor=%s Component=%s Distance=%.2f"),
+			*GetNameSafe(this),
+			IsLocallyControlled() ? TEXT("true") : TEXT("false"),
+			static_cast<int32>(GunHoldReason),
+			*GetNameSafe(ActiveRevolver),
+			bHit ? TEXT("true") : TEXT("false"),
+			*GetNameSafe(HitResult.GetActor()),
+			*GetNameSafe(HitResult.GetComponent()),
+			bHit ? HitResult.Distance : -1.0f);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[VR Gun] GrabGun input. Char=%s Local=%s Reason=%d ActiveRevolver=%s RightGrip=%s World=%s"),
+			*GetNameSafe(this),
+			IsLocallyControlled() ? TEXT("true") : TEXT("false"),
+			static_cast<int32>(GunHoldReason),
+			*GetNameSafe(ActiveRevolver),
+			*GetNameSafe(MotionControllerRightGrip),
+			GetWorld() ? TEXT("valid") : TEXT("null"));
+	}
+
+	if (GunHoldReason != EGunHoldReason::Win || !ActiveRevolver)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[VR Gun] GrabGun blocked. Need Reason=Win(%d) and ActiveRevolver. Reason=%d ActiveRevolver=%s"),
+			static_cast<int32>(EGunHoldReason::Win),
+			static_cast<int32>(GunHoldReason),
+			*GetNameSafe(ActiveRevolver));
 		return;
 	}
-	const FVector Start = MotionControllerRightGrip->GetComponentLocation();
-	const FVector TraceEnd = Start + MotionControllerRightGrip->GetForwardVector() * VRPointerMaxDistance;
 
-	FHitResult HitResult;
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(VRPointerTrace), false, this);
+	if (ActiveRevolver->ActorHasTag(FName("MainRevolver")))
+	{
+		AttachMainRevolverToRightGrip();
 
-	UE_LOG(LogTemp, Warning, TEXT("Gun visible"));
+		if (!HasAuthority())
+		{
+			Server_GrabMainRevolver();
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("[VR Gun] MainRevolver grab requested. Revolver=%s"), *GetNameSafe(ActiveRevolver));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR Gun] Non-main revolver grab path. Revolver=%s"), *GetNameSafe(ActiveRevolver));
 	AttachRevolverToSocket();
 	DrawMainShotAimLine();
+}
 
+void ALobbyVRCharacter::Server_GrabMainRevolver_Implementation()
+{
+	if (GunHoldReason != EGunHoldReason::Win || !ActiveRevolver || !ActiveRevolver->ActorHasTag(FName("MainRevolver")))
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[VR Gun] Server_GrabMainRevolver blocked. Char=%s Reason=%d ActiveRevolver=%s IsMain=%s"),
+			*GetNameSafe(this),
+			static_cast<int32>(GunHoldReason),
+			*GetNameSafe(ActiveRevolver),
+			ActiveRevolver && ActiveRevolver->ActorHasTag(FName("MainRevolver")) ? TEXT("true") : TEXT("false"));
+		return;
+	}
+
+	AttachMainRevolverToRightGrip();
+	UE_LOG(LogTemp, Warning, TEXT("[VR Gun] Server attached MainRevolver. Char=%s Revolver=%s"), *GetNameSafe(this), *GetNameSafe(ActiveRevolver));
+}
+
+void ALobbyVRCharacter::AttachMainRevolverToRightGrip()
+{
+	if (!MotionControllerRightGrip || !ActiveRevolver)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[VR Gun] AttachMainRevolverToRightGrip blocked. RightGrip=%s ActiveRevolver=%s"),
+			*GetNameSafe(MotionControllerRightGrip),
+			*GetNameSafe(ActiveRevolver));
+		return;
+	}
+
+	const bool bWasMainRevolverGrabbed = IsMainRevolverGrabbed();
+
+	ActiveRevolver->SetActorHiddenInGame(false);
+	ActiveRevolver->AttachToComponent(MotionControllerRightGrip, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
+	ActiveRevolver->SetActorRelativeLocation(FVector::ZeroVector);
+	ActiveRevolver->SetActorRelativeRotation(FRotator::ZeroRotator);
+
+	if (ActiveRevolver->CollisionSphere)
+	{
+		ActiveRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
+
+	bShowMainShotAimLine = true;
+	DrawMainShotAimLine();
+	ActiveRevolver->ForceNetUpdate();
+
+	if (HasAuthority() && ActiveRevolver->ActorHasTag(FName("MainRevolver")))
+	{
+		MarkMainRevolverGrabbed();
+
+		if (!bWasMainRevolverGrabbed)
+		{
+			if (AMainGameMode* GM = GetWorld() ? GetWorld()->GetAuthGameMode<AMainGameMode>() : nullptr)
+			{
+				GM->HandleMainRevolverGrabbed(this);
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("[VR Gun] MainRevolver attached to right grip. Char=%s Revolver=%s GripLocation=%s RevolverLocation=%s Authority=%s"),
+		*GetNameSafe(this),
+		*GetNameSafe(ActiveRevolver),
+		*MotionControllerRightGrip->GetComponentLocation().ToString(),
+		*ActiveRevolver->GetActorLocation().ToString(),
+		HasAuthority() ? TEXT("true") : TEXT("false"));
 }
