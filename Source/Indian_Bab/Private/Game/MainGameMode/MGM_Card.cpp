@@ -71,8 +71,6 @@ void AMainGameMode::CheckPlayerCard()
 	AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
 
-	GS->SetGamePhase(EGamePhase::Result);
-
     CurrentWinnerPS = MaxCardPlayer();
 	if(!CurrentWinnerPS) return;
 
@@ -95,6 +93,8 @@ void AMainGameMode::CheckPlayerCard()
 		return;
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
+
+	GS->SetGamePhase(EGamePhase::Result);
 
 	WinnerCharacter->SetActiveRevolver(Revolver);
 	WinnerCharacter->BeginManualMainRevolverPhase();

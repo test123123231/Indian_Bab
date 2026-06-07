@@ -186,7 +186,7 @@ void AMainGamePlayerController::SetupInputComponent()
             EnhancedInput->BindAction(IA_MainGameTab, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameTabPressed);
         }
 
-        if (IA_Fire)
+        if (IA_Fire && IA_RightTriggerClick)
         {
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnFire);
         }
