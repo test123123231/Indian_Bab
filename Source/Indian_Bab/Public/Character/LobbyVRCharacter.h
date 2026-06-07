@@ -13,6 +13,7 @@ class USceneComponent;
 class USkeletalMeshComponent;
 class UWidgetComponent;
 class UWidgetInteractionComponent;
+class UTurnInfoWidget;
 
 UENUM(BlueprintType)
 enum class EVRActiveUI : uint8
@@ -112,6 +113,13 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
 	TSubclassOf<UGameResultWidget> ResultWidgetClass;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR UI")
+	TObjectPtr<UWidgetComponent> TurnInfoWidgetComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
+	TSubclassOf<UTurnInfoWidget> TurnInfoWidgetClass;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI", meta = (ClampMin = "0.0"))
 	float ReadyWidgetDelaySeconds = 0.5f;
 
@@ -171,6 +179,7 @@ private:
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
 	void InitializeMainGameWidgetComponents();
+	void InitializeTurnInfoWidgetComponent();
 	void ShowReadyWidgetAfterDelay();
 	void SetComponentsForVRUIState(EVRActiveUI UIState, bool bActive);
 	void ApplyVRWidgetComponentState(UWidgetComponent* WidgetComponent, bool bActive);

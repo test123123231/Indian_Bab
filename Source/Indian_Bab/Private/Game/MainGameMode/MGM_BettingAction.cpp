@@ -320,6 +320,7 @@ void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 	GetWorldTimerManager().ClearTimer(TimerHandle);
 	
 	GS -> CurrentBulletCount -= 1;
+	GS->OnTurnInfoChanged.Broadcast();
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Trigger pulled. RemainingTriggerCount=%d Auto=%d"), GS->CurrentBulletCount, bAutoFire);
 	
 	const bool bRealFire = PullMainRevolverTrigger();

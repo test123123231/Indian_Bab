@@ -723,6 +723,7 @@ void AMainGameMode::FinishMainShotPhase()
     AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
 	GS->ClearTimerInfo();
+	GS->ClearMainShotInfo();
 
     CurrentWinnerPS = nullptr;
 	GS -> CurrentBulletCount = 0;

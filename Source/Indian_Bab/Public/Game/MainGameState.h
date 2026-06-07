@@ -8,6 +8,7 @@
 #include "MainGameState.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnCurrentTurnPlayerChanged);
+DECLARE_MULTICAST_DELEGATE(FOnTurnInfoChanged);
 
 // 게임의 현재 진행 단계를 정의하는 Enum
 UENUM(BlueprintType)
@@ -40,6 +41,7 @@ public:
 	AMainGameState();
 
 	FOnCurrentTurnPlayerChanged OnCurrentTurnPlayerChanged;
+	FOnTurnInfoChanged OnTurnInfoChanged;
 
 	// 상태 복제를 위한 필수 함수
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -78,6 +80,12 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_MainRevolverChamberCount, BlueprintReadOnly, Category = "Game State")
 	int32 MainRevolverChamberCount;
 
+	UPROPERTY(ReplicatedUsing = OnRep_MainShotInfo, BlueprintReadOnly, Category = "Game State")
+	int32 MainShotPlayerId;
+
+	UPROPERTY(ReplicatedUsing = OnRep_MainShotInfo, BlueprintReadOnly, Category = "Game State")
+	int32 MainShotTotalCount;
+
 	// 현재 플레이어 액션
 	UPROPERTY(ReplicatedUsing = OnRep_CurrentBetInfo, BlueprintReadOnly, Category = "Game State")
 	FBetActionInfo CurrentBetInfo;
@@ -109,6 +117,10 @@ public:
 	void ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount = 0);
 
 	void SetMainRevolverChamberCount(int32 NewChamberCount);
+
+	void SetMainShotInfo(int32 NewMainShotPlayerId, int32 NewMainShotTotalCount);
+
+	void ClearMainShotInfo();
 
 	// 서버에서 준비 인원 호출
 	void ChangeReadyPlayerCount(int NewReadyCount);
@@ -155,6 +167,9 @@ protected:
 
 	UFUNCTION()
 	void OnRep_MainRevolverChamberCount();
+
+	UFUNCTION()
+	void OnRep_MainShotInfo();
 
 	UFUNCTION()
 	void OnRep_TimerInfo();
