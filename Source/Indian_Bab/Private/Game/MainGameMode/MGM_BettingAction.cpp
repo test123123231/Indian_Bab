@@ -86,8 +86,10 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 	{
 		Character->SetActiveRevolver(Character->DeskRevolver);
 		Character->Multicast_PlayGrabGunMontage(EGunHoldReason::Fold);
+		return;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d has no fold character. Resolving fold immediately."), PS->GetPlayerId());
 	bool PlayerAlive = PS -> ChangeSubRevolver();
 	if(PlayerAlive)
 	{
@@ -102,6 +104,8 @@ void AMainGameMode::HandleFoldAction(AMainGamePlayerController* RequestPC)
 			--GS -> AlivePlayerCount;
 		}
 	}
+
+	CheckNext();
 }
 
 // 메인 리볼버 격발 시간 타이머
@@ -236,6 +240,27 @@ void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 
     AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
+
+	AMainPlayerState* PS = Character->GetPlayerState<AMainPlayerState>();
+	if (PS)
+	{
+		const bool PlayerAlive = PS->ChangeSubRevolver();
+		if (PlayerAlive)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d survived by sub revolver after fold montage"), PS->GetPlayerId());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d died by sub revolver after fold montage"), PS->GetPlayerId());
+			if (GS->AlivePlayerCount > 0)
+			{
+				--GS->AlivePlayerCount;
+			}
+
+			CheckNext();
+			return;
+		}
+	}
 	
     Character->Multicast_PutBackGunMontage(EGunHoldReason::Fold);
 }
