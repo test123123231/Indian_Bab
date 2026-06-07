@@ -219,3 +219,49 @@ int32 UMainGameWidget::GetBetNum() const
 {
 	return BetNum;
 }
+
+bool UMainGameWidget::HandleVRClickAtWidgetLocation(const FVector2D& WidgetLocalHitLocation)
+{
+	if (IsButtonUnderWidgetLocation(Plus_Button, WidgetLocalHitLocation))
+	{
+		PlusButtonClicked();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Minus_Button, WidgetLocalHitLocation))
+	{
+		MinusButtonClicked();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Button_Raise, WidgetLocalHitLocation))
+	{
+		OnButtonRaise();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Button_CheckCall, WidgetLocalHitLocation))
+	{
+		OnButtonCheckCall();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Button_Fold, WidgetLocalHitLocation))
+	{
+		OnButtonFold();
+		return true;
+	}
+
+	return false;
+}
+
+bool UMainGameWidget::IsButtonUnderWidgetLocation(const UButton* Button, const FVector2D& WidgetLocalHitLocation) const
+{
+	if (!Button || !Button->GetIsEnabled() || !Button->IsVisible())
+	{
+		return false;
+	}
+
+	const FVector2D AbsoluteHitLocation = GetCachedGeometry().LocalToAbsolute(WidgetLocalHitLocation);
+	return Button->GetCachedGeometry().IsUnderLocation(AbsoluteHitLocation);
+}

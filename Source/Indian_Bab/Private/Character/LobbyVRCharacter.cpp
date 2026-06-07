@@ -256,6 +256,13 @@ void ALobbyVRCharacter::ReleaseRightWidgetInteraction()
 	const bool bReadyWidgetHovered = WidgetInteractionRight->GetHoveredWidgetComponent() == ReadyWidgetComponent;
 	const bool bResultWidgetHovered = WidgetInteractionRight->GetHoveredWidgetComponent() == ResultWidgetComponent;
 	WidgetInteractionRight->ReleasePointerKey(EKeys::LeftMouseButton);
+	if (UWidgetComponent* HoveredWidgetComponent = WidgetInteractionRight->GetHoveredWidgetComponent())
+	{
+		if (UMainGameWidget* MainGameWidget = Cast<UMainGameWidget>(HoveredWidgetComponent->GetUserWidgetObject()))
+		{
+			MainGameWidget->HandleVRClickAtWidgetLocation(WidgetInteractionRight->Get2DHitLocation());
+		}
+	}
 	if (bReadyWidgetHovered)
 	{
 		if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent ? ReadyWidgetComponent->GetUserWidgetObject() : nullptr))
@@ -292,6 +299,13 @@ void ALobbyVRCharacter::ReleaseLeftWidgetInteraction()
 	const bool bReadyWidgetHovered = WidgetInteractionLeft->GetHoveredWidgetComponent() == ReadyWidgetComponent;
 	const bool bResultWidgetHovered = WidgetInteractionLeft->GetHoveredWidgetComponent() == ResultWidgetComponent;
 	WidgetInteractionLeft->ReleasePointerKey(EKeys::LeftMouseButton);
+	if (UWidgetComponent* HoveredWidgetComponent = WidgetInteractionLeft->GetHoveredWidgetComponent())
+	{
+		if (UMainGameWidget* MainGameWidget = Cast<UMainGameWidget>(HoveredWidgetComponent->GetUserWidgetObject()))
+		{
+			MainGameWidget->HandleVRClickAtWidgetLocation(WidgetInteractionLeft->Get2DHitLocation());
+		}
+	}
 	if (bReadyWidgetHovered)
 	{
 		if (UReadyWidget* ReadyWidget = Cast<UReadyWidget>(ReadyWidgetComponent ? ReadyWidgetComponent->GetUserWidgetObject() : nullptr))

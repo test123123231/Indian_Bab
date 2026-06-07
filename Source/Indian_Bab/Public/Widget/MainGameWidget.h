@@ -86,7 +86,11 @@ public:
 
 	int32 GetBetNum() const;
 
+	bool HandleVRClickAtWidgetLocation(const FVector2D& WidgetLocalHitLocation);
+
 private:
+	bool IsButtonUnderWidgetLocation(const UButton* Button, const FVector2D& WidgetLocalHitLocation) const;
+
 	UFUNCTION()
 	void MinusButtonClicked();
 
