@@ -95,6 +95,7 @@ void AMainGameMode::CheckPlayerCard()
 	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
 
 	GS->SetGamePhase(EGamePhase::Result);
+	GS->SetMainShotInfo(CurrentWinnerPS->GetPlayerId(), GS->CurrentBulletCount);
 
 	WinnerCharacter->SetActiveRevolver(Revolver);
 	WinnerCharacter->BeginManualMainRevolverPhase();

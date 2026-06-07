@@ -20,6 +20,7 @@
 #include "Widget/GameResultWidget.h"
 #include "Widget/MainGameWidget.h"
 #include "Widget/ReadyWidget.h"
+#include "Widget/TurnInfoWidget.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Net/UnrealNetwork.h"
 #include "EnhancedInputComponent.h"
@@ -107,6 +108,14 @@ ALobbyVRCharacter::ALobbyVRCharacter()
 	ResultWidgetComponent->SetVisibility(false);
 	ResultWidgetComponent->SetHiddenInGame(true);
 
+	TurnInfoWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("TurnInfoWidget"));
+	TurnInfoWidgetComponent->SetupAttachment(CameraComponent);
+	TurnInfoWidgetComponent->SetWidgetSpace(EWidgetSpace::World);
+	TurnInfoWidgetComponent->SetTwoSided(true);
+	TurnInfoWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	TurnInfoWidgetComponent->SetVisibility(false);
+	TurnInfoWidgetComponent->SetHiddenInGame(true);
+
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
 }
@@ -118,6 +127,7 @@ void ALobbyVRCharacter::BeginPlay()
 	ConfigureLocalVRTracking();
 	ConfigureVRSeatedState();
 	ConfigureWidgetInteraction();
+	InitializeTurnInfoWidgetComponent();
 }
 
 
@@ -126,6 +136,7 @@ void ALobbyVRCharacter::PossessedBy(AController* NewController)
 	Super::PossessedBy(NewController);
 	ConfigureLocalVRTracking();
 	ConfigureWidgetInteraction();
+	InitializeTurnInfoWidgetComponent();
 }
 
 void ALobbyVRCharacter::OnRep_PlayerState()
@@ -133,6 +144,7 @@ void ALobbyVRCharacter::OnRep_PlayerState()
 	Super::OnRep_PlayerState();
 	ConfigureLocalVRTracking();
 	ConfigureWidgetInteraction();
+	InitializeTurnInfoWidgetComponent();
 }
 
 void ALobbyVRCharacter::PawnClientRestart()
@@ -140,6 +152,7 @@ void ALobbyVRCharacter::PawnClientRestart()
 	Super::PawnClientRestart();
 	ConfigureLocalVRTracking();
 	ConfigureWidgetInteraction();
+	InitializeTurnInfoWidgetComponent();
 }
 
 void ALobbyVRCharacter::Tick(float DeltaTime)
@@ -628,6 +641,53 @@ void ALobbyVRCharacter::InitializeMainGameWidgetComponents()
 	}
 }
 
+void ALobbyVRCharacter::InitializeTurnInfoWidgetComponent()
+{
+	if (!TurnInfoWidgetComponent)
+	{
+		return;
+	}
+
+	const bool bLocalOwner = IsLocallyControlled();
+	TurnInfoWidgetComponent->SetVisibility(bLocalOwner, true);
+	TurnInfoWidgetComponent->SetHiddenInGame(!bLocalOwner);
+	TurnInfoWidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	if (!bLocalOwner)
+	{
+		return;
+	}
+
+	AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(GetController());
+	if (!PC || !PC->IsLocalPlayerController())
+	{
+		return;
+	}
+
+	if (TurnInfoWidgetClass)
+	{
+		TurnInfoWidgetComponent->SetWidgetClass(TurnInfoWidgetClass);
+	}
+	if (!TurnInfoWidgetComponent->GetWidgetClass())
+	{
+		return;
+	}
+
+	TurnInfoWidgetComponent->SetOwnerPlayer(PC->GetLocalPlayer());
+	TurnInfoWidgetComponent->InitWidget();
+
+	if (UTurnInfoWidget* TurnInfoWidget = Cast<UTurnInfoWidget>(TurnInfoWidgetComponent->GetUserWidgetObject()))
+	{
+		TurnInfoWidget->SetOwningPlayer(PC);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] TurnInfoWidget component found but widget object is not UTurnInfoWidget. Component=%s Widget=%s"),
+			*GetNameSafe(TurnInfoWidgetComponent),
+			*GetNameSafe(TurnInfoWidgetComponent->GetUserWidgetObject()));
+	}
+}
+
 void ALobbyVRCharacter::UpdateVRPointers()
 {
 	if (!IsLocallyControlled())
@@ -754,6 +814,7 @@ void ALobbyVRCharacter::ShowMainGameWidget()
 	if (!IsLocallyControlled()) return;
 
 	ConfigureWidgetInteraction();
+	InitializeTurnInfoWidgetComponent();
 	InitializeMainGameWidgetComponents();
 	SetActiveVRUI(EVRActiveUI::InGame);
 }
