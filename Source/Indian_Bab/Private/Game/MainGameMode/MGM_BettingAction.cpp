@@ -9,6 +9,11 @@
 
 #if WITH_SERVER_CODE
 
+namespace
+{
+	constexpr int32 MaxRaiseCount = 7;
+}
+
 void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action, int32 RaiseCount)
 {
     if (!HasAuthority()) return;
@@ -24,7 +29,7 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	if (GS -> CurrentTurnPlayerId != PlayerId) return;
 
 	// Raise 불가능하면 아예 막고 종료
-    if (Action == EBetAction::Raise && (RaiseCount < 1 || RaiseCount > 8 || GS->CurrentBulletCount + RaiseCount > GS->MainRevolverChamberCount))
+    if (Action == EBetAction::Raise && (RaiseCount < 1 || RaiseCount > MaxRaiseCount || GS->CurrentBulletCount + RaiseCount > GS->MainRevolverChamberCount))
     {
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Raise blocked: RaiseCount=%d CurrentBulletCount=%d"), RaiseCount, GS->CurrentBulletCount);
         //TODO 추후에 텍스트로 Raise 불가라고 뜨게

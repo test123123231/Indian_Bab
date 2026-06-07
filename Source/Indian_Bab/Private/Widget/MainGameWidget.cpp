@@ -9,6 +9,10 @@
 #include "Game/MainGameState.h"
 #include "PlayerController\MainGamePlayerController.h"
 
+namespace
+{
+	constexpr int32 MaxRaiseBetNum = 7;
+}
 
 void UMainGameWidget::NativeDestruct()
 {
@@ -107,7 +111,7 @@ void UMainGameWidget::MinusButtonClicked()
 
 void UMainGameWidget::PlusButtonClicked()
 {
-	if (BetNum >= 8)
+	if (BetNum >= MaxRaiseBetNum)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Plus blocked BetNum=%d OwnerPC=%s"),
 			BetNum,
@@ -127,7 +131,7 @@ void UMainGameWidget::PlusButtonClicked()
 
 	if (WBP_BetProgress)
 	{
-		if (BetNum == 8)
+		if (BetNum == MaxRaiseBetNum)
 		{
 			WBP_BetProgress->Fill();
 		}
@@ -146,7 +150,7 @@ void UMainGameWidget::OnButtonRaise()
 		return;
 	}
 
-	if (BetNum < 1 || BetNum > 8)
+	if (BetNum < 1 || BetNum > MaxRaiseBetNum)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Raise blocked BetNum=%d OwnerPC=%s"),
 			BetNum,
