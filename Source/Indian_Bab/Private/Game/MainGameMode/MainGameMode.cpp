@@ -2,6 +2,8 @@
 #include "Game/MainGameState.h"
 #include "Actor/SeatActor.h"
 #include "PlayerState/MainPlayerState.h"
+#include "PlayerController/MainGamePlayerController.h"
+#include "Character/LobbyCharacter.h"
 #include "Character/LobbyVRCharacter.h"
 #include "CardController/CardManager.h"
 #include "GameFramework/GameSession.h"
@@ -683,18 +685,32 @@ void AMainGameMode::ManageShotPhase()
         return;
     }
 
-    if (GS -> CurrentBulletCount <= 0)
-    {
+	if (GS -> CurrentBulletCount <= 0)
+	{
         StartMainRevolverPutBack();
         return;
     }
-	else
+
+	ALobbyCharacter* WinnerCharacter = nullptr;
+	if (CurrentWinnerPS)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[GM] Waiting for winner to grab MainRevolver. Grab timer started."));
-		GS->SetTimerInfo(10.0f);
-		GetWorldTimerManager().ClearTimer(TimerHandle);
-		GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnMainRevolverGrabTimerExpired, 10.0f, false);
+		if (AMainGamePlayerController* WinnerPC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner()))
+		{
+			WinnerCharacter = Cast<ALobbyCharacter>(WinnerPC->GetPawn());
+		}
 	}
+
+	if (WinnerCharacter && WinnerCharacter->IsMainRevolverGrabbed())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Waiting for winner to fire MainRevolver. Shot timer started."));
+		StartMainshotTimer(10.0f);
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Waiting for winner to grab MainRevolver. Grab timer started."));
+	GS->SetTimerInfo(10.0f);
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnMainRevolverGrabTimerExpired, 10.0f, false);
 }
 
 // 격발 페이즈 종료 후 정리

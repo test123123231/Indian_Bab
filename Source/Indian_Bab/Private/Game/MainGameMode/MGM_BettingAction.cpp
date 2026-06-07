@@ -509,6 +509,19 @@ AMainPlayerState* AMainGameMode::GetMainShotTargetByAim(AMainGamePlayerControlle
 	if (AActor* ShooterPawn = ShooterPC->GetPawn())
 	{
 		Params.AddIgnoredActor(ShooterPawn);
+
+		if (const ALobbyCharacter* ShooterCharacter = Cast<ALobbyCharacter>(ShooterPawn))
+		{
+			if (ShooterCharacter->ActiveRevolver)
+			{
+				Params.AddIgnoredActor(ShooterCharacter->ActiveRevolver.Get());
+			}
+		}
+	}
+
+	if (ARevolver* Revolver = GetMainRevolver())
+	{
+		Params.AddIgnoredActor(Revolver);
 	}
 
 	// Fold / 사망 / 자기 자신은 타겟팅 제외
