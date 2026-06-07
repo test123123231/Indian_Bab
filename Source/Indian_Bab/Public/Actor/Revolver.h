@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Sound/SoundBase.h"
 #include "Revolver.generated.h"
+
 
 class USkeletalMeshComponent;
 class USphereComponent;
@@ -66,6 +68,10 @@ public:
 	// 게임 페이즈에 따라 위젯 표시 여부를 제어하는 함수
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void SetWidgetPlayingPhase(bool bIsPlaying);
+
+	// 총소리 함수
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	TObjectPtr<USoundBase> FireSound;
 
 protected:
 	// 게임이 시작되거나 이 무기가 스폰될 때 호출됩니다.

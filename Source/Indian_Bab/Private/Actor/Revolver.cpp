@@ -3,6 +3,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Widget/RevolverCountWidget.h"
+#include "Kismet/GameplayStatics.h"
 
 // 생성자
 ARevolver::ARevolver()
@@ -71,8 +72,16 @@ void ARevolver::Fire()
 		UE_LOG(LogTemp, Warning, TEXT("Bang! Fired a shot. Ammo left: %d"), CurrentAmmo);
 
 		// TODO: 라인트레이스(LineTrace)를 통한 피격 판정 로직 추가
-		// TODO: 총구 화염(Muzzle Flash) 파티클 및 총소리 재생
+		// TODO: 총구 화염(Muzzle Flash) 파티클
 		// TODO: 리볼버 해머/실린더가 돌아가는 '무기 자체 애니메이션' 재생
+		if (FireSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(
+				this,
+				FireSound,
+				GetActorLocation()
+			);
+		}
 	}
 	else
 	{
