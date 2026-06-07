@@ -238,8 +238,7 @@ void ALobbyCharacter::UpdateCardWidget()
 		return;
 	}
 	
-	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
-	Widget->SetCardText(CardStr);
+	Widget->SetCardText(Card.ToDisplayString());
 }
 
 void ALobbyCharacter::UpdatePlayerNameColor()

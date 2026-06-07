@@ -3,6 +3,7 @@
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "GameFramework/PlayerController.h"
+#include "GameInstanceSubsystem/SessionSubsystem.h"
 
 void UGameResultWidget::NativeConstruct()
 {
@@ -47,6 +48,15 @@ void UGameResultWidget::OnBackToMainMenuClicked()
 	if (APlayerController* PC = GetOwningPlayer())
 	{
 		bMainMenuTravelRequested = true;
+		if (UGameInstance* GameInstance = PC->GetGameInstance())
+		{
+			if (USessionSubsystem* SessionSubsystem = GameInstance->GetSubsystem<USessionSubsystem>())
+			{
+				SessionSubsystem->ReturnToMainMenuAfterSessionCleanup(MainMenuMapPath);
+				return;
+			}
+		}
+
 		PC->ClientTravel(MainMenuMapPath, ETravelType::TRAVEL_Absolute);
 	}
 }

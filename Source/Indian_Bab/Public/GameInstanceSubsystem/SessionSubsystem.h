@@ -114,6 +114,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Session")
     void CleanupHostSession(const FString& Reason);
 
+    // 정상적인 게임 종료/Result 복귀 경로:
+    // Steam Session/Lobby를 조용히 정리한 뒤 메인 메뉴로 이동한다.
+    UFUNCTION(BlueprintCallable, Category = "Session")
+    void ReturnToMainMenuAfterSessionCleanup(const FString& MainMenuMapPath);
+
     // 활성 NAME_GameSession 보유 여부 — GameInstance가 NetworkFailure/TravelFailure를
     // 데디 트래블 실패로 해석할지(세션 오류) 인터넷 단절로 해석할지(오프라인 모달) 분기에 사용.
     bool IsInActiveSession() const;
@@ -181,11 +186,15 @@ protected:
 
     // DestroySession 완료 콜백 — CleanupHostSession 공용 (호스트/클라 분기는 캡처된 플래그로 처리)
     void OnDestroySessionAfterCleanup(FName SessionName, bool bWasSuccessful);
+    void OnDestroySessionAfterReturnToMainMenu(FName SessionName, bool bWasSuccessful);
+    void TravelToPendingMainMenu();
 
     FDelegateHandle DestroySessionCompleteDelegateHandle;
+    FDelegateHandle ReturnToMainMenuDestroySessionCompleteDelegateHandle;
 
     // CleanupHostSession → DestroySession 비동기 완료 콜백 사이의 임시 보관 (한 번에 한 흐름만)
     FString PendingCleanupReason;
+    FString PendingReturnToMainMenuMapPath;
 
     // 델리게이트 핸들 (바인딩 해제용)
     FDelegateHandle CreateSessionCompleteDelegateHandle;
