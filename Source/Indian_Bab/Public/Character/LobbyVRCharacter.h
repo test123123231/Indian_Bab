@@ -53,6 +53,9 @@ public:
 	void Client_ShowMainGameWidget();
 
 	UFUNCTION(Client, Reliable)
+	void Client_HideMainGameWidget();
+
+	UFUNCTION(Client, Reliable)
 	void Client_ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
 
 	void PressRightWidgetInteraction();
@@ -62,6 +65,8 @@ public:
 
 	void ShowReadyWidget();
 	void HideReadyWidget();
+	void ShowMainGameWidget();
+	void HideMainGameWidget();
 	void ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
 
 	UFUNCTION(BlueprintCallable, Category = "VR UI")
@@ -137,14 +142,17 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
 	bool bLogVRPointerHits = false;
 
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	UPROPERTY(ReplicatedUsing=OnRep_ArmTransforms, BlueprintReadOnly, Category = "MotionController")
 	FTransform LeftArm;
 
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	UPROPERTY(ReplicatedUsing=OnRep_ArmTransforms, BlueprintReadOnly, Category = "MotionController")
 	FTransform RightArm;
 
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateArm(const FTransform& NewLeftArm, const FTransform& NewRightArm);
+
+	UFUNCTION()
+	void OnRep_ArmTransforms();
 
 	void GrabGun();
 
@@ -153,8 +161,16 @@ protected:
 	void UpdateArmPosition();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 private:
+	UFUNCTION(Server, Reliable)
+	void Server_GrabMainRevolver();
+
+	void AttachMainRevolverToRightGrip();
+
+	void ConfigureLocalVRTracking();
+	void ApplyReplicatedArmTransforms();
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
+	void InitializeMainGameWidgetComponents();
 	void ShowReadyWidgetAfterDelay();
 	void SetComponentsForVRUIState(EVRActiveUI UIState, bool bActive);
 	void ApplyVRWidgetComponentState(UWidgetComponent* WidgetComponent, bool bActive);

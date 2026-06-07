@@ -201,9 +201,17 @@ public:
 
 	void SetActiveRevolver(ARevolver* NewRevolver);
 
+	void BeginManualMainRevolverPhase();
+	void ReturnMainRevolverToTableImmediately();
+	void MarkMainRevolverGrabbed();
+	bool IsMainRevolverGrabbed() const;
+
 	// 메인 리볼버 조준선 표시 여부
 	UPROPERTY(BlueprintReadOnly, Category = "Main Revolver")
 	bool bShowMainShotAimLine = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Main Revolver")
+	bool bMainRevolverGrabbed = false;
 
 	// 조준선 거리
 	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")

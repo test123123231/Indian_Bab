@@ -67,8 +67,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void SetWidgetPlayingPhase(bool bIsPlaying);
 
+	void ReturnToInitialTableTransform();
+
 protected:
 	// 게임이 시작되거나 이 무기가 스폰될 때 호출됩니다.
 	virtual void BeginPlay() override;
+
+private:
+	FTransform InitialTableTransform;
+	bool bInitialTableTransformSaved = false;
 
 };

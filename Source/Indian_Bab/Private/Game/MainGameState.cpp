@@ -7,6 +7,11 @@
 #include "Actor/Revolver.h"
 #include "EngineUtils.h"
 
+namespace
+{
+	constexpr int32 MaxRaiseCount = 7;
+}
+
 AMainGameState::AMainGameState()
 {
 	CurrentGamePhase = EGamePhase::Lobby;
@@ -80,7 +85,7 @@ void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount
 
 	if(NewAction == EBetAction::Raise)
 	{
-		if(RaiseCount < 1 || CurrentBulletCount + RaiseCount > MainRevolverChamberCount) return;
+		if(RaiseCount < 1 || RaiseCount > MaxRaiseCount || CurrentBulletCount + RaiseCount > MainRevolverChamberCount) return;
 		CurrentBulletCount += RaiseCount;
 
 		OnRep_CurrentBulletCount();

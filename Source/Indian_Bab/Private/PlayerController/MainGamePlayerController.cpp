@@ -7,6 +7,7 @@
 #include "Widget/DeckLeftWidget.h"
 #include "Game/MainGameMode.h"
 #include "Game/MainGameTypes.h"
+#include "Actor/Revolver.h"
 #include "GameFramework/PlayerState.h"
 #include "Character/LobbyCameraManager.h"
 #include "Character/LobbyCharacter.h"
@@ -185,7 +186,7 @@ void AMainGamePlayerController::SetupInputComponent()
             EnhancedInput->BindAction(IA_MainGameTab, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameTabPressed);
         }
 
-        if (IA_Fire)
+        if (IA_Fire && IA_RightTriggerClick)
         {
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnFire);
         }
@@ -195,7 +196,6 @@ void AMainGamePlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
-            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
         }
         else
         {
@@ -207,7 +207,6 @@ void AMainGamePlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnLeftTriggerClickStarted);
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
-            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
         }
         else
         {
@@ -219,11 +218,10 @@ void AMainGamePlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_Fire is used as temporary right trigger UI click fallback"));
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
-            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Canceled, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
         }
         if (IA_MainGameInteract) 
         {
-            EnhancedInput->BindAction(IA_MainGameInteract, ETriggerEvent::Triggered, this, &AMainGamePlayerController::OnMainGameInteract);
+            EnhancedInput->BindAction(IA_MainGameInteract, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameInteract);
         }
     }
 }
@@ -301,6 +299,10 @@ void AMainGamePlayerController::CreateMainGameWidget()
     if (MainGameWidgetInstance)
     {
         MainGameWidgetInstance->InitWidget();
+        if (Cast<ALobbyVRCharacter>(GetPawn()))
+        {
+            MainGameWidgetInstance->SetVisibility(ESlateVisibility::Hidden);
+        }
     }
 }
 
@@ -503,11 +505,6 @@ void AMainGamePlayerController::ClientOnSeated_Implementation()
     // 로비 조작(WASD)을 끄고 메인 게임(마우스/UI) 조작으로 스위칭
     ApplyMainGameMappingContext();
     EnterUIMode();
-
-    if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
-    {
-        VRCharacter->SetActiveVRUI(EVRActiveUI::InGame);
-    }
 }
 
 void AMainGamePlayerController::Server_RequestReady_Implementation()
@@ -546,6 +543,18 @@ void AMainGamePlayerController::OnRightTriggerClickStarted(const FInputActionVal
 {
 	if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn()))
 	{
+        if (VRCharacter->GunHoldReason == EGunHoldReason::Win
+            && VRCharacter->ActiveRevolver
+            && VRCharacter->ActiveRevolver->ActorHasTag(FName("MainRevolver")))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[VR Gun] Right trigger used as main revolver fire. PC=%s Pawn=%s Revolver=%s"),
+                *GetNameSafe(this),
+                *GetNameSafe(VRCharacter),
+                *GetNameSafe(VRCharacter->ActiveRevolver));
+            Server_RequestMainRevolverShot();
+            return;
+        }
+
 		VRCharacter->PressRightWidgetInteraction();
 	}
 }

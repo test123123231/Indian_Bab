@@ -76,7 +76,6 @@ void AMainMenuPlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainMenuPlayerController::OnRightTriggerClickStarted);
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainMenuPlayerController::OnRightTriggerClickReleased);
-            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Canceled, this, &AMainMenuPlayerController::OnRightTriggerClickReleased);
         }
         else
         {
@@ -88,7 +87,6 @@ void AMainMenuPlayerController::SetupInputComponent()
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainMenuPlayerController::OnLeftTriggerClickStarted);
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainMenuPlayerController::OnLeftTriggerClickReleased);
-            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Canceled, this, &AMainMenuPlayerController::OnLeftTriggerClickReleased);
         }
         else
         {
@@ -254,13 +252,17 @@ void AMainMenuPlayerController::HandleConnectivityLost()
 	{
 		OfflineWidgetInstance->AddToViewport(100);
 
-		FInputModeUIOnly InputModeData;
-		InputModeData.SetWidgetToFocus(OfflineWidgetInstance->TakeWidget());
-		InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		SetInputMode(InputModeData);
-		bShowMouseCursor = true;
-		bEnableClickEvents = true;
-		bEnableMouseOverEvents = true;
+		// VR 모드에서 SetInputMode(UIOnly)는 WidgetInteractionComponent 시뮬 키 라우팅을 깨뜨림 — Mouse 모드만 적용 (오프라인 모달은 ~10s 후 자동 종료라 입력 불필요)
+		if (IsMouseMenuInputMode())
+		{
+			FInputModeUIOnly InputModeData;
+			InputModeData.SetWidgetToFocus(OfflineWidgetInstance->TakeWidget());
+			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			SetInputMode(InputModeData);
+			bShowMouseCursor = true;
+			bEnableClickEvents = true;
+			bEnableMouseOverEvents = true;
+		}
 	}
 }
 

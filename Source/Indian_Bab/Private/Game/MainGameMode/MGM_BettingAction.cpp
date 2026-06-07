@@ -9,6 +9,11 @@
 
 #if WITH_SERVER_CODE
 
+namespace
+{
+	constexpr int32 MaxRaiseCount = 7;
+}
+
 void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAction Action, int32 RaiseCount)
 {
     if (!HasAuthority()) return;
@@ -24,7 +29,7 @@ void AMainGameMode::HandleBetAction(AMainGamePlayerController* RequestPC, EBetAc
 	if (GS -> CurrentTurnPlayerId != PlayerId) return;
 
 	// Raise 불가능하면 아예 막고 종료
-    if (Action == EBetAction::Raise && (RaiseCount < 1 || RaiseCount > 8 || GS->CurrentBulletCount + RaiseCount > GS->MainRevolverChamberCount))
+    if (Action == EBetAction::Raise && (RaiseCount < 1 || RaiseCount > MaxRaiseCount || GS->CurrentBulletCount + RaiseCount > GS->MainRevolverChamberCount))
     {
 		UE_LOG(LogTemp, Warning, TEXT("[GM] Raise blocked: RaiseCount=%d CurrentBulletCount=%d"), RaiseCount, GS->CurrentBulletCount);
         //TODO 추후에 텍스트로 Raise 불가라고 뜨게
@@ -122,7 +127,78 @@ void AMainGameMode::OnMainShotTimerExpired()
 	if (GS)
 		GS->ClearTimerInfo();
 
+	ALobbyCharacter* WinnerCharacter = nullptr;
+	if (CurrentWinnerPS)
+	{
+		if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner()))
+		{
+			WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+		}
+	}
+
+	if (!WinnerCharacter || !WinnerCharacter->IsMainRevolverGrabbed())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Main shot timer expired but MainRevolver is not grabbed. Auto fire skipped."));
+		return;
+	}
+
 	ExecuteMainShot(true);
+}
+
+void AMainGameMode::OnMainRevolverGrabTimerExpired()
+{
+	if (!HasAuthority()) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (GS)
+	{
+		GS->ClearTimerInfo();
+	}
+
+	ALobbyCharacter* WinnerCharacter = nullptr;
+	if (CurrentWinnerPS)
+	{
+		if (AMainGamePlayerController* PC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner()))
+		{
+			WinnerCharacter = Cast<ALobbyCharacter>(PC->GetPawn());
+		}
+	}
+
+	if (WinnerCharacter && WinnerCharacter->IsMainRevolverGrabbed())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver was grabbed before grab timer expired. Ignored."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver grab timed out. Main shot phase skipped."));
+
+	if (WinnerCharacter)
+	{
+		WinnerCharacter->ReturnMainRevolverToTableImmediately();
+	}
+
+	FinishMainShotPhase();
+}
+
+void AMainGameMode::HandleMainRevolverGrabbed(ALobbyCharacter* Character)
+{
+	if (!HasAuthority() || !Character) return;
+
+	AMainGameState* GS = GetGameState<AMainGameState>();
+	if (!GS || GS->CurrentGamePhase != EGamePhase::Result) return;
+	if (!CurrentWinnerPS) return;
+
+	AMainGamePlayerController* WinnerPC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
+	if (!WinnerPC || WinnerPC->GetPawn() != Character) return;
+
+	if (GS->CurrentBulletCount <= 0)
+	{
+		StartMainRevolverPutBack();
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver grabbed. Shot timer started."));
+	StartMainshotTimer(10.0f);
 }
 
 // 메인 리볼버 격발 액션
@@ -331,7 +407,9 @@ void AMainGameMode::StartMainRevolverPutBack()
 
 	UE_LOG(LogTemp, Warning, TEXT("[GM] Start Main Revolver PutBack"));
 
-	WinnerCharacter->Multicast_PutBackGunMontage(EGunHoldReason::Win);
+	WinnerCharacter->ReturnMainRevolverToTableImmediately();
+	bMainRevolverPutBackInProgress = false;
+	FinishMainShotPhase();
 }
 
 void AMainGameMode::InitMainRevolverLiveBulletIfNeeded()
@@ -436,6 +514,19 @@ AMainPlayerState* AMainGameMode::GetMainShotTargetByAim(AMainGamePlayerControlle
 	if (AActor* ShooterPawn = ShooterPC->GetPawn())
 	{
 		Params.AddIgnoredActor(ShooterPawn);
+
+		if (const ALobbyCharacter* ShooterCharacter = Cast<ALobbyCharacter>(ShooterPawn))
+		{
+			if (ShooterCharacter->ActiveRevolver)
+			{
+				Params.AddIgnoredActor(ShooterCharacter->ActiveRevolver.Get());
+			}
+		}
+	}
+
+	if (ARevolver* Revolver = GetMainRevolver())
+	{
+		Params.AddIgnoredActor(Revolver);
 	}
 
 	// Fold / 사망 / 자기 자신은 타겟팅 제외

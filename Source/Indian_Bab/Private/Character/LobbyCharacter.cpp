@@ -102,6 +102,13 @@ ALobbyCharacter::ALobbyCharacter()
 	ThirdPersonMetaHumanEyelashes->SetOwnerNoSee(true);
 	ThirdPersonMetaHumanFuzz->SetOwnerNoSee(true);
 
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		CharacterMesh->SetVisibility(false, false);
+		CharacterMesh->SetHiddenInGame(true, false);
+		CharacterMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	}
+
 	// Create the Camera Component
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
 	CameraComponent->SetupAttachment(FirstPersonMetaHumanBody, FName("head"));
@@ -231,8 +238,7 @@ void ALobbyCharacter::UpdateCardWidget()
 		return;
 	}
 	
-	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
-	Widget->SetCardText(CardStr);
+	Widget->SetCardText(Card.ToDisplayString());
 }
 
 void ALobbyCharacter::UpdatePlayerNameColor()
@@ -415,7 +421,14 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 	GunHoldReason = Reason;
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (!AnimInstance) return;
+	if (!AnimInstance)
+	{
+		if (HasAuthority())
+		{
+			OnGrabGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
 
 	UAnimMontage* MontageToPlay = nullptr;
 	if (Reason == EGunHoldReason::Fold)
@@ -433,13 +446,27 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 		FOnMontageEnded EndDelegate;
 		EndDelegate.BindUObject(this, &ALobbyCharacter::OnGrabGunMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		OnGrabGunMontageEnded(nullptr, false);
 	}
 }
 
 void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason Reason)
 {
     UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-    if (!AnimInstance) return;
+	if (!AnimInstance)
+	{
+		FinishedReason = Reason;
+		if (HasAuthority())
+		{
+			OnPutBackGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
 
 	bIsPuttingBackGun = true;
 	
@@ -459,9 +486,20 @@ void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason 
         MontageToPlay = WinEndMontage;
     }
 
-	AnimInstance->Montage_Play(MontageToPlay, 1.0f);
 	FinishedReason = GunHoldReason;
 	GunHoldReason = EGunHoldReason::None;
+
+	if (!MontageToPlay)
+	{
+		bIsPuttingBackGun = false;
+		if (HasAuthority())
+		{
+			OnPutBackGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
+
+	AnimInstance->Montage_Play(MontageToPlay, 1.0f);
 
 	if (HasAuthority())
 	{
@@ -717,6 +755,68 @@ void ALobbyCharacter::SetActiveRevolver(ARevolver* NewRevolver)
 
 	ActiveRevolver = NewRevolver;
 	ForceNetUpdate();
+}
+
+void ALobbyCharacter::BeginManualMainRevolverPhase()
+{
+	if (!HasAuthority()) return;
+
+	GunHoldReason = EGunHoldReason::Win;
+	bShowMainShotAimLine = false;
+	bMainRevolverGrabbed = false;
+	bIsPuttingBackGun = false;
+
+	if (ActiveRevolver)
+	{
+		ActiveRevolver->SetActorHiddenInGame(false);
+		if (ActiveRevolver->CollisionSphere)
+		{
+			ActiveRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		}
+	}
+
+	ForceNetUpdate();
+}
+
+void ALobbyCharacter::ReturnMainRevolverToTableImmediately()
+{
+	if (FP_RevolverMesh)
+	{
+		FP_RevolverMesh->SetVisibility(false);
+		FP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	if (TP_RevolverMesh)
+	{
+		TP_RevolverMesh->SetVisibility(false);
+		TP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	bShowMainShotAimLine = false;
+	bMainRevolverGrabbed = false;
+	bIsPuttingBackGun = false;
+	GunHoldReason = EGunHoldReason::None;
+
+	if (ActiveRevolver)
+	{
+		ActiveRevolver->ReturnToInitialTableTransform();
+		ActiveRevolver = nullptr;
+	}
+
+	ForceNetUpdate();
+}
+
+void ALobbyCharacter::MarkMainRevolverGrabbed()
+{
+	if (!HasAuthority()) return;
+
+	bMainRevolverGrabbed = true;
+	ForceNetUpdate();
+}
+
+bool ALobbyCharacter::IsMainRevolverGrabbed() const
+{
+	return bMainRevolverGrabbed;
 }
 
 void ALobbyCharacter::SetMainShotAimLineVisible(bool bVisible)
