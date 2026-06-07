@@ -41,6 +41,15 @@ ARevolver::ARevolver()
 	MaxAmmo = 6;
 	CurrentAmmo = MaxAmmo;
 	Damage = 50.0f;
+
+	// 사운드 에셋 로드
+	static ConstructorHelpers::FObjectFinder<USoundBase> FireSoundAsset(
+		TEXT("/Script/Engine.SoundWave'/Game/Revolver357/Audio/FireSound.FireSound'")
+	);
+	if (FireSoundAsset.Succeeded())
+	{
+		FireSound = FireSoundAsset.Object;
+	}
 }
 
 // BeginPlay
