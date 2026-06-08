@@ -195,7 +195,6 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_RightTriggerClick bound"));
             EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
-            EnhancedInput->BindAction(IA_RightTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
         }
         else
         {
@@ -206,7 +205,6 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_LeftTriggerClick bound"));
             EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Started, this, &AMainGamePlayerController::OnLeftTriggerClickStarted);
-            EnhancedInput->BindAction(IA_LeftTriggerClick, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnLeftTriggerClickReleased);
         }
         else
         {
@@ -217,7 +215,6 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_Fire is used as temporary right trigger UI click fallback"));
             EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Started, this, &AMainGamePlayerController::OnRightTriggerClickStarted);
-            EnhancedInput->BindAction(IA_Fire, ETriggerEvent::Completed, this, &AMainGamePlayerController::OnRightTriggerClickReleased);
         }
         if (IA_MainGameInteract) 
         {
