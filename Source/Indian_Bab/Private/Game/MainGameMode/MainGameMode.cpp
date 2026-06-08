@@ -828,7 +828,26 @@ void AMainGameMode::EndGame(AMainPlayerState* WinnerPS)
 
 	const int32 WinnerPlayerId = WinnerPS ? WinnerPS->GetPlayerId() : -1;
 
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Game ended. Winner=%s PlayerId=%d"), *WinnerName, WinnerPlayerId);
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Game ended. Winner=%s PlayerId=%d. Result widget delay=%.2f"),
+		*WinnerName,
+		WinnerPlayerId,
+		ResultWidgetDelaySeconds);
+
+	FTimerDelegate ResultWidgetDelegate;
+	ResultWidgetDelegate.BindUObject(this, &AMainGameMode::ShowResultWidgets, WinnerName, WinnerPlayerId);
+	if (ResultWidgetDelaySeconds <= 0.0f)
+	{
+		ResultWidgetDelegate.ExecuteIfBound();
+	}
+	else
+	{
+		GetWorldTimerManager().SetTimer(TimerHandle, ResultWidgetDelegate, ResultWidgetDelaySeconds, false);
+	}
+}
+
+void AMainGameMode::ShowResultWidgets(FString WinnerName, int32 WinnerPlayerId)
+{
+	if (!HasAuthority()) return;
 
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{

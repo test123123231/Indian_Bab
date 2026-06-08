@@ -327,6 +327,11 @@ void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 
 	if (bRealFire)
 	{
+		if (ARevolver* Revolver = GetMainRevolver())
+		{
+			Revolver->Multicast_PlayFireSound();
+		}
+
 		FHitResult HitResult;
 
 		AMainGamePlayerController* ShooterPC =Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner());
