@@ -3,6 +3,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Widget/RevolverCountWidget.h"
+#include "Kismet/GameplayStatics.h"
 
 // 생성자
 ARevolver::ARevolver()
@@ -41,6 +42,15 @@ ARevolver::ARevolver()
 	MaxAmmo = 6;
 	CurrentAmmo = MaxAmmo;
 	Damage = 50.0f;
+
+	// 사운드 에셋 로드
+	static ConstructorHelpers::FObjectFinder<USoundBase> FireSoundAsset(
+		TEXT("/Script/Engine.SoundWave'/Game/Revolver357/Audio/FireSound.FireSound'")
+	);
+	if (FireSoundAsset.Succeeded())
+	{
+		FireSound = FireSoundAsset.Object;
+	}
 }
 
 // BeginPlay
@@ -75,8 +85,16 @@ void ARevolver::Fire()
 		UE_LOG(LogTemp, Warning, TEXT("Bang! Fired a shot. Ammo left: %d"), CurrentAmmo);
 
 		// TODO: 라인트레이스(LineTrace)를 통한 피격 판정 로직 추가
-		// TODO: 총구 화염(Muzzle Flash) 파티클 및 총소리 재생
+		// TODO: 총구 화염(Muzzle Flash) 파티클
 		// TODO: 리볼버 해머/실린더가 돌아가는 '무기 자체 애니메이션' 재생
+		if (FireSound)
+		{
+			UGameplayStatics::PlaySoundAtLocation(
+				this,
+				FireSound,
+				GetActorLocation()
+			);
+		}
 	}
 	else
 	{
