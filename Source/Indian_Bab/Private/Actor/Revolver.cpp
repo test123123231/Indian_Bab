@@ -87,14 +87,7 @@ void ARevolver::Fire()
 		// TODO: 라인트레이스(LineTrace)를 통한 피격 판정 로직 추가
 		// TODO: 총구 화염(Muzzle Flash) 파티클
 		// TODO: 리볼버 해머/실린더가 돌아가는 '무기 자체 애니메이션' 재생
-		if (FireSound)
-		{
-			UGameplayStatics::PlaySoundAtLocation(
-				this,
-				FireSound,
-				GetActorLocation()
-			);
-		}
+		PlayFireSound();
 	}
 	else
 	{
@@ -124,6 +117,25 @@ void ARevolver::UpdateBulletCountWidget(int32 CurrentCount, int32 MaxCount)
 	{
 		CountWidget->UpdateCount(CurrentCount, MaxCount);
 	}
+}
+
+void ARevolver::Multicast_PlayFireSound_Implementation()
+{
+	PlayFireSound();
+}
+
+void ARevolver::PlayFireSound() const
+{
+	if (!FireSound)
+	{
+		return;
+	}
+
+	UGameplayStatics::PlaySoundAtLocation(
+		this,
+		FireSound,
+		GetActorLocation()
+	);
 }
 
 void ARevolver::SetWidgetPlayingPhase(bool bIsPlaying)

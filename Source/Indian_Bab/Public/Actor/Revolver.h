@@ -57,6 +57,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void Fire();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayFireSound();
+
 	// 장전 함수
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void Reload();
@@ -79,6 +82,8 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	void PlayFireSound() const;
+
 	FTransform InitialTableTransform;
 	bool bInitialTableTransformSaved = false;
 

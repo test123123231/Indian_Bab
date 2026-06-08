@@ -139,6 +139,8 @@ protected:
 
 	AMainPlayerState* GetLastAlivePlayer();
 
+	void ShowResultWidgets(FString WinnerName, int32 WinnerPlayerId);
+
 private:
 	// 빈 의자 찾기
 	ASeatActor* FindEmptySeat();
@@ -188,6 +190,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Turn", meta = (AllowPrivateAccess = "true", ClampMin = "0.1", UIMin = "0.1"))
 	float TurnTimeLimitSeconds = 20.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Result", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", UIMin = "0.0"))
+	float ResultWidgetDelaySeconds = 1.5f;
 
 	// 게임 시작 중복 호출 방지
 	bool bGameStartRequested = false;
