@@ -30,6 +30,7 @@ ALobbyCharacter::ALobbyCharacter()
 	// 1인칭 메타휴먼 바디 생성 및 설정
 	FirstPersonMetaHumanBody = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person MetaHuman Body"));
 	FirstPersonMetaHumanBody->SetupAttachment(GetMesh());
+	FirstPersonMetaHumanBody->SetHiddenInGame(true);
 	
 	FirstPersonMetaHumanBody->SetCollisionProfileName(FName("NoCollision"));
 	FirstPersonMetaHumanBody->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
@@ -37,7 +38,8 @@ ALobbyCharacter::ALobbyCharacter()
 	// 1인칭 메타휴먼 얼굴 생성 및 설정
 	FirstPersonMetaHumanTorso = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person MetaHuman Torso"));
 	FirstPersonMetaHumanTorso->SetupAttachment(FirstPersonMetaHumanBody);
-	
+	FirstPersonMetaHumanTorso->SetHiddenInGame(true);
+
 	FirstPersonMetaHumanTorso->SetCollisionProfileName(FName("NoCollision"));
 	FirstPersonMetaHumanTorso->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 
