@@ -92,6 +92,7 @@ public:
 
 	void UpdateCenterBetLog(const FString& Message);
 	bool HandleVRClickAtWidgetLocation(const FVector2D& WidgetLocalHitLocation);
+	void UpdateCenterBetLog(const FString& Message);
 
 private:
 	bool IsButtonUnderWidgetLocation(const UButton* Button, const FVector2D& WidgetLocalHitLocation) const;
