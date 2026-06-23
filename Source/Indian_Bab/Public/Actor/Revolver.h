@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Sound/SoundBase.h"
 #include "Revolver.generated.h"
+
 
 class USkeletalMeshComponent;
 class USphereComponent;
@@ -55,6 +57,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void Fire();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayFireSound();
+
 	// 장전 함수
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void Reload();
@@ -67,8 +72,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void SetWidgetPlayingPhase(bool bIsPlaying);
 
+	void ReturnToInitialTableTransform();
+	// 총소리 함수
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	TObjectPtr<USoundBase> FireSound;
+
 protected:
 	// 게임이 시작되거나 이 무기가 스폰될 때 호출됩니다.
 	virtual void BeginPlay() override;
+
+private:
+	void PlayFireSound() const;
+
+	FTransform InitialTableTransform;
+	bool bInitialTableTransformSaved = false;
 
 };

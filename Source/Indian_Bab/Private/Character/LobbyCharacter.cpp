@@ -12,6 +12,7 @@
 #include "Components/SphereComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Game/MainGameMode.h"
+#include "Game/MainGameState.h"
 #include "PlayerState/MainPlayerState.h"
 #include "Widget/PlayerNameWidget.h"
 #include "Components/WidgetComponent.h"
@@ -101,6 +102,13 @@ ALobbyCharacter::ALobbyCharacter()
 	ThirdPersonMetaHumanEyelashes->SetOwnerNoSee(true);
 	ThirdPersonMetaHumanFuzz->SetOwnerNoSee(true);
 
+	if (USkeletalMeshComponent* CharacterMesh = GetMesh())
+	{
+		CharacterMesh->SetVisibility(false, false);
+		CharacterMesh->SetHiddenInGame(true, false);
+		CharacterMesh->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+	}
+
 	// Create the Camera Component
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
 	CameraComponent->SetupAttachment(FirstPersonMetaHumanBody, FName("head"));
@@ -153,8 +161,23 @@ void ALobbyCharacter::BindPlayerStateDelegates()
 	PS->OnCardChanged.RemoveAll(this);
 	PS->OnCardChanged.AddUObject(this, &ALobbyCharacter::UpdateCardWidget);
 
+	// 플레이어 상태 변화 구독 (생존 상태)
+	PS->OnAliveStateChanged.RemoveAll(this);
+	PS->OnAliveStateChanged.AddUObject(this, &ALobbyCharacter::OnAliveStateChanged);
+
 	UpdateNameWidget();
 	UpdateCardWidget();
+	UpdatePlayerNameColor();
+
+	// 게임 스테이트의 턴 변경 델리게이트 구독
+	if (UWorld* World = GetWorld())
+	{
+		if (AMainGameState* GS = World->GetGameState<AMainGameState>())
+		{
+			GS->OnCurrentTurnPlayerChanged.RemoveAll(this);
+			GS->OnCurrentTurnPlayerChanged.AddUObject(this, &ALobbyCharacter::UpdatePlayerNameColor);
+		}
+	}
 }
 
 void ALobbyCharacter::UpdateNameWidget()
@@ -215,8 +238,67 @@ void ALobbyCharacter::UpdateCardWidget()
 		return;
 	}
 	
-	const FString CardStr = FString::Printf(TEXT("%d %s"), Card.Value, *Card.Suit);
-	Widget->SetCardText(CardStr);
+	Widget->SetCardText(Card.ToDisplayString());
+}
+
+void ALobbyCharacter::UpdatePlayerNameColor()
+{
+	if (!NameWidgetComponent) return;
+
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+	if (!NameWidgetComponent->GetUserWidgetObject())
+	{
+		NameWidgetComponent->InitWidget();
+	}
+
+	UPlayerNameWidget* Widget = Cast<UPlayerNameWidget>(NameWidgetComponent->GetUserWidgetObject());
+	if (!Widget) return;
+
+	// 로컬 플레이어는 이름 표시 안함
+	if (IsLocallyControlled())
+	{
+		return;
+	}
+
+	FLinearColor TargetColor = Widget->DefaultColor;
+
+	// 죽은 상태이면 빨간색
+	if (!PS->isAlive)
+	{
+		TargetColor = Widget->DeadColor;
+		UE_LOG(LogTemp, Warning, TEXT("[LobbyChar] Player %d is dead - Name Color: Red"), PS->GetPlayerId());
+	}
+	else
+	{
+		// 게임 스테이트에서 현재 턴 플레이어 확인
+		if (UWorld* World = GetWorld())
+		{
+			if (AMainGameState* GS = World->GetGameState<AMainGameState>())
+			{
+				// 자신의 턴이면 파란색
+				if (GS->CurrentTurnPlayerId == PS->GetPlayerId())
+				{
+					TargetColor = Widget->ActiveTurnColor;
+					UE_LOG(LogTemp, Warning, TEXT("[LobbyChar] Player %d is in turn - Name Color: Blue"), PS->GetPlayerId());
+				}
+				// 그 외는 기본색
+				else
+				{
+					TargetColor = Widget->DefaultColor;
+					UE_LOG(LogTemp, Warning, TEXT("[LobbyChar] Player %d is idle - Name Color: Default"), PS->GetPlayerId());
+				}
+			}
+		}
+	}
+
+	Widget->SetNameTextColor(TargetColor);
+}
+
+void ALobbyCharacter::OnAliveStateChanged(bool bIsAlive)
+{
+	UpdatePlayerNameColor();
 }
 
 // Called every frame
@@ -339,7 +421,14 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 	GunHoldReason = Reason;
 
 	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-	if (!AnimInstance) return;
+	if (!AnimInstance)
+	{
+		if (HasAuthority())
+		{
+			OnGrabGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
 
 	UAnimMontage* MontageToPlay = nullptr;
 	if (Reason == EGunHoldReason::Fold)
@@ -357,13 +446,27 @@ void ALobbyCharacter::Multicast_PlayGrabGunMontage_Implementation(EGunHoldReason
 		FOnMontageEnded EndDelegate;
 		EndDelegate.BindUObject(this, &ALobbyCharacter::OnGrabGunMontageEnded);
 		AnimInstance->Montage_SetEndDelegate(EndDelegate, MontageToPlay);
+		return;
+	}
+
+	if (HasAuthority())
+	{
+		OnGrabGunMontageEnded(nullptr, false);
 	}
 }
 
 void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason Reason)
 {
     UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-    if (!AnimInstance) return;
+	if (!AnimInstance)
+	{
+		FinishedReason = Reason;
+		if (HasAuthority())
+		{
+			OnPutBackGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
 
 	bIsPuttingBackGun = true;
 	
@@ -383,9 +486,20 @@ void ALobbyCharacter::Multicast_PutBackGunMontage_Implementation(EGunHoldReason 
         MontageToPlay = WinEndMontage;
     }
 
-	AnimInstance->Montage_Play(MontageToPlay, 1.0f);
 	FinishedReason = GunHoldReason;
 	GunHoldReason = EGunHoldReason::None;
+
+	if (!MontageToPlay)
+	{
+		bIsPuttingBackGun = false;
+		if (HasAuthority())
+		{
+			OnPutBackGunMontageEnded(nullptr, false);
+		}
+		return;
+	}
+
+	AnimInstance->Montage_Play(MontageToPlay, 1.0f);
 
 	if (HasAuthority())
 	{
@@ -410,7 +524,6 @@ void ALobbyCharacter::AttachRevolverToSocket()
 	// 	*GetNameSafe(DeskRevolver),
 	// 	*GetNameSafe(RevolverToAttach)
 	// );
-
 	if (!RevolverToAttach) return;
 
 	// 1) 책상 위 리볼버 Prop 숨기기 + 콜리전 제거
@@ -437,11 +550,8 @@ void ALobbyCharacter::AttachRevolverToSocket()
 		FName("Revolver")
 	);
 	TP_RevolverMesh->SetVisibility(true);
-
-	if (GunHoldReason == EGunHoldReason::Win)
-	{
-		SetMainShotAimLineVisible(true);
-	}
+	DrawMainShotAimLine();
+	
 }
 
 void ALobbyCharacter::ReturnRevolverToDesk()
@@ -647,6 +757,68 @@ void ALobbyCharacter::SetActiveRevolver(ARevolver* NewRevolver)
 	ForceNetUpdate();
 }
 
+void ALobbyCharacter::BeginManualMainRevolverPhase()
+{
+	if (!HasAuthority()) return;
+
+	GunHoldReason = EGunHoldReason::Win;
+	bShowMainShotAimLine = false;
+	bMainRevolverGrabbed = false;
+	bIsPuttingBackGun = false;
+
+	if (ActiveRevolver)
+	{
+		ActiveRevolver->SetActorHiddenInGame(false);
+		if (ActiveRevolver->CollisionSphere)
+		{
+			ActiveRevolver->CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		}
+	}
+
+	ForceNetUpdate();
+}
+
+void ALobbyCharacter::ReturnMainRevolverToTableImmediately()
+{
+	if (FP_RevolverMesh)
+	{
+		FP_RevolverMesh->SetVisibility(false);
+		FP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	if (TP_RevolverMesh)
+	{
+		TP_RevolverMesh->SetVisibility(false);
+		TP_RevolverMesh->SetSkeletalMeshAsset(nullptr);
+	}
+
+	bShowMainShotAimLine = false;
+	bMainRevolverGrabbed = false;
+	bIsPuttingBackGun = false;
+	GunHoldReason = EGunHoldReason::None;
+
+	if (ActiveRevolver)
+	{
+		ActiveRevolver->ReturnToInitialTableTransform();
+		ActiveRevolver = nullptr;
+	}
+
+	ForceNetUpdate();
+}
+
+void ALobbyCharacter::MarkMainRevolverGrabbed()
+{
+	if (!HasAuthority()) return;
+
+	bMainRevolverGrabbed = true;
+	ForceNetUpdate();
+}
+
+bool ALobbyCharacter::IsMainRevolverGrabbed() const
+{
+	return bMainRevolverGrabbed;
+}
+
 void ALobbyCharacter::SetMainShotAimLineVisible(bool bVisible)
 {
 	bShowMainShotAimLine = bVisible;
@@ -661,15 +833,8 @@ void ALobbyCharacter::DrawMainShotAimLine()
 	if (!bShowMainShotAimLine) return;
 	if (GunHoldReason != EGunHoldReason::Win) return;
 
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC) return;
-
-	FVector ViewLocation;
-	FRotator ViewRotation;
-	PC->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
-	const FVector Forward = ViewRotation.Vector();
-	const FVector Start = ViewLocation + Forward * 80.0f;
+	const FVector Forward = FP_RevolverMesh->GetForwardVector();
+	const FVector Start = FP_RevolverMesh->GetComponentLocation();
 	const FVector End = Start + Forward * 2500.0f;
 
 	DrawDebugLine(

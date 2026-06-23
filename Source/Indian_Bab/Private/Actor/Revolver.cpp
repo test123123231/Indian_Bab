@@ -3,6 +3,7 @@
 #include "Components/SphereComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Widget/RevolverCountWidget.h"
+#include "Kismet/GameplayStatics.h"
 
 // 생성자
 ARevolver::ARevolver()
@@ -12,6 +13,7 @@ ARevolver::ARevolver()
 
 	// 멀티플레이어 동기화 필수 - 이게 없으면 클라이언트에서 DeskRevolver 포인터가 null이 됨
 	bReplicates = true;
+	SetReplicateMovement(true);
 
 	// 스켈레탈 메시 컴포넌트 생성 및 루트(기준점)로 설정
 	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
@@ -40,12 +42,24 @@ ARevolver::ARevolver()
 	MaxAmmo = 6;
 	CurrentAmmo = MaxAmmo;
 	Damage = 50.0f;
+
+	// 사운드 에셋 로드
+	static ConstructorHelpers::FObjectFinder<USoundBase> FireSoundAsset(
+		TEXT("/Script/Engine.SoundWave'/Game/Revolver357/Audio/FireSound.FireSound'")
+	);
+	if (FireSoundAsset.Succeeded())
+	{
+		FireSound = FireSoundAsset.Object;
+	}
 }
 
 // BeginPlay
 void ARevolver::BeginPlay()
 {
 	Super::BeginPlay();
+
+	InitialTableTransform = GetActorTransform();
+	bInitialTableTransformSaved = true;
 
 	// 혹시 모르니 게임 시작 시 탄창을 꽉 채워줍니다.
 	CurrentAmmo = MaxAmmo;
@@ -71,8 +85,9 @@ void ARevolver::Fire()
 		UE_LOG(LogTemp, Warning, TEXT("Bang! Fired a shot. Ammo left: %d"), CurrentAmmo);
 
 		// TODO: 라인트레이스(LineTrace)를 통한 피격 판정 로직 추가
-		// TODO: 총구 화염(Muzzle Flash) 파티클 및 총소리 재생
+		// TODO: 총구 화염(Muzzle Flash) 파티클
 		// TODO: 리볼버 해머/실린더가 돌아가는 '무기 자체 애니메이션' 재생
+		PlayFireSound();
 	}
 	else
 	{
@@ -104,6 +119,25 @@ void ARevolver::UpdateBulletCountWidget(int32 CurrentCount, int32 MaxCount)
 	}
 }
 
+void ARevolver::Multicast_PlayFireSound_Implementation()
+{
+	PlayFireSound();
+}
+
+void ARevolver::PlayFireSound() const
+{
+	if (!FireSound)
+	{
+		return;
+	}
+
+	UGameplayStatics::PlaySoundAtLocation(
+		this,
+		FireSound,
+		GetActorLocation()
+	);
+}
+
 void ARevolver::SetWidgetPlayingPhase(bool bIsPlaying)
 {
 	// MainRevolver 태그가 있는 리볼버에서만 동작
@@ -117,4 +151,23 @@ void ARevolver::SetWidgetPlayingPhase(bool bIsPlaying)
 
 	// 위젯 컴포넌트 자체의 가시성도 같이 설정
 	BulletCountWidgetComponent->SetVisibility(bIsPlaying);
+}
+
+void ARevolver::ReturnToInitialTableTransform()
+{
+	DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	if (bInitialTableTransformSaved)
+	{
+		SetActorTransform(InitialTableTransform, false, nullptr, ETeleportType::TeleportPhysics);
+	}
+
+	SetActorHiddenInGame(false);
+
+	if (CollisionSphere)
+	{
+		CollisionSphere->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+
+	ForceNetUpdate();
 }

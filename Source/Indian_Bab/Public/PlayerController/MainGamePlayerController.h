@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
@@ -104,10 +104,11 @@ private:
 
     void OnLeftTriggerClickReleased(const FInputActionValue& Value);
 
+    void OnMainGameInteract(const FInputActionValue& Value);
+
     void OnDebugRightTriggerPressed();
 
     void OnDebugRightTriggerReleased();
-
 
     // 플레이어 스테이트 변화 발생 시 실행(위젯에서 플레이어 스테이트 등록 실패 시 재등록)
     virtual void OnRep_PlayerState() override;
@@ -165,6 +166,8 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "Input")
     TObjectPtr<UInputAction> IA_MainGameTab;
 
+
+
     //--- 연결성(인터넷/데디 끊김) ---
     // 끊김 시 모달로 띄울 위젯 클래스 (BP에서 WBP_OfflineNotice 지정)
     UPROPERTY(EditDefaultsOnly, Category = "Connectivity")
@@ -186,4 +189,7 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input|VR")
     TObjectPtr<UInputAction> IA_LeftTriggerClick;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input|VR")
+    TObjectPtr<UInputAction> IA_MainGameInteract;
 };

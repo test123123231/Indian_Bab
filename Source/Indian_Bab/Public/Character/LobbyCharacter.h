@@ -138,7 +138,13 @@ public:
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateAim(FRotator NewAim);
 
+	// 플레이어 이름 색상 업데이트 함수
+	UFUNCTION()
+	void UpdatePlayerNameColor();
 
+	// 플레이어 상태 변화 시 호출
+	UFUNCTION()
+	void OnAliveStateChanged(bool bIsAlive);
 
 	UFUNCTION()
 	void OnRep_GunHoldReason();
@@ -163,6 +169,7 @@ public:
 	// 1인칭 리볼버 메시 (FirstPersonMetaHumanBody의 Revolver 소켓에 부착, 본인만 보임)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TObjectPtr<USkeletalMeshComponent> FP_RevolverMesh;
+
 
 	// 3인칭 리볼버 메시 (ThirdPersonMetaHumanBody의 Revolver 소켓에 부착, 타인만 보임)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
@@ -194,9 +201,17 @@ public:
 
 	void SetActiveRevolver(ARevolver* NewRevolver);
 
+	void BeginManualMainRevolverPhase();
+	void ReturnMainRevolverToTableImmediately();
+	void MarkMainRevolverGrabbed();
+	bool IsMainRevolverGrabbed() const;
+
 	// 메인 리볼버 조준선 표시 여부
 	UPROPERTY(BlueprintReadOnly, Category = "Main Revolver")
 	bool bShowMainShotAimLine = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Main Revolver")
+	bool bMainRevolverGrabbed = false;
 
 	// 조준선 거리
 	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")
@@ -231,6 +246,8 @@ protected:
 	UFUNCTION()
 	void OnPutBackGunMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+	void DrawMainShotAimLine();
+
 private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
@@ -245,5 +262,5 @@ private:
 	void SetMainShotAimLineVisible(bool bVisible);
 
 	// 조준선 그리기
-	void DrawMainShotAimLine();
+
 };

@@ -7,7 +7,16 @@
 
 class UInputMappingContext;
 class UMainMenuWidget;
+class UUserWidget;
+class UInputAction;
+struct FInputActionValue;
 
+UENUM(BlueprintType)
+enum class EMainMenuInputMode : uint8
+{
+	VR UMETA(DisplayName = "VR"),
+	Mouse UMETA(DisplayName = "Mouse")
+};
 
 UCLASS()
 class INDIAN_BAB_API AMainMenuPlayerController : public APlayerController
@@ -24,6 +33,9 @@ protected:
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UMainMenuWidget> MainMenuWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Input", meta = (AllowPrivateAccess = "true"))
+	EMainMenuInputMode MenuInputMode = EMainMenuInputMode::VR;
 
 	// 생성된 메인 메뉴 위젯의 인스턴스를 저장할 변수
 	UPROPERTY(VisibleInstanceOnly, Category = "UI")
@@ -45,10 +57,38 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void RefocusMainMenu();
 
+	void ApplyMenuInputMode(UUserWidget* FocusWidget = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category = "Input")
+	void SetMenuInputMode(EMainMenuInputMode NewInputMode);
+
+	UFUNCTION(BlueprintPure, Category = "Input")
+	bool IsMouseMenuInputMode() const { return MenuInputMode == EMainMenuInputMode::Mouse; }
+
+	virtual void SetupInputComponent() override;
+
 private:
+	void ApplyMainMenuMappingContext();
+	void RemoveMainMenuMappingContext();
+
 	void HandleConnectivityLost();
 	void HandleConnectivityRestored();
 
 	FDelegateHandle LostHandle;
 	FDelegateHandle RestoredHandle;
+
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+    TObjectPtr<UInputMappingContext> MainMenuMappingContext;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_RightTriggerClick;
+
+    UPROPERTY(EditDefaultsOnly, Category = "Input")
+    TObjectPtr<UInputAction> IA_LeftTriggerClick;
+
+	void OnLeftTriggerClickStarted(const FInputActionValue& Value);
+	void OnLeftTriggerClickReleased(const FInputActionValue& Value);
+
+	void OnRightTriggerClickStarted(const FInputActionValue& Value);
+	void OnRightTriggerClickReleased(const FInputActionValue& Value);
 };

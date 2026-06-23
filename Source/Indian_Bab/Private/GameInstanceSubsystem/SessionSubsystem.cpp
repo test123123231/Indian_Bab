@@ -310,6 +310,70 @@ void USessionSubsystem::OnDestroySessionAfterCleanup(FName /*SessionName*/, bool
     OnSessionErrorEvent.Broadcast(Reason);
 }
 
+void USessionSubsystem::ReturnToMainMenuAfterSessionCleanup(const FString& MainMenuMapPath)
+{
+    if (MainMenuMapPath.IsEmpty())
+    {
+        return;
+    }
+
+    PendingReturnToMainMenuMapPath = MainMenuMapPath;
+
+    const bool bHasNamedSession = SessionInterface.IsValid() &&
+        SessionInterface->GetNamedSession(NAME_GameSession) != nullptr;
+
+    if (!bHasNamedSession)
+    {
+        TravelToPendingMainMenu();
+        return;
+    }
+
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("ReturnToMainMenuAfterSessionCleanup: destroying/leaving session before travel."));
+
+    SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(ReturnToMainMenuDestroySessionCompleteDelegateHandle);
+    ReturnToMainMenuDestroySessionCompleteDelegateHandle = SessionInterface->AddOnDestroySessionCompleteDelegate_Handle(
+        FOnDestroySessionCompleteDelegate::CreateUObject(this, &USessionSubsystem::OnDestroySessionAfterReturnToMainMenu));
+
+    if (!SessionInterface->DestroySession(NAME_GameSession))
+    {
+        UE_LOG(LogSessionSubsystem, Warning, TEXT("ReturnToMainMenuAfterSessionCleanup: DestroySession failed to start; traveling anyway."));
+        SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(ReturnToMainMenuDestroySessionCompleteDelegateHandle);
+        TravelToPendingMainMenu();
+    }
+}
+
+void USessionSubsystem::OnDestroySessionAfterReturnToMainMenu(FName /*SessionName*/, bool bWasSuccessful)
+{
+    if (SessionInterface.IsValid())
+    {
+        SessionInterface->ClearOnDestroySessionCompleteDelegate_Handle(ReturnToMainMenuDestroySessionCompleteDelegateHandle);
+    }
+
+    UE_LOG(LogSessionSubsystem, Warning, TEXT("OnDestroySessionAfterReturnToMainMenu: ok=%d"), bWasSuccessful ? 1 : 0);
+
+    bIsLocalHost = false;
+    PendingDediURL.Empty();
+    PendingMatchId.Empty();
+
+    TravelToPendingMainMenu();
+}
+
+void USessionSubsystem::TravelToPendingMainMenu()
+{
+    const FString TravelURL = PendingReturnToMainMenuMapPath;
+    PendingReturnToMainMenuMapPath.Empty();
+
+    if (TravelURL.IsEmpty())
+    {
+        return;
+    }
+
+    if (APlayerController* PC = GetGameInstance() ? GetGameInstance()->GetFirstLocalPlayerController() : nullptr)
+    {
+        PC->ClientTravel(TravelURL, ETravelType::TRAVEL_Absolute);
+    }
+}
+
 
 bool USessionSubsystem::IsInActiveSession() const
 {

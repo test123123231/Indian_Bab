@@ -13,6 +13,17 @@ class USceneComponent;
 class USkeletalMeshComponent;
 class UWidgetComponent;
 class UWidgetInteractionComponent;
+class UTurnInfoWidget;
+
+UENUM(BlueprintType)
+enum class EVRActiveUI : uint8
+{
+	None,
+	MainMenu,
+	Ready,
+	InGame,
+	Result
+};
 
 UCLASS()
 class INDIAN_BAB_API ALobbyVRCharacter : public ALobbyCharacter
@@ -40,6 +51,12 @@ public:
 	void Client_HideReadyWidget();
 
 	UFUNCTION(Client, Reliable)
+	void Client_ShowMainGameWidget();
+
+	UFUNCTION(Client, Reliable)
+	void Client_HideMainGameWidget();
+
+	UFUNCTION(Client, Reliable)
 	void Client_ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
 
 	void PressRightWidgetInteraction();
@@ -49,7 +66,12 @@ public:
 
 	void ShowReadyWidget();
 	void HideReadyWidget();
+	void ShowMainGameWidget();
+	void HideMainGameWidget();
 	void ShowResultWidget(const FString& WinnerName, int32 WinnerPlayerId);
+
+	UFUNCTION(BlueprintCallable, Category = "VR UI")
+	void SetActiveVRUI(EVRActiveUI ActiveUI);
 
 	virtual void OnRep_IsSitting() override;
 
@@ -91,6 +113,13 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
 	TSubclassOf<UGameResultWidget> ResultWidgetClass;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "VR UI")
+	TObjectPtr<UWidgetComponent> TurnInfoWidgetComponent;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI")
+	TSubclassOf<UTurnInfoWidget> TurnInfoWidgetClass;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR UI", meta = (ClampMin = "0.0"))
 	float ReadyWidgetDelaySeconds = 0.5f;
 
@@ -121,28 +150,44 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "VR|Pointer")
 	bool bLogVRPointerHits = false;
 
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	UPROPERTY(ReplicatedUsing=OnRep_ArmTransforms, BlueprintReadOnly, Category = "MotionController")
 	FTransform LeftArm;
 
-	UPROPERTY(Replicated, BlueprintReadOnly, Category = "MotionController")
+	UPROPERTY(ReplicatedUsing=OnRep_ArmTransforms, BlueprintReadOnly, Category = "MotionController")
 	FTransform RightArm;
 
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateArm(const FTransform& NewLeftArm, const FTransform& NewRightArm);
 
+	UFUNCTION()
+	void OnRep_ArmTransforms();
 
+	void GrabGun();
 
 protected:
 	virtual void UpdateAimFromView() override;
 	void UpdateArmPosition();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 private:
+	UFUNCTION(Server, Reliable)
+	void Server_GrabMainRevolver();
+
+	void AttachMainRevolverToRightGrip();
+
+	void ConfigureLocalVRTracking();
+	void ApplyReplicatedArmTransforms();
 	void ConfigureVRSeatedState();
 	void ConfigureWidgetInteraction();
+	void InitializeMainGameWidgetComponents();
+	void InitializeTurnInfoWidgetComponent();
 	void ShowReadyWidgetAfterDelay();
+	void SetComponentsForVRUIState(EVRActiveUI UIState, bool bActive);
+	void ApplyVRWidgetComponentState(UWidgetComponent* WidgetComponent, bool bActive);
+	bool DoesWidgetComponentMatchName(const UWidgetComponent* WidgetComponent, FName ComponentName);
 	void UpdateVRPointers();
 	void UpdateLaserPointer(const UMotionControllerComponent* AimController, const TCHAR* PointerName) const;
 	void DrawSeatDebugCapsule() const;
 
 	FTimerHandle ReadyWidgetDelayTimerHandle;
+
 };

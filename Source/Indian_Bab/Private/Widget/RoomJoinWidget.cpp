@@ -5,6 +5,8 @@
 #include "Components/ListView.h"
 #include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Widget/MainMenuWidget.h"
+#include "PlayerController/MainMenuPlayerController.h"
 
 
 void URoomJoinWidget::SetParentMenu(UUserWidget* InParentMenu)
@@ -99,6 +101,13 @@ FReply URoomJoinWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyE
 FReply URoomJoinWidget::NativeOnMouseButtonDown(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
 	FReply Reply = Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+
+	// VR 모드에서 SetInputMode(UIOnly)는 WidgetInteractionComponent 시뮬 키 라우팅을 깨뜨림 — Mouse 모드만 포커스 회복 적용
+	const AMainMenuPlayerController* MainMenuPC = Cast<AMainMenuPlayerController>(PlayerControllerRef);
+	if (MainMenuPC && !MainMenuPC->IsMouseMenuInputMode())
+	{
+		return FReply::Handled();
+	}
 
 	if (PlayerControllerRef)
 	{
@@ -219,6 +228,15 @@ void URoomJoinWidget::OnJoinSessionComplete(bool bWasSuccessful)
 
 void URoomJoinWidget::OnNoClicked()
 {
+	if (UMainMenuWidget* MainMenu = Cast<UMainMenuWidget>(ParentMenu))
+	{
+		if (!IsInViewport())
+		{
+			MainMenu->ShowMainMenuRoot();
+			return;
+		}
+	}
+
 	if (ParentMenu && PlayerControllerRef)
 	{
 		FInputModeGameAndUI InputModeData;

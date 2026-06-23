@@ -9,6 +9,11 @@
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Widget/MainGameWidget.h"
 
+namespace
+{
+	constexpr int32 GameStateMaxRaiseCount = 7;
+}
+
 AMainGameState::AMainGameState()
 {
 	CurrentGamePhase = EGamePhase::Lobby;
@@ -19,6 +24,8 @@ AMainGameState::AMainGameState()
 	CurrentPlayerIndex = -1;
 	CurrentBulletCount = 1;
 	MainRevolverChamberCount = 8;
+	MainShotPlayerId = -1;
+	MainShotTotalCount = 0;
 	CurrentBetInfo.CurrentBetAction = EBetAction::None;
 	CurrentBetInfo.BetActionTotal = 0;
 	TimerEndServerTime = 0.0f;
@@ -39,6 +46,8 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, CurrentPlayerIndex);
 	DOREPLIFETIME(AMainGameState, CurrentBulletCount);
 	DOREPLIFETIME(AMainGameState, MainRevolverChamberCount);
+	DOREPLIFETIME(AMainGameState, MainShotPlayerId);
+	DOREPLIFETIME(AMainGameState, MainShotTotalCount);
 	DOREPLIFETIME(AMainGameState, CurrentBetInfo);
 	DOREPLIFETIME(AMainGameState, bTurnActionInProgress);
 	DOREPLIFETIME(AMainGameState, TimerEndServerTime);
@@ -54,6 +63,11 @@ void AMainGameState::SetGamePhase(EGamePhase NewPhase)
 	if (HasAuthority())
 	{
 		CurrentGamePhase = NewPhase;
+		if (CurrentGamePhase != EGamePhase::Result)
+		{
+			ClearMainShotInfo();
+		}
+
 		if (CurrentGamePhase == EGamePhase::Starting)
 		{
 			CurrentBulletCount = 1;
@@ -83,7 +97,7 @@ void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount
 
 	if(NewAction == EBetAction::Raise)
 	{
-		if(RaiseCount < 1 || CurrentBulletCount + RaiseCount > MainRevolverChamberCount) return;
+		if(RaiseCount < 1 || RaiseCount > GameStateMaxRaiseCount || CurrentBulletCount + RaiseCount > MainRevolverChamberCount) return;
 		CurrentBulletCount += RaiseCount;
 
 		OnRep_CurrentBulletCount();
@@ -111,6 +125,24 @@ void AMainGameState::SetMainRevolverChamberCount(int32 NewChamberCount)
 
 	MainRevolverChamberCount = FMath::Clamp(NewChamberCount, 1, 8);
 	OnRep_MainRevolverChamberCount();
+}
+
+void AMainGameState::SetMainShotInfo(int32 NewMainShotPlayerId, int32 NewMainShotTotalCount)
+{
+	if (!HasAuthority()) return;
+
+	MainShotPlayerId = NewMainShotPlayerId;
+	MainShotTotalCount = FMath::Max(0, NewMainShotTotalCount);
+	OnRep_MainShotInfo();
+}
+
+void AMainGameState::ClearMainShotInfo()
+{
+	if (!HasAuthority()) return;
+
+	MainShotPlayerId = -1;
+	MainShotTotalCount = 0;
+	OnRep_MainShotInfo();
 }
 
 void AMainGameState::SetTimerInfo(float Time)
@@ -171,6 +203,8 @@ void AMainGameState::OnRep_CurrentTurnPlayerId()
 {
 	// 현재 턴의 플레이어 아이디 표시
     UE_LOG(LogTemp, Warning, TEXT("[GS]CurrentTurnPlayerId = %d"), CurrentTurnPlayerId);
+	OnCurrentTurnPlayerChanged.Broadcast();
+	OnTurnInfoChanged.Broadcast();
 }
 
 void AMainGameState::OnRep_GamePhase()
@@ -208,6 +242,7 @@ void AMainGameState::OnRep_GamePhase()
 	{
 		UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
 	}
+	OnTurnInfoChanged.Broadcast();
 }
 
 void AMainGameState::OnRep_CurrentBetInfo()
@@ -222,6 +257,7 @@ void AMainGameState::OnRep_CurrentBetInfo()
 	
 	// 게임 페이즈에 따라 메인 리볼버 위젯의 탄창 수 표시 업데이트
 	UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
+	OnTurnInfoChanged.Broadcast();
 
 	//UE_LOG(LogTemp, Warning, TEXT("[GS]BetAction = %s ActionTotal = %d CurrentBulletCount = %d"), ActionStr,CurrentBetInfo.BetActionTotal, CurrentBulletCount);
 }
@@ -244,12 +280,19 @@ void AMainGameState::OnRep_ReadyPlayerCount()
 void AMainGameState::OnRep_CurrentBulletCount()
 {
 	UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
+	OnTurnInfoChanged.Broadcast();
 	UE_LOG(LogTemp, Warning, TEXT("[GS]누적된 방아쇠 당김 횟수: %d"), CurrentBulletCount);
 }
 
 void AMainGameState::OnRep_MainRevolverChamberCount()
 {
 	UpdateMainRevolverWidget(CurrentBulletCount, MainRevolverChamberCount);
+	OnTurnInfoChanged.Broadcast();
+}
+
+void AMainGameState::OnRep_MainShotInfo()
+{
+	OnTurnInfoChanged.Broadcast();
 }
 
 void AMainGameState::OnRep_TimerInfo()

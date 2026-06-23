@@ -33,7 +33,7 @@ private:
 	// TObjectPtr<UEditableTextBox> Text_PlusTokenCount;
 
 	UPROPERTY(EditAnywhere)
-	float BetNum = 1;
+	int32 BetNum = 1;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Time;
@@ -91,8 +91,11 @@ public:
 	int32 GetBetNum() const;
 
 	void UpdateCenterBetLog(const FString& Message);
+	bool HandleVRClickAtWidgetLocation(const FVector2D& WidgetLocalHitLocation);
 
 private:
+	bool IsButtonUnderWidgetLocation(const UButton* Button, const FVector2D& WidgetLocalHitLocation) const;
+
 	UFUNCTION()
 	void MinusButtonClicked();
 

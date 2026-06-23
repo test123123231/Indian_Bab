@@ -9,6 +9,10 @@
 #include "Game/MainGameState.h"
 #include "PlayerController\MainGamePlayerController.h"
 
+namespace
+{
+	constexpr int32 MaxRaiseBetNum = 7;
+}
 
 void UMainGameWidget::UpdateCenterBetLog(const FString& Message)
 {
@@ -114,10 +118,16 @@ void UMainGameWidget::MinusButtonClicked()
 {
 	if (BetNum <= 1)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Minus blocked BetNum=%d OwnerPC=%s"),
+			BetNum,
+			*GetNameSafe(MainGamePC));
 		return;
 	}
 
 	BetNum--;
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Minus BetNum=%d OwnerPC=%s"),
+		BetNum,
+		*GetNameSafe(MainGamePC));
 
 	if (BetCount)
 	{
@@ -132,12 +142,18 @@ void UMainGameWidget::MinusButtonClicked()
 
 void UMainGameWidget::PlusButtonClicked()
 {
-	if (BetNum >= 8)
+	if (BetNum >= MaxRaiseBetNum)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Plus blocked BetNum=%d OwnerPC=%s"),
+			BetNum,
+			*GetNameSafe(MainGamePC));
 		return;
 	}
 
 	BetNum++;
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Plus BetNum=%d OwnerPC=%s"),
+		BetNum,
+		*GetNameSafe(MainGamePC));
 
 	if (BetCount)
 	{
@@ -146,7 +162,7 @@ void UMainGameWidget::PlusButtonClicked()
 
 	if (WBP_BetProgress)
 	{
-		if (BetNum == 8)
+		if (BetNum == MaxRaiseBetNum)
 		{
 			WBP_BetProgress->Fill();
 		}
@@ -159,29 +175,52 @@ void UMainGameWidget::PlusButtonClicked()
 
 void UMainGameWidget::OnButtonRaise()
 {
-	if (!MainGamePC) return;
-	if (BetNum < 1 || BetNum > 8) return;
+	if (!MainGamePC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Raise blocked OwnerPC=None BetNum=%d"), BetNum);
+		return;
+	}
+
+	if (BetNum < 1 || BetNum > MaxRaiseBetNum)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Raise blocked BetNum=%d OwnerPC=%s"),
+			BetNum,
+			*GetNameSafe(MainGamePC));
+		return;
+	}
 	
-	UE_LOG(LogTemp, Display, TEXT("Click Raise Button"));
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Raise BetNum=%d OwnerPC=%s"),
+		BetNum,
+		*GetNameSafe(MainGamePC));
 	MainGamePC->RequestRaise(BetNum);
 }
 
 void UMainGameWidget::OnButtonCheckCall()
 {
-	if (MainGamePC)
+	if (!MainGamePC)
 	{
-		UE_LOG(LogTemp, Display, TEXT("Click CheckCall Button"));
-		MainGamePC->RequestCheckCall();
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: CheckCall blocked OwnerPC=None BetNum=%d"), BetNum);
+		return;
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: CheckCall BetNum=%d OwnerPC=%s"),
+		BetNum,
+		*GetNameSafe(MainGamePC));
+	MainGamePC->RequestCheckCall();
 }
 
 void UMainGameWidget::OnButtonFold()
 {
-	if (MainGamePC)
-    {
-        UE_LOG(LogTemp, Display, TEXT("Click Fold Button"));
-        MainGamePC->RequestFold();
-    }
+	if (!MainGamePC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Fold blocked OwnerPC=None BetNum=%d"), BetNum);
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Fold BetNum=%d OwnerPC=%s"),
+		BetNum,
+		*GetNameSafe(MainGamePC));
+	MainGamePC->RequestFold();
 }
 
 
@@ -209,10 +248,55 @@ void UMainGameWidget::InitWidget()
     MainPS->OnTriggerCountChanged.AddUObject(this, &UMainGameWidget::UpdateSubRevolverCount);
 
     UpdateSubRevolverCount(MainPS->TotalTriggerCount);
-    UE_LOG(LogTemp, Warning, TEXT("[Widget] InitWidget success"));
 }
 
 int32 UMainGameWidget::GetBetNum() const
 {
 	return BetNum;
+}
+
+bool UMainGameWidget::HandleVRClickAtWidgetLocation(const FVector2D& WidgetLocalHitLocation)
+{
+	if (IsButtonUnderWidgetLocation(Plus_Button, WidgetLocalHitLocation))
+	{
+		PlusButtonClicked();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Minus_Button, WidgetLocalHitLocation))
+	{
+		MinusButtonClicked();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Button_Raise, WidgetLocalHitLocation))
+	{
+		OnButtonRaise();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Button_CheckCall, WidgetLocalHitLocation))
+	{
+		OnButtonCheckCall();
+		return true;
+	}
+
+	if (IsButtonUnderWidgetLocation(Button_Fold, WidgetLocalHitLocation))
+	{
+		OnButtonFold();
+		return true;
+	}
+
+	return false;
+}
+
+bool UMainGameWidget::IsButtonUnderWidgetLocation(const UButton* Button, const FVector2D& WidgetLocalHitLocation) const
+{
+	if (!Button || !Button->GetIsEnabled() || !Button->IsVisible())
+	{
+		return false;
+	}
+
+	const FVector2D AbsoluteHitLocation = GetCachedGeometry().LocalToAbsolute(WidgetLocalHitLocation);
+	return Button->GetCachedGeometry().IsUnderLocation(AbsoluteHitLocation);
 }

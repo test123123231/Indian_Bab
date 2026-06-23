@@ -58,6 +58,8 @@ public:
 	// 메인 리볼버 격발 액션
 	void HandleMainRevolverShotAction(AMainGamePlayerController* RequestPC);
 
+	void HandleMainRevolverGrabbed(ALobbyCharacter* Character);
+
 	// 자기 머리에 겨냥했을 때
 	void HandleFoldMontageFinished(ALobbyCharacter* Character);
 
@@ -107,6 +109,8 @@ protected:
 	// 메인 리볼버 격발 시간 넘겼을 때
 	void OnMainShotTimerExpired();
 
+	void OnMainRevolverGrabTimerExpired();
+
 	// 메인 리볼버 격발 실행
 	void ExecuteMainShot(bool bAutoFire);
 
@@ -134,6 +138,8 @@ protected:
 	void EndGame(AMainPlayerState* WinnerPS);
 
 	AMainPlayerState* GetLastAlivePlayer();
+
+	void ShowResultWidgets(FString WinnerName, int32 WinnerPlayerId);
 
 private:
 	// 빈 의자 찾기
@@ -184,6 +190,9 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Turn", meta = (AllowPrivateAccess = "true", ClampMin = "0.1", UIMin = "0.1"))
 	float TurnTimeLimitSeconds = 20.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Result", meta = (AllowPrivateAccess = "true", ClampMin = "0.0", UIMin = "0.0"))
+	float ResultWidgetDelaySeconds = 1.5f;
 
 	// 게임 시작 중복 호출 방지
 	bool bGameStartRequested = false;

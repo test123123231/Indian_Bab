@@ -2,6 +2,8 @@
 #include "Game/MainGameState.h"
 #include "Actor/SeatActor.h"
 #include "PlayerState/MainPlayerState.h"
+#include "PlayerController/MainGamePlayerController.h"
+#include "Character/LobbyCharacter.h"
 #include "Character/LobbyVRCharacter.h"
 #include "CardController/CardManager.h"
 #include "GameFramework/GameSession.h"
@@ -564,6 +566,20 @@ void AMainGameMode::StartMainGame()
 	GS->SetMainRevolverChamberCount(MainRevolverChamberCount);
 	GS->SetGamePhase(EGamePhase::Playing);
 
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PC = It->Get();
+		if (!PC)
+		{
+			continue;
+		}
+
+		if (ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(PC->GetPawn()))
+		{
+			VRCharacter->Client_ShowMainGameWidget();
+		}
+	}
+
 	//GS의 게임 페이즈 기반 플레이어 선택
 	PickPlayer(GS -> CurrentPlayerIndex);
 	
@@ -669,15 +685,32 @@ void AMainGameMode::ManageShotPhase()
         return;
     }
 
-    if (GS -> CurrentBulletCount <= 0)
-    {
+	if (GS -> CurrentBulletCount <= 0)
+	{
         StartMainRevolverPutBack();
         return;
     }
-	else
+
+	ALobbyCharacter* WinnerCharacter = nullptr;
+	if (CurrentWinnerPS)
 	{
-		StartMainshotTimer(10.0f);
+		if (AMainGamePlayerController* WinnerPC = Cast<AMainGamePlayerController>(CurrentWinnerPS->GetOwner()))
+		{
+			WinnerCharacter = Cast<ALobbyCharacter>(WinnerPC->GetPawn());
+		}
 	}
+
+	if (WinnerCharacter && WinnerCharacter->IsMainRevolverGrabbed())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GM] Waiting for winner to fire MainRevolver. Shot timer started."));
+		StartMainshotTimer(10.0f);
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Waiting for winner to grab MainRevolver. Grab timer started."));
+	GS->SetTimerInfo(10.0f);
+	GetWorldTimerManager().ClearTimer(TimerHandle);
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &AMainGameMode::OnMainRevolverGrabTimerExpired, 10.0f, false);
 }
 
 // 격발 페이즈 종료 후 정리
@@ -690,6 +723,7 @@ void AMainGameMode::FinishMainShotPhase()
     AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
 	GS->ClearTimerInfo();
+	GS->ClearMainShotInfo();
 
     CurrentWinnerPS = nullptr;
 	GS -> CurrentBulletCount = 0;
@@ -794,7 +828,26 @@ void AMainGameMode::EndGame(AMainPlayerState* WinnerPS)
 
 	const int32 WinnerPlayerId = WinnerPS ? WinnerPS->GetPlayerId() : -1;
 
-	UE_LOG(LogTemp, Warning, TEXT("[GM] Game ended. Winner=%s PlayerId=%d"), *WinnerName, WinnerPlayerId);
+	UE_LOG(LogTemp, Warning, TEXT("[GM] Game ended. Winner=%s PlayerId=%d. Result widget delay=%.2f"),
+		*WinnerName,
+		WinnerPlayerId,
+		ResultWidgetDelaySeconds);
+
+	FTimerDelegate ResultWidgetDelegate;
+	ResultWidgetDelegate.BindUObject(this, &AMainGameMode::ShowResultWidgets, WinnerName, WinnerPlayerId);
+	if (ResultWidgetDelaySeconds <= 0.0f)
+	{
+		ResultWidgetDelegate.ExecuteIfBound();
+	}
+	else
+	{
+		GetWorldTimerManager().SetTimer(TimerHandle, ResultWidgetDelegate, ResultWidgetDelaySeconds, false);
+	}
+}
+
+void AMainGameMode::ShowResultWidgets(FString WinnerName, int32 WinnerPlayerId)
+{
+	if (!HasAuthority()) return;
 
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{

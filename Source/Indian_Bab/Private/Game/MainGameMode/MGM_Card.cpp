@@ -4,6 +4,7 @@
 #include "Game/MainGameState.h"
 #include "Kismet/GameplayStatics.h"
 #include "Character/LobbyCharacter.h"
+#include "Character/LobbyVRCharacter.h"
 #include "Actor/SeatActor.h"
 #include "CardController/CardManager.h"
 #include "PlayerState/MainPlayerState.h"
@@ -70,8 +71,6 @@ void AMainGameMode::CheckPlayerCard()
 	AMainGameState* GS = GetGameState<AMainGameState>();
     if (!GS) return;
 
-	GS->SetGamePhase(EGamePhase::Result);
-
     CurrentWinnerPS = MaxCardPlayer();
 	if(!CurrentWinnerPS) return;
 
@@ -95,8 +94,18 @@ void AMainGameMode::CheckPlayerCard()
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[GM] MainRevolver is found"));
 
+	GS->SetGamePhase(EGamePhase::Result);
+	GS->SetMainShotInfo(CurrentWinnerPS->GetPlayerId(), GS->CurrentBulletCount);
+
 	WinnerCharacter->SetActiveRevolver(Revolver);
-	WinnerCharacter->Multicast_PlayGrabGunMontage(EGunHoldReason::Win);
+	WinnerCharacter->BeginManualMainRevolverPhase();
+
+	if (ALobbyVRCharacter* WinnerVRCharacter = Cast<ALobbyVRCharacter>(WinnerCharacter))
+	{
+		WinnerVRCharacter->Client_HideMainGameWidget();
+	}
+
+	ManageShotPhase();
 }
 
 // 활성 인원 중에서 가장 큰 값을 가진 플레이어
