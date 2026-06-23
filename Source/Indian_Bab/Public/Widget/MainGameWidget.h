@@ -22,6 +22,10 @@ protected:
 	virtual void NativeDestruct() override;
 
 private:
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> Txt_BetLog;
+
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UEditableTextBox> SubRevolverCount;
 
@@ -86,11 +90,16 @@ public:
 
 	int32 GetBetNum() const;
 
+	void UpdateCenterBetLog(const FString& Message);
+
 private:
 	UFUNCTION()
 	void MinusButtonClicked();
 
 	UFUNCTION()
 	void PlusButtonClicked();
-};
 
+	FTimerHandle BetLogTimerHandle;
+
+	void ClearBetLog();
+};

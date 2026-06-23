@@ -6,6 +6,8 @@
 #include "GameInstanceSubsystem/SessionSubsystem.h"
 #include "Actor/Revolver.h"
 #include "EngineUtils.h"
+#include "Blueprint/WidgetBlueprintLibrary.h"
+#include "Widget/MainGameWidget.h"
 
 AMainGameState::AMainGameState()
 {
@@ -42,6 +44,7 @@ void AMainGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AMainGameState, TimerEndServerTime);
 	DOREPLIFETIME(AMainGameState, TimerDuration);
 	DOREPLIFETIME(AMainGameState, bTimerActive);
+	DOREPLIFETIME(AMainGameState, LatestBetLog);
 }
 
 
@@ -88,6 +91,16 @@ void AMainGameState::ChangeCurrentBetInfo(EBetAction NewAction, int32 RaiseCount
 
 	CurrentBetInfo.CurrentBetAction = NewAction;
 	CurrentBetInfo.BetActionTotal++;
+
+	if (PlayerArray.IsValidIndex(CurrentPlayerIndex) && PlayerArray[CurrentPlayerIndex])
+	{
+		// 행동을 취한 유저의 이름을 변수에 저장
+		LatestBetLog.PlayerName = PlayerArray[CurrentPlayerIndex]->GetPlayerName();
+		LatestBetLog.ActionType = NewAction;
+
+		// 방장(서버) 컴퓨터도 로컬 화면에 즉시 로그가 뜨도록 OnRep 직접 호출
+		OnRep_LatestBetLog();
+	}
 
 	OnRep_CurrentBetInfo();
 }
@@ -275,6 +288,44 @@ void AMainGameState::UpdateMainRevolverWidgetPhase(bool bIsPlaying)
 		{
 			Revolver->SetWidgetPlayingPhase(bIsPlaying);
 			break;
+		}
+	}
+}
+
+
+void AMainGameState::OnRep_LatestBetLog()
+{
+	FString ActionStr = TEXT("");
+	switch (LatestBetLog.ActionType)
+	{
+	case EBetAction::Raise:     ActionStr = TEXT("Raise를 하셨습니다."); break;
+	case EBetAction::CheckCall: ActionStr = TEXT("Check를 하셨습니다."); break;
+	case EBetAction::Fold:      ActionStr = TEXT("Fold를 하셨습니다."); break;
+	default: return;
+	}
+
+	// 1. 출력할 스트링 문장 조립
+	FString LogMessage = FString::Printf(TEXT("%s님이 %s"), *LatestBetLog.PlayerName, *ActionStr);
+
+	// 2. 현재 내 화면을 소유하고 있는 로컬 플레이어 컨트롤러의 Local HUD 위젯을 서칭
+	if (UWorld* World = GetWorld())
+	{
+		if (APlayerController* LocalPC = World->GetFirstPlayerController())
+		{
+			// 현재 플레이어의 로컬 뷰포트에 띄워져 있는 MainGameWidget 인스턴스를 탐색
+			// 만약 PC 내부에 위젯 포인터가 public으로 있다면 LocalPC->MainGameWidgetInstance로 접근하는 것이 베스트이며,
+			// 여기서는 슬레이트 뷰포트에 렌더링된 인스턴스를 직접 찾아 안전하게 호출하는 범용 헬퍼 코드를 연결합니다.
+			TArray<UUserWidget*> FoundWidgets;
+			UWidgetBlueprintLibrary::GetAllWidgetsOfClass(World, FoundWidgets, UMainGameWidget::StaticClass(), true);
+
+			if (FoundWidgets.Num() > 0 && FoundWidgets[0])
+			{
+				if (UMainGameWidget* MainWidget = Cast<UMainGameWidget>(FoundWidgets[0]))
+				{
+					// 앞서 MainGameWidget에 만든 타이머 구동 텍스트 출력 함수를 호출!
+					MainWidget->UpdateCenterBetLog(LogMessage);
+				}
+			}
 		}
 	}
 }

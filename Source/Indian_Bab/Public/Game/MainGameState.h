@@ -31,6 +31,20 @@ struct FBetActionInfo
 	int32 BetActionTotal;
 };
 
+USTRUCT(BlueprintType)
+struct FBetLogData
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY()
+	FString PlayerName;
+
+	UPROPERTY()
+	EBetAction ActionType;
+};
+
 UCLASS()
 class INDIAN_BAB_API AMainGameState : public AGameState
 {
@@ -96,6 +110,9 @@ public:
 	UPROPERTY()
 	TArray<bool> CardArray;
 
+	UPROPERTY(ReplicatedUsing = OnRep_LatestBetLog)
+	FBetLogData LatestBetLog;
+
 
 	// 서버가 GamePhase를 변경할 때 호출
 	void SetGamePhase(EGamePhase NewPhase);
@@ -156,6 +173,12 @@ protected:
 
 	UFUNCTION()
 	void OnRep_TimerInfo();
+
+
+	UFUNCTION()
+	void OnRep_LatestBetLog();
+
+
 
 private:
 	// 게임 단계에 따라 메인 리볼버 위젯의 탄창 수 표시 업데이트
