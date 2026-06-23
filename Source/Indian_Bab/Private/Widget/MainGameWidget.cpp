@@ -14,6 +14,37 @@ namespace
 	constexpr int32 MaxRaiseBetNum = 7;
 }
 
+void UMainGameWidget::UpdateCenterBetLog(const FString& Message)
+{
+	if (!Txt_BetLog) return;
+
+	// 1. 텍스트 설정
+	Txt_BetLog->SetText(FText::FromString(Message));
+
+	// 2. 기존 타이머가 작동 중이었다면 중복 방지를 위해 초기화
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(BetLogTimerHandle);
+
+		// 3. 3.0초 뒤에 ClearBetLog 함수를 호출하도록 타이머 세팅
+		GetWorld()->GetTimerManager().SetTimer(
+			BetLogTimerHandle,
+			this,
+			&UMainGameWidget::ClearBetLog,
+			3.0f,
+			false
+		);
+	}
+}
+
+void UMainGameWidget::ClearBetLog()
+{
+	if (Txt_BetLog)
+	{
+		Txt_BetLog->SetText(FText::GetEmpty());
+	}
+}
+
 void UMainGameWidget::NativeDestruct()
 {
 	Super::NativeDestruct();
