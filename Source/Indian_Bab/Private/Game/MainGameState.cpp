@@ -356,13 +356,17 @@ void AMainGameState::OnRep_LatestBetLog()
 
 			UWidgetBlueprintLibrary::GetAllWidgetsOfClass(LocalPC, FoundWidgets, UMainGameWidget::StaticClass(), false);
 
-			if (FoundWidgets.Num() > 0 && FoundWidgets[0])
+			int32 UpdatedWidgetCount = 0;
+			for (UUserWidget* FoundWidget : FoundWidgets)
 			{
-				if (UMainGameWidget* MainWidget = Cast<UMainGameWidget>(FoundWidgets[0]))
+				if (UMainGameWidget* MainWidget = Cast<UMainGameWidget>(FoundWidget))
 				{
 					MainWidget->UpdateCenterBetLog(LogMessage);
+					++UpdatedWidgetCount;
 				}
 			}
+
+			UE_LOG(LogTemp, Log, TEXT("[BetLog] OnRep updated %d widget(s): %s"), UpdatedWidgetCount, *LogMessage);
 		}
 	}
 }
