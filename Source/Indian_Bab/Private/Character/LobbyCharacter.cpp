@@ -128,6 +128,15 @@ ALobbyCharacter::ALobbyCharacter()
 	NameWidgetComponent->SetDrawSize(FVector2D(420.f, 120.f));
 	NameWidgetComponent->SetWorldScale3D(FVector(0.075f));
 	NameWidgetComponent->SetTwoSided(true);
+
+	// 카드 스태틱 메쉬
+	CardDisplayMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("CardDisplayMesh"));
+	CardDisplayMesh->SetupAttachment(GetRootComponent());
+	CardDisplayMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	CardDisplayMesh->SetCastShadow(false);
+	CardDisplayMesh->SetVisibility(false);
+	CardDisplayMesh->SetRelativeLocation(FVector(0.f, 0.f, 100.f));
+	CardDisplayMesh->SetRelativeScale3D(FVector(0.1f));
 }
 
 
@@ -160,6 +169,7 @@ void ALobbyCharacter::BindPlayerStateDelegates()
 
 	PS->OnCardChanged.RemoveAll(this);
 	PS->OnCardChanged.AddUObject(this, &ALobbyCharacter::UpdateCardWidget);
+	PS->OnCardChanged.AddUObject(this, &ALobbyCharacter::UpdateCardMesh);
 
 	// 플레이어 상태 변화 구독 (생존 상태)
 	PS->OnAliveStateChanged.RemoveAll(this);
@@ -167,6 +177,7 @@ void ALobbyCharacter::BindPlayerStateDelegates()
 
 	UpdateNameWidget();
 	UpdateCardWidget();
+	UpdateCardMesh();
 	UpdatePlayerNameColor();
 
 	// 게임 스테이트의 턴 변경 델리게이트 구독
@@ -238,7 +249,32 @@ void ALobbyCharacter::UpdateCardWidget()
 		return;
 	}
 	
-	Widget->SetCardText(Card.ToDisplayString());
+	Widget->SetCardText("");
+}
+
+void ALobbyCharacter::UpdateCardMesh()
+{
+	if(!CardDisplayMesh) return;
+
+	AMainPlayerState* PS = GetPlayerState<AMainPlayerState>();
+	if (!PS) return;
+
+	if (IsLocallyControlled())
+	{
+		CardDisplayMesh->SetVisibility(false);
+		return;
+	}
+
+	const FCardData Card = PS->GetMyCard();
+	if (Card.Value == 0)
+	{
+		CardDisplayMesh->SetVisibility(false);
+		return;
+	}
+	
+	UStaticMesh* LoadedCardMesh = Card.CardMesh.LoadSynchronous();
+	CardDisplayMesh->SetStaticMesh(LoadedCardMesh);
+	CardDisplayMesh->SetVisibility(IsValid(LoadedCardMesh));
 }
 
 void ALobbyCharacter::UpdatePlayerNameColor()
