@@ -21,6 +21,8 @@
 #include "GameInstanceSubsystem/IndianBabGameInstance.h"
 #include "Engine/GameInstance.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/WidgetComponent.h"
+#include "Components/WidgetSwitcher.h"
 
 
 AMainGamePlayerController::AMainGamePlayerController()
@@ -223,6 +225,16 @@ void AMainGamePlayerController::SetupInputComponent()
         {
             EnhancedInput->BindAction(IA_MainGameInteract, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMainGameInteract);
         }
+
+		if (IA_MenuToggleLeft)
+		{
+			EnhancedInput->BindAction(IA_MenuToggleLeft, ETriggerEvent::Started, this, &AMainGamePlayerController::OnMenuToggleLeft);
+			UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_MenuToggleLeft bound"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[VR UI] IA_MenuToggleLeft is null"));
+		}
     }
 }
 
@@ -581,6 +593,120 @@ void AMainGamePlayerController::OnLeftTriggerClickReleased(const FInputActionVal
 	{
 		VRCharacter->ReleaseLeftWidgetInteraction();
 	}
+}
+
+void AMainGamePlayerController::OnMenuToggleLeft(const FInputActionValue& Value)
+{
+	ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn());
+	if (!VRCharacter || !VRCharacter->IsLocallyControlled())
+	{
+		return;
+	}
+
+	TArray<UWidgetComponent*> WidgetComponents;
+	VRCharacter->GetComponents<UWidgetComponent>(WidgetComponents);
+
+	for (UWidgetComponent* WidgetComponent : WidgetComponents)
+	{
+		if (!WidgetComponent)
+		{
+			continue;
+		}
+
+		const FString ComponentName = WidgetComponent->GetName();
+		const bool bIsMenuWidget =
+			ComponentName.Contains(TEXT("VRMenuWidget"), ESearchCase::IgnoreCase);
+
+		if (!bIsMenuWidget)
+		{
+			continue;
+		}
+
+		WidgetComponent->InitWidget();
+
+		UUserWidget* MasterMenu = WidgetComponent->GetUserWidgetObject();
+		UWidget* WidgetMenuPage = MasterMenu
+			? MasterMenu->GetWidgetFromName(TEXT("WidgetMenu"))
+			: nullptr;
+		UWidgetSwitcher* MenuSwitcher = WidgetMenuPage
+			? Cast<UWidgetSwitcher>(WidgetMenuPage->GetParent())
+			: nullptr;
+
+		if (!MasterMenu || !WidgetMenuPage || !MenuSwitcher)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("[VR UI] Failed to open WidgetMenu. Component=%s Master=%s Page=%s Switcher=%s"),
+				*ComponentName,
+				*GetNameSafe(MasterMenu),
+				*GetNameSafe(WidgetMenuPage),
+				*GetNameSafe(MenuSwitcher));
+			return;
+		}
+
+		const bool bMenuCurrentlyOpen =
+			WidgetComponent->IsVisible() &&
+			!WidgetComponent->bHiddenInGame &&
+			MenuSwitcher->GetActiveWidget() == WidgetMenuPage &&
+			WidgetMenuPage->IsVisible();
+		const bool bShowMenu = !bMenuCurrentlyOpen;
+
+		if (bShowMenu)
+		{
+			// A button may have hidden this page or switched away from it.
+			// Restore both states whenever the menu is opened again.
+			WidgetMenuPage->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			MenuSwitcher->SetActiveWidget(WidgetMenuPage);
+		}
+
+		WidgetComponent->SetVisibility(bShowMenu, true);
+		WidgetComponent->SetHiddenInGame(!bShowMenu);
+		WidgetComponent->SetCollisionEnabled(
+			bShowMenu ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision);
+		WidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+		WidgetComponent->SetCollisionResponseToChannel(
+			ECC_Visibility,
+			bShowMenu ? ECR_Block : ECR_Ignore);
+		WidgetComponent->SetGenerateOverlapEvents(false);
+
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] %s %s"),
+			*ComponentName,
+			bShowMenu ? TEXT("shown") : TEXT("hidden"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[VR UI] Menu widget component not found on %s"), *GetNameSafe(VRCharacter));
+}
+
+bool AMainGamePlayerController::CloseVRMenu()
+{
+	ALobbyVRCharacter* VRCharacter = Cast<ALobbyVRCharacter>(GetPawn());
+	if (!VRCharacter || !VRCharacter->IsLocallyControlled())
+	{
+		return false;
+	}
+
+	TArray<UWidgetComponent*> WidgetComponents;
+	VRCharacter->GetComponents<UWidgetComponent>(WidgetComponents);
+
+	for (UWidgetComponent* WidgetComponent : WidgetComponents)
+	{
+		if (!WidgetComponent ||
+			!WidgetComponent->GetName().Contains(TEXT("VRMenuWidget"), ESearchCase::IgnoreCase))
+		{
+			continue;
+		}
+
+		WidgetComponent->SetVisibility(false, true);
+		WidgetComponent->SetHiddenInGame(true);
+		WidgetComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		WidgetComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+		WidgetComponent->SetGenerateOverlapEvents(false);
+
+		UE_LOG(LogTemp, Warning, TEXT("[VR UI] VR menu closed; returning to gameplay"));
+		return true;
+	}
+
+	return false;
 }
 
 void AMainGamePlayerController::OnDebugRightTriggerPressed()

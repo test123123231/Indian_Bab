@@ -42,6 +42,10 @@ public:
     UFUNCTION(BlueprintCallable)
     void RequestFold();
 
+	/** Close the world-space VR menu and return to gameplay. */
+	UFUNCTION(BlueprintCallable, Category = "VR UI")
+	bool CloseVRMenu();
+
     UFUNCTION(Client, Reliable)
     void ClientOnSeated();
 
@@ -103,6 +107,8 @@ private:
     void OnLeftTriggerClickStarted(const FInputActionValue& Value);
 
     void OnLeftTriggerClickReleased(const FInputActionValue& Value);
+
+	void OnMenuToggleLeft(const FInputActionValue& Value);
 
     void OnMainGameInteract(const FInputActionValue& Value);
 
@@ -192,4 +198,7 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "Input|VR")
     TObjectPtr<UInputAction> IA_MainGameInteract;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input|VR")
+	TObjectPtr<UInputAction> IA_MenuToggleLeft;
 };

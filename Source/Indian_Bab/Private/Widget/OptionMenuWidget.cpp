@@ -7,6 +7,7 @@
 #include "Widget/ConfirmChangesWidget.h"
 #include "Widget/MainMenuWidget.h"
 #include "PlayerController/MainMenuPlayerController.h"
+#include "PlayerController/MainGamePlayerController.h"
 #include "Framework/Application/SlateApplication.h"
 
 
@@ -329,6 +330,16 @@ void UOptionMenuWidget::CloseMenu(bool bSaveChanges)
 		if (!(StagedSettings == SavedSettings))
 		{
 			OnApplyClicked(); // 저장 로직 실행
+		}
+	}
+
+	// The in-game option menu lives inside the world-space VR master menu.
+	// Closing it must resume gameplay instead of returning to the lobby main-menu page.
+	if (AMainGamePlayerController* MainGamePC = Cast<AMainGamePlayerController>(PlayerControllerRef))
+	{
+		if (MainGamePC->CloseVRMenu())
+		{
+			return;
 		}
 	}
 
