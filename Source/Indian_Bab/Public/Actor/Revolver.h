@@ -60,6 +60,9 @@ public:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_PlayFireSound();
 
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayDryFireSound();
+
 	// 장전 함수
 	UFUNCTION(BlueprintCallable, Category = "Weapon Actions")
 	void Reload();
@@ -77,12 +80,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Sound")
 	TObjectPtr<USoundBase> FireSound;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	TObjectPtr<USoundBase> DryFireSound;
+
 protected:
 	// 게임이 시작되거나 이 무기가 스폰될 때 호출됩니다.
 	virtual void BeginPlay() override;
 
 private:
 	void PlayFireSound() const;
+	void PlayDryFireSound() const;
 
 	FTransform InitialTableTransform;
 	bool bInitialTableTransformSaved = false;

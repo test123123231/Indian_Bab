@@ -245,6 +245,19 @@ void AMainGameMode::HandleFoldMontageFinished(ALobbyCharacter* Character)
 	if (PS)
 	{
 		const bool PlayerAlive = PS->ChangeSubRevolver();
+
+		if (ARevolver* SubRevolver = Character->DeskRevolver)
+		{
+			if (PlayerAlive)
+			{
+				SubRevolver->Multicast_PlayDryFireSound();
+			}
+			else
+			{
+				SubRevolver->Multicast_PlayFireSound();
+			}
+		}
+
 		if (PlayerAlive)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[GM] Player %d survived by sub revolver after fold montage"), PS->GetPlayerId());
@@ -356,6 +369,11 @@ void AMainGameMode::ExecuteMainShot(bool bAutoFire)
 		// 실탄이 한 번 나갔으면 이번 메인 리볼버 페이즈 종료
 		StartMainRevolverPutBack();
 		return;
+	}
+
+	if (ARevolver* Revolver = GetMainRevolver())
+	{
+		Revolver->Multicast_PlayDryFireSound();
 	}
 
 	if (GS->CurrentBulletCount <= 0)
