@@ -175,6 +175,7 @@ void UMainGameWidget::PlusButtonClicked()
 
 void UMainGameWidget::OnButtonRaise()
 {
+
 	if (!MainGamePC)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[VR UI] MainGameWidget clicked: Raise blocked OwnerPC=None BetNum=%d"), BetNum);

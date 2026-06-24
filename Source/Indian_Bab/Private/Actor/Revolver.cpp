@@ -51,6 +51,14 @@ ARevolver::ARevolver()
 	{
 		FireSound = FireSoundAsset.Object;
 	}
+
+	static ConstructorHelpers::FObjectFinder<USoundBase> DryFireSoundAsset(
+		TEXT("/Script/Engine.SoundWave'/Game/Revolver357/Audio/DryFireSound.DryFireSound'")
+	);
+	if (DryFireSoundAsset.Succeeded())
+	{
+		DryFireSound = DryFireSoundAsset.Object;
+	}
 }
 
 // BeginPlay
@@ -134,6 +142,22 @@ void ARevolver::PlayFireSound() const
 	UGameplayStatics::PlaySoundAtLocation(
 		this,
 		FireSound,
+		GetActorLocation()
+	);
+}
+
+void ARevolver::Multicast_PlayDryFireSound_Implementation()
+{
+	PlayDryFireSound();
+}
+
+void ARevolver::PlayDryFireSound() const
+{
+	if (!DryFireSound) return;
+
+	UGameplayStatics::PlaySoundAtLocation(
+		this,
+		DryFireSound,
 		GetActorLocation()
 	);
 }
