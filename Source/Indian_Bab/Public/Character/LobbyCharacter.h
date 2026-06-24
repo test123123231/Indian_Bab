@@ -135,6 +135,9 @@ public:
 	UFUNCTION()
 	void UpdateCardWidget();
 
+	UFUNCTION()
+	void UpdateCardMesh();
+
 	UFUNCTION(Server, Unreliable)
 	void Server_UpdateAim(FRotator NewAim);
 
@@ -217,6 +220,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Main Revolver")
 	float MainShotAimLineDistance = 5000.0f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Card")
+	TObjectPtr<UStaticMeshComponent> CardDisplayMesh;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -260,7 +266,5 @@ private:
 
 	// 조준선 표시/숨김
 	void SetMainShotAimLineVisible(bool bVisible);
-
-	// 조준선 그리기
 
 };

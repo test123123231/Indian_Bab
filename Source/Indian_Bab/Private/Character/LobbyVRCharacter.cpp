@@ -357,16 +357,38 @@ void ALobbyVRCharacter::OnRep_ArmTransforms()
 
 void ALobbyVRCharacter::UpdateAimFromView()
 {
-	if (!bIsSitting || !IsLocallyControlled() || !CameraComponent)
+	if (!bIsSitting || !IsLocallyControlled())
 	{
 		return;
 	}
 
-	FRotator Forward = CameraComponent->GetComponentRotation();
-	
-	const FRotator Aim = UKismetMathLibrary::NormalizedDeltaRotator(GetActorRotation(), Forward);
-	ReplicatedAim = Aim;
-	Server_UpdateAim(ReplicatedAim);
+	FRotator HeadRotation = FRotator::ZeroRotator;
+	FVector HeadPosition = FVector::ZeroVector;
+
+	if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
+	{
+		// HMD pose can be applied during XR camera update/late update without changing
+		// the camera component transform visible to the game thread.
+		UHeadMountedDisplayFunctionLibrary::GetOrientationAndPosition(HeadRotation, HeadPosition);
+	}
+	else if (CameraComponent)
+	{
+		HeadRotation = UKismetMathLibrary::NormalizedDeltaRotator(
+			CameraComponent->GetComponentRotation(),
+			GetActorRotation());
+	}
+
+	HeadRotation.Normalize();
+	ReplicatedAim = HeadRotation;
+
+	if (HasAuthority())
+	{
+		ForceNetUpdate();
+	}
+	else
+	{
+		Server_UpdateAim(ReplicatedAim);
+	}
 }
 
 void ALobbyVRCharacter::UpdateArmPosition() {
